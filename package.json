@@ -20,6 +20,10 @@
     "tslib": "^2.3.0",
     "typescript": "~5.7.2"
   },
+  "overrides": {
+    "minimatch@^9.0.0": "^9.0.9",
+    "picomatch@^4.0.0": "^4.0.5"
+  },
   "workspaces": [
     "packages/*",
     "apps/*",
