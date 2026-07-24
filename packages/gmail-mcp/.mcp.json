@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "gmail": {
-      "command": "npx",
-      "args": ["-y", "@pappcorn/gmail-mcp@latest"],
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/mcp.cjs"],
       "env": {
         "GMAIL_CLIENT_ID": "${user_config.client_id}",
         "GMAIL_CLIENT_SECRET": "${user_config.client_secret}",

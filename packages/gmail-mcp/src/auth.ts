@@ -95,9 +95,13 @@ export function loadCredentials(): MailCredentials {
   if (cachedCredentials) return cachedCredentials;
 
   // 1. Environment (the plugin path — keychain-backed, never written to disk).
-  const envId = process.env.GMAIL_CLIENT_ID;
-  const envSecret = process.env.GMAIL_CLIENT_SECRET;
-  const envRefresh = process.env.GMAIL_REFRESH_TOKEN;
+  // An unset plugin user_config can surface here as "" or as the literal
+  // unexpanded "${user_config.*}" placeholder — both mean "not configured",
+  // and must fall through to the credential file.
+  const clean = (v: string | undefined) => (v && !v.includes('${') ? v : undefined);
+  const envId = clean(process.env.GMAIL_CLIENT_ID);
+  const envSecret = clean(process.env.GMAIL_CLIENT_SECRET);
+  const envRefresh = clean(process.env.GMAIL_REFRESH_TOKEN);
   if (envId && envSecret && envRefresh) {
     cachedCredentials = {
       client_id: envId,

@@ -35,7 +35,10 @@ export interface WhatsAppConfig {
 }
 
 function readVar(name: string): string | undefined {
-  return process.env[name];
+  // An unset plugin user_config can surface as "" or as the literal
+  // unexpanded "${user_config.*}" placeholder — both mean "not configured".
+  const v = process.env[name];
+  return v && !v.includes('${') ? v : undefined;
 }
 
 let cached: WhatsAppConfig | null = null;
