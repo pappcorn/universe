@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "whatsapp": {
+      "command": "npx",
+      "args": ["-y", "@pappcorn/whatsapp-mcp@latest"],
+      "env": {
+        "WHATSAPP_ACCESS_TOKEN": "${user_config.access_token}",
+        "WHATSAPP_PHONE_NUMBER_ID": "${user_config.phone_number_id}",
+        "WHATSAPP_WABA_ID": "${user_config.waba_id}"
+      }
+    }
+  }
+}

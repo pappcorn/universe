@@ -2,20 +2,32 @@
   "name": "@universe/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "build": "nx run-many -t build",
+    "typecheck": "nx run-many -t typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
   "private": true,
-  "dependencies": {},
   "devDependencies": {
     "@nx/js": "21.1.1",
     "@swc-node/register": "~1.9.1",
     "@swc/core": "~1.5.7",
     "@swc/helpers": "~0.5.11",
+    "@types/node": "^20.19.43",
     "nx": "21.1.1",
     "prettier": "^2.6.2",
     "tslib": "^2.3.0",
     "typescript": "~5.7.2"
   },
   "workspaces": [
-    "packages/*"
-  ]
+    "packages/*",
+    "apps/*",
+    "tools/*"
+  ],
+  "description": "PappCorn's open-source Claude ecosystem — MCP connectors, skills, and agents you can fork, contribute to, or install.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pappcorn/universe.git"
+  }
 }

@@ -1,0 +1,25 @@
+{
+  "name": "pappcorn",
+  "description": "PappCorn's open-source connectors, skills, and agents for Claude.",
+  "owner": {
+    "name": "PappCorn",
+    "email": "hola@pappcorn.com"
+  },
+  "metadata": {
+    "pluginRoot": "./packages"
+  },
+  "plugins": [
+    {
+      "name": "gmail-mcp",
+      "source": "gmail-mcp",
+      "version": "0.1.0",
+      "description": "Read, search, triage, draft and SEND email from your own Gmail account. Uses your own Google OAuth app — your credentials never leave your machine."
+    },
+    {
+      "name": "whatsapp-mcp",
+      "source": "whatsapp-mcp",
+      "version": "0.1.0",
+      "description": "Send WhatsApp messages from your own number via Meta's official WhatsApp Cloud API. Outbound v1: templates and free-form replies inside the 24-hour window."
+    }
+  ]
+}

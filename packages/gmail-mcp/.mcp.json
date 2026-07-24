@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "gmail": {
+      "command": "npx",
+      "args": ["-y", "@pappcorn/gmail-mcp@latest"],
+      "env": {
+        "GMAIL_CLIENT_ID": "${user_config.client_id}",
+        "GMAIL_CLIENT_SECRET": "${user_config.client_secret}",
+        "GMAIL_REFRESH_TOKEN": "${user_config.refresh_token}"
+      }
+    }
+  }
+}

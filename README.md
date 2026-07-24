@@ -1,90 +1,84 @@
-# Universe
+# PappCorn Universe
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Open-source connectors, skills and agents for Claude — built by
+[PappCorn](https://pappcorn.com), free for anyone to use, fork or contribute to.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is almost ready ✨.
+## What's here
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+| Connector | What it does |
+|---|---|
+| [**gmail-mcp**](packages/gmail-mcp) | Read, search, triage, draft and **send** email from your own Gmail account |
+| [**whatsapp-mcp**](packages/whatsapp-mcp) | Send WhatsApp messages and approved templates from your own business number |
 
-## Finish your CI setup
+## The one rule: your credentials are yours
 
-[Click here to finish setting up your workspace!](https://cloud.nx.app/connect/7cZV1AMhky)
+Every connector here is **bring your own app**. You create your own Google or
+Meta application, authorize your own account, and the credential never leaves
+your machine. We do not host a service, we do not proxy your data, and there is
+no PappCorn account in the middle of your mailbox.
 
+This is more setup than clicking "connect". It is also the only version where
+the honest answer to *"who else can read my email?"* is **nobody**.
 
-## Generate a library
+It has a second benefit that is easy to miss: because you run your own app for
+your own account, you never cross the thresholds that force expensive vendor
+security reviews. Those exist to protect other people's data from a shared app.
+With one user, there is no shared app.
 
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
-```
+### Why we build our own connectors
 
-## Run tasks
+Installing a connector means handing an agent real power over a real account.
+An unmaintained third-party server is a supply-chain risk and a prompt-injection
+surface. We write and maintain these ourselves so the tool surface is small,
+auditable and deliberate — and so you can read every line before you trust it.
 
-To build the library use:
+## Install
 
-```sh
-npx nx build pkg1
-```
-
-To run any task with Nx use:
-
-```sh
-npx nx <target> <project-name>
-```
-
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Versioning and releasing
-
-To version and release the library use
+Add the marketplace once, then install what you need:
 
 ```
-npx nx release
+/plugin marketplace add pappcorn/universe
+/plugin install gmail-mcp@pappcorn
+/plugin install whatsapp-mcp@pappcorn
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+The plugin asks for your credentials at install time and stores them in your
+operating system's keychain.
 
-[Learn more about Nx release &raquo;](hhttps://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Each connector needs a one-time account setup first:
 
-## Keep TypeScript project references up to date
+- **Gmail** → [docs/setup-google-cloud.md](docs/setup-google-cloud.md) (~15 min)
+- **WhatsApp** → [docs/setup-meta-whatsapp.md](docs/setup-meta-whatsapp.md)
 
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
+Prefer wiring it up by hand, or not using the plugin system? See
+[docs/install.md](docs/install.md).
 
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
+## What these connectors will not do
 
-```sh
-npx nx sync
+- **No autonomous action.** They act when you ask. Nothing watches your inbox
+  and replies on its own.
+- **Sending always confirms first** — recipient, subject and full body.
+- **Gmail never deletes mail.** It can label and archive; that is all.
+
+## Repository layout
+
+```
+packages/    connectors and libraries (each publishable on its own)
+apps/        deployable applications
+tools/       operator scripts
+docs/        setup guides
 ```
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
+An Nx monorepo. `npm install`, then `npx nx run-many -t build`.
 
-```sh
-npx nx sync:check
-```
+## Contributing
 
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+These connectors are also used internally at PappCorn, so improvements made here
+get pulled back into our own stack. Fixing something for yourself likely fixes it
+for us too.
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## License
 
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+MIT — see [LICENSE](LICENSE).

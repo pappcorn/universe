@@ -1,0 +1,30 @@
+{
+  "name": "@pappcorn/whatsapp-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for WhatsApp — send messages and approved templates from your own number via Meta's official WhatsApp Cloud API.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pappcorn/universe.git",
+    "directory": "packages/whatsapp-mcp"
+  },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/whatsapp-mcp",
+  "keywords": ["mcp", "model-context-protocol", "whatsapp", "cloud-api", "claude"],
+  "type": "commonjs",
+  "main": "./dist/mcp.js",
+  "bin": {
+    "pappcorn-whatsapp-mcp": "./dist/mcp.js"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "whatsapp": "node -r @swc-node/register src/cli.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
