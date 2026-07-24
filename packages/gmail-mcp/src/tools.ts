@@ -84,7 +84,7 @@ const composeShape = {
     .union([z.string(), z.array(z.string())])
     .optional()
     .describe(
-      'Local file path(s) to attach (multipart/mixed; filename = basename, Content-Type by extension). Paths are NOT comma-split — pass an array for several files. Total ≤ 25MB (Gmail limit).',
+      'Local file path(s) to attach (multipart/mixed; filename = basename, Content-Type by extension). Files must live inside the allowed directory (GMAIL_ATTACHMENT_DIR, default: the working directory) — paths outside it are rejected. Paths are NOT comma-split — pass an array for several files. Total ≤ 25MB (Gmail limit).',
     ),
 };
 

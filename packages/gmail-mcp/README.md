@@ -59,6 +59,11 @@ RFC 5987 so non-ASCII names survive, and the total is checked against Gmail's
 25 MB message limit before anything is sent. Paths are never comma-split, so
 filenames containing commas work.
 
+Attachments may only come from one allowed directory: `GMAIL_ATTACHMENT_DIR`
+(default: the server's working directory). Paths that resolve outside it —
+including via symlinks — are rejected, so a hostile or confused prompt can't
+mail out arbitrary files the process happens to be able to read.
+
 ## Configuration
 
 Credentials come from environment variables (`GMAIL_CLIENT_ID`,

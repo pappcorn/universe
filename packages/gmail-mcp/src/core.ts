@@ -13,8 +13,9 @@
 // to reach another mailbox from here — that's the point of the auth design.
 
 
-import { readFileSync } from 'node:fs';
-import { basename } from 'node:path';
+import { randomBytes } from 'node:crypto';
+import { readFileSync, realpathSync } from 'node:fs';
+import { basename, resolve, sep } from 'node:path';
 
 import { authHeaders, loadCredentials } from './auth';
 
@@ -368,15 +369,38 @@ function toAttachmentList(v: string | string[] | undefined): string[] {
   return (Array.isArray(v) ? v : [v]).map((s) => s.trim()).filter(Boolean);
 }
 
+// Attachments may only come from ONE allowed directory (GMAIL_ATTACHMENT_DIR,
+// default: the process working directory). These paths are model-supplied, so
+// without a fence anything the process can read — SSH keys, browser profiles,
+// /etc/passwd — could be attached and mailed out by a hostile prompt. Both
+// sides go through realpath so a symlink inside the fence can't point out.
+function resolveAttachmentPath(path: string): string {
+  const base = realpathSync(resolve(process.env.GMAIL_ATTACHMENT_DIR ?? process.cwd()));
+  let real: string;
+  try {
+    real = realpathSync(resolve(base, path));
+  } catch {
+    throw new Error(`Attachment not found or unreadable: ${path}`);
+  }
+  if (real !== base && !real.startsWith(base + sep)) {
+    throw new Error(
+      `Attachment is outside the allowed directory (${base}): ${path}. ` +
+        'Move the file there, or point GMAIL_ATTACHMENT_DIR at the folder you attach from.',
+    );
+  }
+  return real;
+}
+
 // Read each file and render it as a multipart/mixed part: base64 payload,
 // Content-Type by extension, Content-Disposition: attachment with RFC 5987
 // filename parameters.
 function buildAttachmentParts(paths: string[]): string[][] {
   let total = 0;
   return paths.map((path) => {
+    const real = resolveAttachmentPath(path);
     let data: Buffer;
     try {
-      data = readFileSync(path);
+      data = readFileSync(real);
     } catch {
       throw new Error(`Attachment not found or unreadable: ${path}`);
     }
@@ -387,7 +411,7 @@ function buildAttachmentParts(paths: string[]): string[][] {
         `Attachments exceed Gmail's 25MB message limit (${Math.round(total / 1024 / 1024)}MB encoded so far at ${path}).`,
       );
     }
-    const name = basename(path);
+    const name = basename(real);
     const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
     const mimeType = ATTACHMENT_MIME[ext] ?? 'application/octet-stream';
     return [
@@ -471,7 +495,7 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
   if (args.html) {
     // multipart/alternative: a stripped-text part first (lowest fidelity),
     // then the HTML the caller supplied.
-    const boundary = `=_pappcorn_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+    const boundary = `=_pappcorn_${randomBytes(12).toString('hex')}`;
     contentHeaders.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
     contentBody = [
       `--${boundary}`,
@@ -495,7 +519,7 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
   let bodyBlock: string;
   const attachmentPaths = toAttachmentList(args.attachments);
   if (attachmentPaths.length) {
-    const mixed = `=_pappcorn_mixed_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+    const mixed = `=_pappcorn_mixed_${randomBytes(12).toString('hex')}`;
     headers.push(`Content-Type: multipart/mixed; boundary="${mixed}"`);
     const parts: string[] = [`--${mixed}`, ...contentHeaders, '', contentBody];
     for (const part of buildAttachmentParts(attachmentPaths)) {
@@ -654,7 +678,9 @@ export async function modifyLabels(opts: {
   add?: string[];
   remove?: string[];
 }): Promise<ModifyResult> {
-  if (!opts.message_id === !opts.thread_id) {
+  const hasMessage = Boolean(opts.message_id);
+  const hasThread = Boolean(opts.thread_id);
+  if (hasMessage === hasThread) {
     throw new Error('modifyLabels requires exactly one of message_id or thread_id.');
   }
   const add = opts.add ?? [];
@@ -684,7 +710,9 @@ export async function modifyLabels(opts: {
 
 // Archive = remove INBOX (never delete — v1 has no delete by design).
 export async function archive(opts: { message_id?: string; thread_id?: string }): Promise<ModifyResult> {
-  if (!opts.message_id === !opts.thread_id) {
+  const hasMessage = Boolean(opts.message_id);
+  const hasThread = Boolean(opts.thread_id);
+  if (hasMessage === hasThread) {
     throw new Error('archive requires exactly one of message_id or thread_id.');
   }
   const path = opts.message_id
