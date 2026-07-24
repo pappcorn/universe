@@ -27,8 +27,8 @@ npm run gmail -- whoami
 | `mail_whoami` | Which mailbox is authenticated, plus message/thread totals |
 | `mail_search` | Gmail query syntax (`from:`, `is:unread`, `newer_than:7d`, …) |
 | `mail_read_thread` | Full thread, decoded — including HTML mail as readable text |
-| `mail_send` | Send. Plain text or HTML; replies thread correctly |
-| `mail_draft` | Compose into Drafts without sending |
+| `mail_send` | Send. Plain text or HTML, **with attachments**; replies thread correctly |
+| `mail_draft` | Compose into Drafts without sending — attachments included |
 | `mail_label` | Add/remove labels, creating them if needed |
 | `mail_archive` | Remove from inbox |
 
@@ -50,6 +50,14 @@ npm run gmail -- whoami
 
 Scopes: `gmail.modify` (read/search/label/archive) and `gmail.send`. To narrow
 them, see [Hardening](../../docs/setup-google-cloud.md#hardening--how-to-make-this-stricter).
+
+## Attachments
+
+`mail_send` and `mail_draft` take local file paths via `attachments` (one path or
+a list). Content-Type is inferred from the extension, filenames are encoded per
+RFC 5987 so non-ASCII names survive, and the total is checked against Gmail's
+25 MB message limit before anything is sent. Paths are never comma-split, so
+filenames containing commas work.
 
 ## Configuration
 

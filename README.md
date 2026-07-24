@@ -1,64 +1,86 @@
-# PappCorn Universe
+<div align="center">
 
-Open-source connectors, skills and agents for Claude — built by
-[PappCorn](https://pappcorn.com), free for anyone to use, fork or contribute to.
+# 🍿 PappCorn Universe
 
-## What's here
+**Open-source connectors, skills and agents for Claude.**
 
-| Connector | What it does |
-|---|---|
-| [**gmail-mcp**](packages/gmail-mcp) | Read, search, triage, draft and **send** email from your own Gmail account |
-| [**whatsapp-mcp**](packages/whatsapp-mcp) | Send WhatsApp messages and approved templates from your own business number |
+Give your assistant real hands — your email, your WhatsApp — without handing
+your credentials to anyone.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A520-black.svg)](https://nodejs.org)
+[![MCP](https://img.shields.io/badge/Model_Context_Protocol-black.svg)](https://modelcontextprotocol.io)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-black.svg)](CONTRIBUTING.md)
+
+</div>
+
+---
+
+## Connectors
+
+| | Connector | What it does |
+|:--:|---|---|
+| ✉️ | [**gmail-mcp**](packages/gmail-mcp) | Read, search, triage, draft and **send** email — with attachments — from your own account |
+| 💬 | [**whatsapp-mcp**](packages/whatsapp-mcp) | Send messages and approved templates from your own business number |
+
+Claude's built-in Google connector reads and drafts but **deliberately cannot
+send**. That gap is the reason this repo exists.
+
+## Quick start
+
+```bash
+# 1. Add the marketplace (once)
+/plugin marketplace add pappcorn/universe
+
+# 2. Install what you need
+/plugin install gmail-mcp@pappcorn
+/plugin install whatsapp-mcp@pappcorn
+```
+
+The plugin asks for your credentials at install time and keeps them in your
+operating system's keychain.
+
+Each connector needs a one-time account setup first:
+
+- ✉️ **Gmail** → [Connect your own Gmail account](docs/setup-google-cloud.md) · ~15 min
+- 💬 **WhatsApp** → [Connect your own WhatsApp number](docs/setup-meta-whatsapp.md) · free test number, no line to buy
+
+Prefer wiring it by hand, or not using plugins at all?
+See [install.md](docs/install.md).
+
+---
 
 ## The one rule: your credentials are yours
 
 Every connector here is **bring your own app**. You create your own Google or
 Meta application, authorize your own account, and the credential never leaves
-your machine. We do not host a service, we do not proxy your data, and there is
-no PappCorn account in the middle of your mailbox.
+your machine. We host nothing, proxy nothing, and there is no PappCorn account
+anywhere near your mailbox.
 
-This is more setup than clicking "connect". It is also the only version where
+This is more work than clicking "connect". It is also the only version where
 the honest answer to *"who else can read my email?"* is **nobody**.
 
-It has a second benefit that is easy to miss: because you run your own app for
-your own account, you never cross the thresholds that force expensive vendor
-security reviews. Those exist to protect other people's data from a shared app.
-With one user, there is no shared app.
+There is a second benefit that is easy to miss. Because you run your own app for
+your own account, you never cross the thresholds that trigger expensive vendor
+security reviews. Those exist to protect other people's data from a shared app —
+and with one user, there is no shared app.
 
-### Why we build our own connectors
+### Why we write our own connectors
 
-Installing a connector means handing an agent real power over a real account.
-An unmaintained third-party server is a supply-chain risk and a prompt-injection
-surface. We write and maintain these ourselves so the tool surface is small,
-auditable and deliberate — and so you can read every line before you trust it.
+Installing a connector means handing an agent real power over a real account. An
+unmaintained third-party server is both a supply-chain risk and a
+prompt-injection surface. We build and maintain these ourselves so the tool
+surface stays small, auditable and deliberate — and so you can read every line
+before you trust it.
 
-## Install
+### What they will not do
 
-Add the marketplace once, then install what you need:
+- **Nothing autonomous.** They act when you ask. Nothing watches your inbox and
+  replies on its own.
+- **Sending always confirms first** — recipient, subject, full body.
+- **Gmail never deletes mail.** It labels and archives; that is all.
 
-```
-/plugin marketplace add pappcorn/universe
-/plugin install gmail-mcp@pappcorn
-/plugin install whatsapp-mcp@pappcorn
-```
-
-The plugin asks for your credentials at install time and stores them in your
-operating system's keychain.
-
-Each connector needs a one-time account setup first:
-
-- **Gmail** → [docs/setup-google-cloud.md](docs/setup-google-cloud.md) (~15 min)
-- **WhatsApp** → [docs/setup-meta-whatsapp.md](docs/setup-meta-whatsapp.md)
-
-Prefer wiring it up by hand, or not using the plugin system? See
-[docs/install.md](docs/install.md).
-
-## What these connectors will not do
-
-- **No autonomous action.** They act when you ask. Nothing watches your inbox
-  and replies on its own.
-- **Sending always confirms first** — recipient, subject and full body.
-- **Gmail never deletes mail.** It can label and archive; that is all.
+---
 
 ## Repository layout
 
@@ -69,16 +91,25 @@ tools/       operator scripts
 docs/        setup guides
 ```
 
-An Nx monorepo. `npm install`, then `npx nx run-many -t build`.
+An Nx monorepo:
+
+```bash
+npm install
+npx nx run-many -t build
+```
 
 ## Contributing
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are very welcome — start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
-These connectors are also used internally at PappCorn, so improvements made here
-get pulled back into our own stack. Fixing something for yourself likely fixes it
-for us too.
+These connectors are also used in production at PappCorn, so improvements made
+here get pulled back into our own stack. Fixing something for yourself probably
+fixes it for us too.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE) — do what you like with it.
+
+<div align="center">
+<sub>Built by <a href="https://pappcorn.com">PappCorn</a> 🍿</sub>
+</div>

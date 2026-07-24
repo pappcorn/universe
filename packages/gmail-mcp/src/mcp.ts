@@ -6,7 +6,6 @@
 //
 // v1 is ON-DEMAND only (read + triage + confirmed sends). Inbound triggers
 // (users.watch → Pub/Sub → worker) are Fase 2, designed but not built — see
-//  No credential file = no mail access; there is no fallback.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';

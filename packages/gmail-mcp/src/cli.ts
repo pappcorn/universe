@@ -181,9 +181,17 @@ async function cmdRead(argv: string[]): Promise<void> {
   for (const m of t.messages) printThreadMessage(m);
 }
 
+// --attach paths are NOT comma-split (paths may contain commas) — repeat the
+// flag for several files: --attach a.pdf --attach b.png
+function attachFlag(v: FlagVal | FlagVal[] | undefined): string[] | undefined {
+  if (v === undefined) return undefined;
+  const out = (Array.isArray(v) ? v : [v]).filter((x): x is string => typeof x === 'string');
+  return out.length ? out : undefined;
+}
+
 async function composeFromFlags(argv: string[], cmd: 'send' | 'draft'): Promise<ComposeArgs> {
   const { flags } = parseFlags(argv);
-  const usage = `Usage: ${cmd} --to <addr> --subject <s> --body <text|-> [--cc <addr>] [--bcc <addr>] [--reply-to-message <id>] [--thread <id>] [--html] [--json]   (--body - reads stdin)`;
+  const usage = `Usage: ${cmd} --to <addr> --subject <s> --body <text|-> [--cc <addr>] [--bcc <addr>] [--attach <file>]... [--reply-to-message <id>] [--thread <id>] [--html] [--json]   (--body - reads stdin)`;
   const to = listFlag(flags.to);
   if (!to) fail(2, usage);
   if (typeof flags.subject !== 'string') fail(2, `${cmd} requires --subject <s>.\n${usage}`);
@@ -199,6 +207,7 @@ async function composeFromFlags(argv: string[], cmd: 'send' | 'draft'): Promise<
     reply_to_message_id: typeof flags['reply-to-message'] === 'string' ? flags['reply-to-message'] : undefined,
     thread_id: typeof flags.thread === 'string' ? flags.thread : undefined,
     html: flags.html === true,
+    attachments: attachFlag(flags.attach),
   };
 }
 
@@ -291,8 +300,8 @@ Commands:
   search    Search messages (Gmail query syntax).           search <query> [--max N] [--page P] [--json]
   read      Read a full thread (headers + text bodies).     read <threadId> [--json]
   send      Send an email — OUTWARD-FACING: confirm         send --to <addr> --subject <s> --body <text|->
-            recipient + subject + body with the user first.      [--cc <addr>] [--bcc <addr>] [--reply-to-message <id>]
-                                                                 [--thread <id>] [--html] [--json]
+            recipient + subject + body with the user first.      [--cc <addr>] [--bcc <addr>] [--attach <file>]...
+                                                                 [--reply-to-message <id>] [--thread <id>] [--html] [--json]
   draft     Create a draft (same flags as send).            draft --to <addr> --subject <s> --body <text|-> [...]
   labels    List labels (id + name).                        labels [--json]
   label     Add/remove labels on a message or thread.       label <id> --add a,b [--remove c,d] [--thread] [--json]
@@ -300,6 +309,7 @@ Commands:
 
 Auth: OAuth credential file at ~/.config/pappcorn-gmail-mcp/credentials.json (override: $GMAIL_MCP_CREDENTIALS),
 Notes: --body - reads the body from stdin (pipe long bodies). --to/--cc/--bcc repeat or take comma lists.
+       --attach repeats per file (never comma-split; total ≤ 25MB — the Gmail message limit).
        Label names resolve case-insensitively; names being ADDED are auto-created. v1 never deletes mail.
 Exit codes: 0 ok | 1 local config (credential missing/revoked) | 2 bad args | 3 Gmail API failure.
 `;
@@ -337,7 +347,6 @@ async function main(): Promise<void> {
 
   // Preflight the credential file up front so a locked-out session exits 1
   // (local config) with the clean "no access" message — the HARD GATE from
-  //  The help paths above never reach here.
   if (cmd !== 'help' && cmd !== '--help' && cmd !== '-h') {
     try {
       loadCredentials();

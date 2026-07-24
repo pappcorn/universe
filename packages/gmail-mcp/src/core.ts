@@ -4,14 +4,17 @@
 // frontends). Just typed functions over the endpoints we use.
 //
 // THE GOOGLE ERROR SHAPE: Google APIs put failures in the **HTTP status** plus
-// a JSON `error` body ({ error: { code, message, status } }). Every call routes
-// through `callGmail`, which throws a GmailApiError carrying the HTTP status and
-// Google's message — so callers can rely on try/catch.
+// a JSON `error` body ({ error: { code, message, status } }) — the opposite of
+// Every call routes through `callGmail`, which throws a GmailApiError carrying
+// the HTTP status and Google's message — so callers can rely on try/catch.
 //
 // Everything is scoped to ONE mailbox: the base path is users/me, and "me" is
 // whoever the refresh token was minted as — your own account. There is no way
-// to reach another mailbox from here; that's the point of the auth design.
+// to reach another mailbox from here — that's the point of the auth design.
 
+
+import { readFileSync } from 'node:fs';
+import { basename } from 'node:path';
 
 import { authHeaders, loadCredentials } from './auth';
 
@@ -302,8 +305,48 @@ function toList(v: string | string[] | undefined): string[] {
 
 // Body lines ride as base64 (wrapped at 76 cols) — immune to line-length and
 // bare-CRLF pitfalls regardless of what the model puts in the body.
-function b64Body(text: string): string {
-  return Buffer.from(text, 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n');
+function b64Body(data: string | Buffer): string {
+  const buf = typeof data === 'string' ? Buffer.from(data, 'utf8') : data;
+  return buf.toString('base64').replace(/(.{76})/g, '$1\r\n');
+}
+
+// Content-Type by extension for attachments; anything unknown ships as
+// application/octet-stream (Gmail sniffs for preview anyway).
+const ATTACHMENT_MIME: Record<string, string> = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  csv: 'text/csv',
+  json: 'application/json',
+  html: 'text/html',
+  zip: 'application/zip',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+};
+
+// Gmail rejects messages over 25MB total; guard on the base64-encoded
+// attachment bytes (what actually ships on the wire) so the caller gets a
+// clear local error instead of an opaque HTTP 413.
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+
+// MIME parameter values can't carry RFC 2047 encoded-words (that syntax is
+// for unstructured header text). ASCII names go plain-quoted; non-ASCII names
+// get an ASCII fallback plus the RFC 5987 extended form (attr*=UTF-8''pct).
+function mimeParam(attr: string, value: string): string {
+  const quoted = (s: string) => `${attr}="${s.replace(/"/g, "'")}"`;
+  if (/^[\x20-\x7e]*$/.test(value)) return quoted(value);
+  const pct = encodeURIComponent(value).replace(
+    /['()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `${quoted(value.replace(/[^\x20-\x7e]/g, '_'))}; ${attr}*=UTF-8''${pct}`;
 }
 
 export interface ComposeArgs {
@@ -315,6 +358,46 @@ export interface ComposeArgs {
   reply_to_message_id?: string;
   thread_id?: string;
   html?: boolean;
+  attachments?: string | string[];
+}
+
+// Attachment paths are NOT comma-split (paths may contain commas) — a string
+// is one path, an array is one path per entry.
+function toAttachmentList(v: string | string[] | undefined): string[] {
+  if (v === undefined) return [];
+  return (Array.isArray(v) ? v : [v]).map((s) => s.trim()).filter(Boolean);
+}
+
+// Read each file and render it as a multipart/mixed part: base64 payload,
+// Content-Type by extension, Content-Disposition: attachment with RFC 5987
+// filename parameters.
+function buildAttachmentParts(paths: string[]): string[][] {
+  let total = 0;
+  return paths.map((path) => {
+    let data: Buffer;
+    try {
+      data = readFileSync(path);
+    } catch {
+      throw new Error(`Attachment not found or unreadable: ${path}`);
+    }
+    const payload = b64Body(data);
+    total += payload.length;
+    if (total > MAX_ATTACHMENT_BYTES) {
+      throw new Error(
+        `Attachments exceed Gmail's 25MB message limit (${Math.round(total / 1024 / 1024)}MB encoded so far at ${path}).`,
+      );
+    }
+    const name = basename(path);
+    const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
+    const mimeType = ATTACHMENT_MIME[ext] ?? 'application/octet-stream';
+    return [
+      `Content-Type: ${mimeType}; ${mimeParam('name', name)}`,
+      'Content-Transfer-Encoding: base64',
+      `Content-Disposition: attachment; ${mimeParam('filename', name)}`,
+      '',
+      payload,
+    ];
+  });
 }
 
 interface BuiltMessage {
@@ -330,8 +413,8 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
   // The sending address is always the authenticated mailbox — never a
   // configured value, so this tool cannot be pointed at someone else's From.
   // Prefer the account recorded when the token was minted; otherwise ask Gmail
-  // who we are. (There is deliberately NO hardcoded fallback: a wrong From
-  // silently sends mail under the wrong identity.)
+  // who we are. There is deliberately NO hardcoded fallback: a wrong From
+  // silently sends mail under the wrong identity.
   const creds = loadCredentials();
   let account = creds.account;
   if (!account) {
@@ -344,7 +427,6 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
         'so the credential records its account, or set GMAIL_ACCOUNT.',
     );
   }
-
   const to = toList(args.to);
   if (!to.length) throw new Error('send/draft requires at least one recipient in `to`.');
   if (!args.subject) throw new Error('send/draft requires a `subject`.');
@@ -366,11 +448,10 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
     threadId = threadId ?? orig.threadId;
   }
 
-  // Display name is opt-in via GMAIL_FROM_NAME. Default to the bare address:
-  // this tool must never stamp someone else's name on your outgoing mail.
-  const fromName = process.env.GMAIL_FROM_NAME;
   const headers: string[] = [
-    `From: ${fromName ? encodeAddress(`${fromName} <${account}>`) : encodeAddress(account)}`,
+    // Display name is opt-in via GMAIL_FROM_NAME. Default to the bare address:
+    // this tool must never stamp someone else's name on your outgoing mail.
+    `From: ${process.env.GMAIL_FROM_NAME ? encodeAddress(`${process.env.GMAIL_FROM_NAME} <${account}>`) : encodeAddress(account)}`,
     `To: ${to.map(encodeAddress).join(', ')}`,
   ];
   const cc = toList(args.cc);
@@ -382,13 +463,17 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
   if (references) headers.push(`References: ${references}`);
   headers.push('MIME-Version: 1.0');
 
-  let bodyBlock: string;
+  // The text/html content, expressed as its own headers + body so it can sit
+  // either at the top level (no attachments) or as the first part of a
+  // multipart/mixed envelope (with attachments).
+  const contentHeaders: string[] = [];
+  let contentBody: string;
   if (args.html) {
     // multipart/alternative: a stripped-text part first (lowest fidelity),
     // then the HTML the caller supplied.
     const boundary = `=_pappcorn_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
-    headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
-    bodyBlock = [
+    contentHeaders.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+    contentBody = [
       `--${boundary}`,
       'Content-Type: text/plain; charset=UTF-8',
       'Content-Transfer-Encoding: base64',
@@ -402,9 +487,25 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
       `--${boundary}--`,
     ].join('\r\n');
   } else {
-    headers.push('Content-Type: text/plain; charset=UTF-8');
-    headers.push('Content-Transfer-Encoding: base64');
-    bodyBlock = b64Body(args.body);
+    contentHeaders.push('Content-Type: text/plain; charset=UTF-8');
+    contentHeaders.push('Content-Transfer-Encoding: base64');
+    contentBody = b64Body(args.body);
+  }
+
+  let bodyBlock: string;
+  const attachmentPaths = toAttachmentList(args.attachments);
+  if (attachmentPaths.length) {
+    const mixed = `=_pappcorn_mixed_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+    headers.push(`Content-Type: multipart/mixed; boundary="${mixed}"`);
+    const parts: string[] = [`--${mixed}`, ...contentHeaders, '', contentBody];
+    for (const part of buildAttachmentParts(attachmentPaths)) {
+      parts.push(`--${mixed}`, ...part);
+    }
+    parts.push(`--${mixed}--`);
+    bodyBlock = parts.join('\r\n');
+  } else {
+    headers.push(...contentHeaders);
+    bodyBlock = contentBody;
   }
 
   const mime = `${headers.join('\r\n')}\r\n\r\n${bodyBlock}`;

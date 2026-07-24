@@ -80,6 +80,12 @@ const composeShape = {
     .describe('Message id being replied to (from mail_search / mail_read_thread). Sets In-Reply-To/References and inherits the thread.'),
   thread_id: z.string().optional().describe('Thread id to attach to (inferred from reply_to_message_id when replying).'),
   html: z.boolean().optional().describe('Send as HTML (multipart/alternative with an auto-derived text part). Default: plain text.'),
+  attachments: z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .describe(
+      'Local file path(s) to attach (multipart/mixed; filename = basename, Content-Type by extension). Paths are NOT comma-split — pass an array for several files. Total ≤ 25MB (Gmail limit).',
+    ),
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -159,7 +165,7 @@ export function registerTools(server: McpServer): void {
     'mail_send',
     {
       description:
-        'Send an email from the authenticated mailbox. OUTWARD-FACING — real people receive it immediately: ALWAYS confirm recipient(s) + subject + FULL body with the user before calling. v1 has no auto-sends. Plain text by default; html=true sends multipart/alternative. To reply in a thread pass reply_to_message_id (In-Reply-To/References are set from the original and the thread is inherited). Returns the sent message id + thread id.',
+        'Send an email from the authenticated mailbox. OUTWARD-FACING — real people receive it immediately: ALWAYS confirm recipient(s) + subject + FULL body (and any attachments) with the user before calling. v1 has no auto-sends. Plain text by default; html=true sends multipart/alternative; attachments (local file paths) ride multipart/mixed. To reply in a thread pass reply_to_message_id (In-Reply-To/References are set from the original and the thread is inherited). Returns the sent message id + thread id.',
       inputSchema: composeShape,
     },
     async (args) => {
@@ -176,7 +182,7 @@ export function registerTools(server: McpServer): void {
     'mail_draft',
     {
       description:
-        'Create a DRAFT in the authenticated mailbox (same composition as mail_send; nothing goes out — it lands in Drafts for a human to review/send in Gmail). Still OUTWARD-FACING content: confirm recipient(s) + subject + full body with the user before calling. Returns the draft id + underlying message id.',
+        'Create a DRAFT in the authenticated mailbox (same composition as mail_send, attachments included; nothing goes out — it lands in Drafts for a human to review/send in Gmail). Still OUTWARD-FACING content: confirm recipient(s) + subject + full body with the user before calling. Returns the draft id + underlying message id.',
       inputSchema: composeShape,
     },
     async (args) => {
