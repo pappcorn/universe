@@ -24,6 +24,23 @@ standalone publishable npm package.
   account — these tools touch real inboxes and real people.
 - **Format.** `npm run format`.
 
+## How a PR gets merged
+
+Every PR runs two checks: **CI** (`nx affected` lint/test/build) and
+**`claude-review`** — an automated code review (workflow "Claude Code Review")
+that posts a `## Findings` comment and fails the check while any 🔴 Important
+finding remains. 🟡 Nit and 🟣 Pre-existing findings never block.
+
+To clear a red review, fix the 🔴 findings and push (the gate re-runs on every
+push and only grades the current diff), or reply on the PR mentioning `@claude`
+if you believe a finding is wrong. Maintainers can run this loop with the
+`/review-loop` skill in `.claude/skills/review-loop/`.
+
+When the checks are green, the `ready-to-merge` label signals that a PR is
+ready for human review: adding it triggers a comment asking the code owners
+(@ni500, @lcaloguerea) to approve. The label never merges anything — `main` is
+protected and a human code-owner approval is always required.
+
 ## The rules that aren't negotiable
 
 These connectors hold credentials for people's email and phone numbers. A few
