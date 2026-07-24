@@ -17,24 +17,24 @@ jobs:
     #   github.event.pull_request.user.login == 'external-contributor' ||
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-    
+
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: read
       issues: read
       id-token: write
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      # Marca de tiempo previa a la reseña. La usa "Enforce review verdict" para
-      # distinguir una reseña PUBLICADA en esta corrida de una vieja que quedó
-      # en el PR de días atrás (ver ClickUp 86e2etkv1).
-      - name: Marcar inicio del review
+      # Timestamp taken before the review runs. "Verify the review was posted"
+      # uses it to tell a review POSTED in this run apart from a stale one left
+      # on the PR by an earlier run against an older diff.
+      - name: Mark review start
         run: echo "REVIEW_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Run Claude Code Review
@@ -43,24 +43,22 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-          # Un merge automatizado a una rama de partner (lo arma cris-approve)
-          # actualiza el PR de integración con `actor = github-actions[bot]`, y
-          # la acción se niega a correr para un actor no-humano: "Workflow
-          # initiated by non-human actor". El review del PR de integración
-          # FALLABA cada vez que el bot mergeaba algo — CI en verde, review en
-          # rojo, sin relación visible con la causa.
+          # An automated base-branch update pushes to the PR with
+          # `actor = github-actions[bot]`, and the action refuses to run for a
+          # non-human actor ("Workflow initiated by non-human actor") — so the
+          # review check failed on every bot-updated PR with no visible cause.
           #
-          # Lo correcto es revisarlo, no saltárselo: si nadie tocó el merge a
-          # mano, con más razón alguien debería mirar el resultado. Se permite
-          # el bot de Actions, y SOLO ese — nunca `*`.
-          allowed_bots: "github-actions"
+          # The right move is to review those pushes, not skip them: if no
+          # human touched the merge, someone should look at the result all the
+          # more. Allow the Actions bot, and ONLY that one — never `*`.
+          allowed_bots: 'github-actions'
 
           # Pin an explicit, current model. The action's old default
           # (claude-sonnet-4-20250514) was retired and now 404s on the first
           # API call, failing the job before any review runs. Sonnet 4.6 is the
           # cost/quality fit for an automated per-PR gate; bump to
           # claude-opus-4-8 if deeper bug-finding is worth the cost.
-          model: "claude-sonnet-4-6"
+          model: 'claude-sonnet-4-6'
 
           # Direct prompt for automated review (no @claude mention needed)
           direct_prompt: |
@@ -99,11 +97,11 @@ jobs:
             or anything other than PASS.
 
           # Narrowly scoped: Claude can only write one of two verdict values.
-          allowed_tools: "Bash(echo PASS > verdict.txt),Bash(echo FAIL > verdict.txt)"
+          allowed_tools: 'Bash(echo PASS > verdict.txt),Bash(echo FAIL > verdict.txt)'
 
           # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
           # use_sticky_comment: true
-          
+
           # Optional: Customize review based on file types
           # direct_prompt: |
           #   Review this PR focusing on:
@@ -111,37 +109,35 @@ jobs:
           #   - For API endpoints: Security, input validation, and error handling
           #   - For React components: Performance, accessibility, and best practices
           #   - For tests: Coverage, edge cases, and test quality
-          
+
           # Optional: Different prompts for different authors
           # direct_prompt: |
-          #   ${{ github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' && 
+          #   ${{ github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' &&
           #   'Welcome! Please review this PR from a first-time contributor. Be encouraging and provide detailed explanations for any suggestions.' ||
           #   'Please provide a thorough code review focusing on our coding standards and best practices.' }}
-          
+
           # Optional: Skip review for certain conditions
           # if: |
           #   !contains(github.event.pull_request.title, '[skip-review]') &&
           #   !contains(github.event.pull_request.title, '[WIP]')
 
-      # El veredicto y la publicación de la reseña estaban desacoplados: si la
-      # publicación fallaba o salía truncada, el check pasaba igual y el PR
-      # quedaba VERDE SIN RESEÑA para el diff actual. Peor: /review-loop toma
-      # "el último comentario con ## Findings", que podía ser de otro diff de
-      # días atrás. Visto el 21-jul en los PR #104 (reseña de 8 días antes) y
-      # #188 (comentario truncado). Un gate sin evidencia debe ser rojo.
-      # ClickUp 86e2etkv1.
-      - name: Verificar que la reseña se publicó
+      # The verdict and the posted review used to be decoupled: if posting the
+      # review failed or came out truncated, the check still passed and the PR
+      # went GREEN WITH NO REVIEW for the current diff. Worse, tooling that
+      # reads "the latest comment containing ## Findings" could pick up a
+      # review of an older diff. A gate without evidence must be red.
+      - name: Verify the review was posted
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          publicadas=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+          posted=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
             --paginate --jq "[.[]
               | select(.created_at >= \"$REVIEW_STARTED_AT\")
               | select(.body | contains(\"## Findings\"))] | length")
-          echo "Reseñas publicadas en esta corrida: $publicadas (desde $REVIEW_STARTED_AT)"
-          if [ "$publicadas" -eq 0 ]; then
-            echo "::error::La reseña no se publicó en el PR. El veredicto existe pero no hay evidencia legible para este diff — se falla en vez de pasar en verde sin reseña (ClickUp 86e2etkv1)."
+          echo "Reviews posted in this run: $posted (since $REVIEW_STARTED_AT)"
+          if [ "$posted" -eq 0 ]; then
+            echo "::error::No review was posted on the PR. The verdict exists but there is no readable evidence for this diff — failing instead of passing green without a review."
             exit 1
           fi
 
