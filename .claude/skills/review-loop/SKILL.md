@@ -117,6 +117,25 @@ gh api "repos/pappcorn/universe/issues/<PR>/comments" --paginate \
 Verify it postdates the current head commit's review run (compare `created_at`
 against the run's start time from `gh run list`). Split findings by severity.
 
+### Red without a verdict — infrastructure failures
+
+`claude-review` can fail **before any review runs**. If the check is red and no
+`## Findings` comment postdates the run, read the failure log
+(`gh run view <run-id> --log-failed`) and classify instead of looping:
+
+- **The PR modifies `claude-code-review.yml` itself.** The action's app-token
+  exchange requires the workflow file on the PR head to be byte-identical to
+  the one on the default branch, and otherwise fails with
+  `401 Workflow validation failed`. That is the action's tamper guard, not a review
+  verdict — no push can turn the check green while the workflow change is part
+  of the PR. Post the classification as a PR comment so the human reviewers
+  know the red is expected, then stop; the check heals on the first PR after
+  the workflow change merges.
+- **Any other pre-review error** (bad or expired credentials, a retired model
+  id, runner issues): there is no code finding to fix. Surface the relevant
+  log excerpt on the PR and escalate (Step 6) — never retry-loop hoping for a
+  different outcome, and never weaken the workflow to get past it.
+
 If `--dry-run`: report verdict + findings and stop here.
 
 ## Step 4 — Fix or dispute each 🔴 (and red CI)
