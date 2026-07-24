@@ -1,0 +1,33 @@
+{
+  "name": "whatsapp-mcp",
+  "displayName": "WhatsApp",
+  "version": "0.1.0",
+  "description": "Send WhatsApp messages and approved templates from your own business number, via Meta's official Cloud API.",
+  "author": { "name": "PappCorn" },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/whatsapp-mcp",
+  "repository": "https://github.com/pappcorn/universe",
+  "license": "MIT",
+  "keywords": ["whatsapp", "messaging", "mcp"],
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "access_token": {
+      "type": "string",
+      "title": "Meta access token",
+      "description": "A System User permanent token with business_management + whatsapp_business_messaging + whatsapp_business_management. See docs/setup-meta-whatsapp.md.",
+      "sensitive": true,
+      "required": true
+    },
+    "phone_number_id": {
+      "type": "string",
+      "title": "Phone number ID",
+      "description": "The numeric ID shown under WhatsApp > API Setup — not the phone number itself.",
+      "required": true
+    },
+    "waba_id": {
+      "type": "string",
+      "title": "WhatsApp Business Account ID",
+      "description": "Only needed to list message templates.",
+      "required": false
+    }
+  }
+}

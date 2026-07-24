@@ -1,0 +1,34 @@
+{
+  "name": "gmail-mcp",
+  "displayName": "Gmail",
+  "version": "0.1.0",
+  "description": "Read, search, triage, draft and SEND email from your own Gmail account. Your credentials stay on your machine.",
+  "author": { "name": "PappCorn" },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/gmail-mcp",
+  "repository": "https://github.com/pappcorn/universe",
+  "license": "MIT",
+  "keywords": ["gmail", "email", "mcp"],
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "client_id": {
+      "type": "string",
+      "title": "OAuth client ID",
+      "description": "From the OAuth client you created in your own Google Cloud project. See docs/setup-google-cloud.md. Leave all three fields empty to use a credentials file instead ($GMAIL_MCP_CREDENTIALS, default ~/.config/pappcorn-gmail-mcp/credentials.json).",
+      "required": false
+    },
+    "client_secret": {
+      "type": "string",
+      "title": "OAuth client secret",
+      "description": "From the same OAuth client. Stored in your OS keychain, never written to disk by this plugin.",
+      "sensitive": true,
+      "required": false
+    },
+    "refresh_token": {
+      "type": "string",
+      "title": "Refresh token",
+      "description": "Minted by scripts/mint-token.mjs after you log in as the account you want the assistant to use. Grants access to that one mailbox only.",
+      "sensitive": true,
+      "required": false
+    }
+  }
+}

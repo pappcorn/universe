@@ -1,0 +1,32 @@
+{
+  "name": "@pappcorn/gmail-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Gmail — read, search, triage, draft and send from your own account, using your own Google OAuth app.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pappcorn/universe.git",
+    "directory": "packages/gmail-mcp"
+  },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/gmail-mcp",
+  "keywords": ["mcp", "model-context-protocol", "gmail", "email", "claude"],
+  "type": "commonjs",
+  "main": "./dist/mcp.js",
+  "bin": {
+    "pappcorn-gmail-mcp": "./dist/mcp.js"
+  },
+  "files": ["dist", "bin", "scripts", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && npm run bundle",
+    "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=bin/mcp.cjs",
+    "gmail": "node -r @swc-node/register src/cli.ts",
+    "mint-token": "node scripts/mint-token.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

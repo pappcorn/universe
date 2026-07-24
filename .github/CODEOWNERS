@@ -1,0 +1,12 @@
+# Code owners for pappcorn/universe.
+#
+# GitHub requests these people as reviewers automatically on any PR touching
+# the matching paths, which is what keeps the "every PR opens with an assignee
+# and a reviewer" rule self-enforcing rather than something to remember.
+
+# Everything, by default.
+*                       @ni500 @lcaloguerea
+
+# Connectors handle real credentials — keep both owners on them.
+/packages/gmail-mcp/    @ni500 @lcaloguerea
+/packages/whatsapp-mcp/ @ni500 @lcaloguerea
