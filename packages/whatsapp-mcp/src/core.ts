@@ -56,8 +56,14 @@ export interface SendResult {
 // normalize rather than make every caller remember.
 export function normalizeRecipient(to: string): string {
   const digits = to.replace(/[^\d]/g, '');
-  if (!digits) {
-    throw new Error(`Recipient "${to}" contains no digits. Expected an international number, e.g. 573001234567.`);
+  // E.164 bounds (country code included): under 7 digits can't be a routable
+  // international number, over 15 violates the spec. Catching it here beats
+  // forwarding it to Meta and getting an opaque 131026 back.
+  if (digits.length < 7 || digits.length > 15) {
+    throw new Error(
+      `Recipient "${to}" is not a valid international number (got ${digits.length} digit${digits.length === 1 ? '' : 's'}, ` +
+        'expected 7-15 including country code, e.g. 573001234567).',
+    );
   }
   return digits;
 }
