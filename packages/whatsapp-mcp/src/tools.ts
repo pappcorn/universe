@@ -168,7 +168,7 @@ export function registerTools(server: McpServer): void {
         to: z
           .string()
           .describe('Recipient in international format, e.g. 573001234567. "+" and separators are stripped.'),
-        text: z.string().min(1).describe('Message body. WhatsApp caps text at 4096 characters.'),
+        text: z.string().min(1).max(4096).describe('Message body. WhatsApp caps text at 4096 characters.'),
         from_phone_number_id: z.string().optional().describe('Override the configured sending number.'),
       },
     },
