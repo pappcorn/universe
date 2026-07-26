@@ -12,8 +12,8 @@ you own.
 Two steps, roughly 15 minutes:
 
 1. **[Create your own Google OAuth app and mint a token](../../docs/setup-google-cloud.md)** —
-   your credential, on your machine. (Visual version with a screenshot of every
-   screen: [how-to-gmail.md](../../docs/how-to-gmail.md).)
+   your credential, on your machine. (Visual version with screenshots:
+   [how-to-gmail.md](../../docs/how-to-gmail.md).)
 2. **[Install it into Claude](../../docs/install.md)**.
 
 ```bash

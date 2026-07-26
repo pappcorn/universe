@@ -4,8 +4,8 @@ This guide gets your assistant sending email **from your own address**, in about
 15 minutes. You will create your own Google app — nothing is shared with
 PappCorn or anyone else.
 
-> Prefer pictures? The same walkthrough exists with a screenshot of every
-> screen — including the "Google hasn't verified this app" warning — at
+> Prefer pictures? The same walkthrough exists with screenshots — including
+> the "Google hasn't verified this app" warning — at
 > [how-to-gmail.md](how-to-gmail.md).
 
 ## Why this is not one click
