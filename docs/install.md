@@ -29,8 +29,8 @@ by the setup guide).
 **WhatsApp** asks for: access token, phone number ID, and optionally the
 WhatsApp Business Account ID.
 
-> This path runs the published npm package. If the plugin fails to start because
-> the package is not yet published, use Path B.
+> This path runs a self-contained bundle committed to the repo — nothing is
+> fetched from npm and there is no build step.
 
 ---
 
@@ -40,10 +40,12 @@ For contributors, or if you want to read and run exactly what's on disk.
 
 ```bash
 git clone https://github.com/pappcorn/universe.git
-cd universe
-npm install
-npx nx run-many -t build      # or: cd packages/gmail-mcp && npm run build
 ```
+
+That's it — each package commits a self-contained bundle at `bin/mcp.cjs`, so
+there is nothing to install or build just to _run_ a connector. (Contributors
+changing source: `npm install` + `npm run build` inside the package rebuilds
+`dist/` and the bundle.)
 
 Then register the server with your Claude client.
 
@@ -54,7 +56,7 @@ Then register the server with your Claude client.
   "mcpServers": {
     "gmail": {
       "command": "node",
-      "args": ["/absolute/path/to/universe/packages/gmail-mcp/dist/mcp.js"]
+      "args": ["/absolute/path/to/universe/packages/gmail-mcp/bin/mcp.cjs"]
     }
   }
 }
@@ -82,9 +84,47 @@ at startup.
 
 ---
 
+## Path C — any MCP client
+
+Nothing in these connectors is Claude-specific: they are standard
+[MCP](https://modelcontextprotocol.io) servers over stdio. Any MCP-capable
+agent — Codex CLI, Gemini CLI, Cursor, your own — runs them the same way:
+launch `node /absolute/path/to/universe/packages/<connector>/bin/mcp.cjs`,
+with credentials supplied either as environment variables or via the
+credential file (see the tables below).
+
+Clone as in Path B (no build needed), then use your client's MCP config
+syntax. For example:
+
+**Codex CLI** — `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.gmail]
+command = "node"
+args = ["/absolute/path/to/universe/packages/gmail-mcp/bin/mcp.cjs"]
+```
+
+**Gemini CLI** — `~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "gmail": {
+      "command": "node",
+      "args": ["/absolute/path/to/universe/packages/gmail-mcp/bin/mcp.cjs"]
+    }
+  }
+}
+```
+
+The setup guides, the credential file, and the `Verify it works` step below are
+identical regardless of client.
+
+---
+
 ## Verify it works
 
-Before wiring it into Claude, check the credential from a terminal:
+Before wiring it into your client, check the credential from a terminal:
 
 ```bash
 cd packages/gmail-mcp   && npm run gmail -- whoami
@@ -94,8 +134,8 @@ cd packages/whatsapp-mcp && npm run whatsapp -- whoami
 `whoami` prints the account the connector is authenticated as, and never prints
 any secret. If it fails, the error tells you what to fix.
 
-Once installed, ask Claude something simple — _"what's in my inbox from this
-week?"_ — and confirm the tools appear.
+Once installed, ask your agent something simple — _"what's in my inbox from
+this week?"_ — and confirm the tools appear.
 
 ---
 

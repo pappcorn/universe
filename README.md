@@ -2,7 +2,8 @@
 
 # 🍿 PappCorn Universe
 
-**Open-source connectors, skills and agents for Claude.**
+**Open-source connectors, skills and agents. Claude-first, agent-agnostic —
+standard MCP servers that run anywhere MCP does.**
 
 Give your assistant real hands — your email, your WhatsApp — without handing
 your credentials to anyone.
@@ -47,6 +48,15 @@ Each connector needs a one-time account setup first:
 
 Prefer wiring it by hand, or not using plugins at all?
 See [install.md](docs/install.md).
+
+### Not on Claude?
+
+The connectors are standard [MCP](https://modelcontextprotocol.io) servers over
+stdio — nothing in them is Claude-specific. Codex CLI, Gemini CLI, Cursor, or
+any other MCP-capable agent can run them: clone the repo and point your client
+at the self-contained bundle (`node packages/gmail-mcp/bin/mcp.cjs` — no build
+step, no dependencies). See
+[install.md → any MCP client](docs/install.md#path-c--any-mcp-client).
 
 ---
 

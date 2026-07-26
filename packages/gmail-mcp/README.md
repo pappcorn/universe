@@ -75,6 +75,75 @@ from your OS keychain — or from a credential file
 Optional: `GMAIL_FROM_NAME` sets a display name on outgoing mail. Default is the
 bare address.
 
+## Multiple mailboxes, one Google Cloud project
+
+The OAuth client identifies your *app*; the refresh token identifies the
+*mailbox*. So one Google Cloud project (one client ID/secret) can back as many
+mailboxes as you like — mint one refresh token per mailbox by completing the
+consent flow logged in as that account. No extra projects needed.
+
+A running server is bound to exactly one credential set — there is no
+account-switching tool. To use several mailboxes, register the server once per
+mailbox in your own `.mcp.json` (or `claude mcp add`), each entry pinning its
+own credentials. Tools arrive namespaced by server name
+(`mcp__gmail-work__mail_send` vs `mcp__gmail-personal__mail_send`), so it is
+always explicit which mailbox a call goes through.
+
+**Variant A — env vars per entry.** Same client, different refresh tokens.
+`GMAIL_ACCOUNT` is **required** on every entry here: the token cache is keyed
+by account, and two entries without it share one cache slot — one mailbox can
+briefly be served the other's access token.
+
+```json
+{
+  "mcpServers": {
+    "gmail-work": {
+      "command": "node",
+      "args": ["/path/to/gmail-mcp/bin/mcp.cjs"],
+      "env": {
+        "GMAIL_CLIENT_ID": "<same client>",
+        "GMAIL_CLIENT_SECRET": "<same secret>",
+        "GMAIL_REFRESH_TOKEN": "<work token>",
+        "GMAIL_ACCOUNT": "you@work.com"
+      }
+    },
+    "gmail-personal": {
+      "command": "node",
+      "args": ["/path/to/gmail-mcp/bin/mcp.cjs"],
+      "env": {
+        "GMAIL_CLIENT_ID": "<same client>",
+        "GMAIL_CLIENT_SECRET": "<same secret>",
+        "GMAIL_REFRESH_TOKEN": "<personal token>",
+        "GMAIL_ACCOUNT": "you@personal.com"
+      }
+    }
+  }
+}
+```
+
+**Variant B — credential file per entry.** Mint once per mailbox;
+`--account` writes the mailbox into the file (which keys the token cache, so
+the collision above can't happen on this route), `--out` picks the path:
+
+```bash
+node scripts/mint-token.mjs --client oauth-client.json --account you@work.com     --out ~/.config/pappcorn-gmail-mcp/work.json
+node scripts/mint-token.mjs --client oauth-client.json --account you@personal.com --out ~/.config/pappcorn-gmail-mcp/personal.json
+```
+
+Each entry's `env` is then just
+`{"GMAIL_MCP_CREDENTIALS": "/Users/you/.config/pappcorn-gmail-mcp/work.json"}`.
+
+Notes:
+
+- **Use manual entries, not two plugin installs.** The plugin's `user_config`
+  binding supports one credential set per install; multi-mailbox is the
+  manual-registration path.
+- Instances under one OS user share the single token-cache file, so
+  alternating mailboxes re-mints access tokens a bit more often. Harmless.
+- These are OAuth *user* credentials, not Google service-account keys — the
+  connector deliberately doesn't support domain-wide delegation (see
+  Security). One consent flow per mailbox is the model.
+
 ## Not in v1
 
 No auto-replies and no inbound triggers. The server acts when asked; it does not
