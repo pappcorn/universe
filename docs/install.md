@@ -3,6 +3,7 @@
 Do the account setup first — the connector is useless without a credential:
 
 - **Gmail** → [setup-google-cloud.md](setup-google-cloud.md)
+  (visual version with screenshots: [how-to-gmail.md](how-to-gmail.md))
 - **WhatsApp** → [setup-meta-whatsapp.md](setup-meta-whatsapp.md)
 
 Then pick one of the two paths below.
@@ -93,8 +94,8 @@ cd packages/whatsapp-mcp && npm run whatsapp -- whoami
 `whoami` prints the account the connector is authenticated as, and never prints
 any secret. If it fails, the error tells you what to fix.
 
-Once installed, ask Claude something simple — *"what's in my inbox from this
-week?"* — and confirm the tools appear.
+Once installed, ask Claude something simple — _"what's in my inbox from this
+week?"_ — and confirm the tools appear.
 
 ---
 
@@ -104,20 +105,20 @@ Useful when running from source or scripting.
 
 **Gmail**
 
-| Variable | Purpose |
-|---|---|
-| `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` / `GMAIL_REFRESH_TOKEN` | Credential, supplied directly. Takes precedence over the file. |
-| `GMAIL_MCP_CREDENTIALS` | Path to the credential file. Default `~/.config/pappcorn-gmail-mcp/credentials.json`. |
-| `GMAIL_FROM_NAME` | Optional display name on outgoing mail. Default: bare address. |
+| Variable                                                          | Purpose                                                                               |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` / `GMAIL_REFRESH_TOKEN` | Credential, supplied directly. Takes precedence over the file.                        |
+| `GMAIL_MCP_CREDENTIALS`                                           | Path to the credential file. Default `~/.config/pappcorn-gmail-mcp/credentials.json`. |
+| `GMAIL_FROM_NAME`                                                 | Optional display name on outgoing mail. Default: bare address.                        |
 
 **WhatsApp**
 
-| Variable | Purpose |
-|---|---|
-| `WHATSAPP_ACCESS_TOKEN` | Meta System User permanent token. |
-| `WHATSAPP_PHONE_NUMBER_ID` | Numeric ID from WhatsApp → API Setup (not the phone number). |
-| `WHATSAPP_WABA_ID` | Business account ID; needed only to list templates. |
-| `WHATSAPP_GRAPH_API_VERSION` | Defaults to `v25.0`. |
+| Variable                     | Purpose                                                      |
+| ---------------------------- | ------------------------------------------------------------ |
+| `WHATSAPP_ACCESS_TOKEN`      | Meta System User permanent token.                            |
+| `WHATSAPP_PHONE_NUMBER_ID`   | Numeric ID from WhatsApp → API Setup (not the phone number). |
+| `WHATSAPP_WABA_ID`           | Business account ID; needed only to list templates.          |
+| `WHATSAPP_GRAPH_API_VERSION` | Defaults to `v25.0`.                                         |
 
 ---
 

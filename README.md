@@ -18,10 +18,10 @@ your credentials to anyone.
 
 ## Connectors
 
-| | Connector | What it does |
-|:--:|---|---|
-| ✉️ | [**gmail-mcp**](packages/gmail-mcp) | Read, search, triage, draft and **send** email — with attachments — from your own account |
-| 💬 | [**whatsapp-mcp**](packages/whatsapp-mcp) | Send messages and approved templates from your own business number |
+|     | Connector                                 | What it does                                                                              |
+| :-: | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| ✉️  | [**gmail-mcp**](packages/gmail-mcp)       | Read, search, triage, draft and **send** email — with attachments — from your own account |
+| 💬  | [**whatsapp-mcp**](packages/whatsapp-mcp) | Send messages and approved templates from your own business number                        |
 
 Claude's built-in Google connector reads and drafts but **deliberately cannot
 send**. That gap is the reason this repo exists.
@@ -42,7 +42,7 @@ operating system's keychain.
 
 Each connector needs a one-time account setup first:
 
-- ✉️ **Gmail** → [Connect your own Gmail account](docs/setup-google-cloud.md) · ~15 min
+- ✉️ **Gmail** → [Connect your own Gmail account](docs/setup-google-cloud.md) · ~15 min · [screenshot walkthrough](docs/how-to-gmail.md)
 - 💬 **WhatsApp** → [Connect your own WhatsApp number](docs/setup-meta-whatsapp.md) · free test number, no line to buy
 
 Prefer wiring it by hand, or not using plugins at all?
@@ -58,7 +58,7 @@ your machine. We host nothing, proxy nothing, and there is no PappCorn account
 anywhere near your mailbox.
 
 This is more work than clicking "connect". It is also the only version where
-the honest answer to *"who else can read my email?"* is **nobody**.
+the honest answer to _"who else can read my email?"_ is **nobody**.
 
 There is a second benefit that is easy to miss. Because you run your own app for
 your own account, you never cross the thresholds that trigger expensive vendor

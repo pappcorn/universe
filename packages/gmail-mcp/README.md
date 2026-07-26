@@ -12,7 +12,8 @@ you own.
 Two steps, roughly 15 minutes:
 
 1. **[Create your own Google OAuth app and mint a token](../../docs/setup-google-cloud.md)** —
-   your credential, on your machine.
+   your credential, on your machine. (Visual version with a screenshot of every
+   screen: [how-to-gmail.md](../../docs/how-to-gmail.md).)
 2. **[Install it into Claude](../../docs/install.md)**.
 
 ```bash
@@ -22,15 +23,15 @@ npm run gmail -- whoami
 
 ## Tools
 
-| Tool | What it does |
-|---|---|
-| `mail_whoami` | Which mailbox is authenticated, plus message/thread totals |
-| `mail_search` | Gmail query syntax (`from:`, `is:unread`, `newer_than:7d`, …) |
-| `mail_read_thread` | Full thread, decoded — including HTML mail as readable text |
-| `mail_send` | Send. Plain text or HTML, **with attachments**; replies thread correctly |
-| `mail_draft` | Compose into Drafts without sending — attachments included |
-| `mail_label` | Add/remove labels, creating them if needed |
-| `mail_archive` | Remove from inbox |
+| Tool               | What it does                                                             |
+| ------------------ | ------------------------------------------------------------------------ |
+| `mail_whoami`      | Which mailbox is authenticated, plus message/thread totals               |
+| `mail_search`      | Gmail query syntax (`from:`, `is:unread`, `newer_than:7d`, …)            |
+| `mail_read_thread` | Full thread, decoded — including HTML mail as readable text              |
+| `mail_send`        | Send. Plain text or HTML, **with attachments**; replies thread correctly |
+| `mail_draft`       | Compose into Drafts without sending — attachments included               |
+| `mail_label`       | Add/remove labels, creating them if needed                               |
+| `mail_archive`     | Remove from inbox                                                        |
 
 ## Security
 
