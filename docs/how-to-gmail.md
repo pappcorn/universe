@@ -2,8 +2,9 @@
 
 This is the **screenshot version** of [setup-google-cloud.md](setup-google-cloud.md),
 for people setting this up from **Claude Desktop or Claude Cowork** who don't live
-in terminals or cloud consoles. Same 15 minutes, but you can check every screen
-against a picture before you click.
+in terminals or cloud consoles. Same 15 minutes, but through the two phases
+where people actually get lost — Google Cloud and the permission — you can
+check every screen against a picture before you click.
 
 If you prefer the compact text version, or you get stuck and want the
 troubleshooting table, the [text guide](setup-google-cloud.md) is the canonical
@@ -239,6 +240,9 @@ from Downloads — everything it contained lives in the credential file.
 ---
 
 ## Phase 3 — Install into Claude
+
+> This phase is short enough that it has no screenshots yet (they're coming in
+> a follow-up): two commands and one prompt, all inside Claude itself.
 
 ### Claude Desktop / Cowork (plugin — recommended)
 
