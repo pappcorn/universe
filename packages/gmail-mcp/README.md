@@ -17,9 +17,11 @@ Two steps, roughly 15 minutes:
 2. **[Install it into Claude](../../docs/install.md)**.
 
 ```bash
-node scripts/mint-token.mjs --client ~/Downloads/client_secret_xxx.json --account you@example.com
-npm run gmail -- whoami
+npx -y -p @pappcorn/gmail-mcp pappcorn-gmail-setup --client ~/Downloads/client_secret_xxx.json --account you@example.com
+npx -y -p @pappcorn/gmail-mcp pappcorn-gmail whoami
 ```
+
+(From a clone: `npm run mint-token -- ...` and `npm run gmail -- whoami`.)
 
 ## Tools
 
@@ -77,8 +79,8 @@ bare address.
 
 ## Multiple mailboxes, one Google Cloud project
 
-The OAuth client identifies your *app*; the refresh token identifies the
-*mailbox*. So one Google Cloud project (one client ID/secret) can back as many
+The OAuth client identifies your _app_; the refresh token identifies the
+_mailbox_. So one Google Cloud project (one client ID/secret) can back as many
 mailboxes as you like — mint one refresh token per mailbox by completing the
 consent flow logged in as that account. No extra projects needed.
 
@@ -126,8 +128,8 @@ briefly be served the other's access token.
 the collision above can't happen on this route), `--out` picks the path:
 
 ```bash
-node scripts/mint-token.mjs --client oauth-client.json --account you@work.com     --out ~/.config/pappcorn-gmail-mcp/work.json
-node scripts/mint-token.mjs --client oauth-client.json --account you@personal.com --out ~/.config/pappcorn-gmail-mcp/personal.json
+npx -y -p @pappcorn/gmail-mcp pappcorn-gmail-setup --client oauth-client.json --account you@work.com     --out ~/.config/pappcorn-gmail-mcp/work.json
+npx -y -p @pappcorn/gmail-mcp pappcorn-gmail-setup --client oauth-client.json --account you@personal.com --out ~/.config/pappcorn-gmail-mcp/personal.json
 ```
 
 Each entry's `env` is then just
@@ -140,7 +142,7 @@ Notes:
   manual-registration path.
 - Instances under one OS user share the single token-cache file, so
   alternating mailboxes re-mints access tokens a bit more often. Harmless.
-- These are OAuth *user* credentials, not Google service-account keys — the
+- These are OAuth _user_ credentials, not Google service-account keys — the
   connector deliberately doesn't support domain-wide delegation (see
   Security). One consent flow per mailbox is the model.
 

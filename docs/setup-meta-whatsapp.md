@@ -37,7 +37,7 @@ without buying a line or verifying a business.
 
 From that screen, note two values:
 
-- **Phone number ID** — a long number. This is *not* the phone number itself,
+- **Phone number ID** — a long number. This is _not_ the phone number itself,
   and mixing them up is the most common early mistake.
 - **WhatsApp Business Account ID (WABA ID)** — needed to list templates.
 
@@ -53,22 +53,24 @@ The token shown on the API Setup screen is **temporary**. It works today and is
 dead tomorrow, surfacing as **error 190**. Every team hits this once. You need a
 System User token instead.
 
-**Trap 1 — the System User is on a different website.** It is *not* under
+**Trap 1 — the System User is on a different website.** It is _not_ under
 developers.facebook.com. Go to
 [business.facebook.com/settings/system-users](https://business.facebook.com/settings/system-users).
 
 1. **Add** → create a system user with the **Admin** role.
 
 **Trap 2 — assign the assets BEFORE generating the token.** If you generate
-first, the permissions screen comes up empty and says *"No permissions
-available"*, with no explanation.
+first, the permissions screen comes up empty and says _"No permissions
+available"_, with no explanation.
 
 2. Select the system user → **Assign Assets**:
-   - your **app**, with *Manage app* (Full control)
-   - your **WhatsApp account (WABA)**, with *Manage WhatsApp Business accounts*
+
+   - your **app**, with _Manage app_ (Full control)
+   - your **WhatsApp account (WABA)**, with _Manage WhatsApp Business accounts_
      (Full control)
 
 3. Now **Generate token**, and select **all three** permissions:
+
    - `business_management`
    - `whatsapp_business_messaging`
    - `whatsapp_business_management`
@@ -81,8 +83,7 @@ available"*, with no explanation.
 ## Step 4 — Verify
 
 ```bash
-cd packages/whatsapp-mcp
-WHATSAPP_ACCESS_TOKEN=... WHATSAPP_PHONE_NUMBER_ID=... npm run whatsapp -- whoami
+WHATSAPP_ACCESS_TOKEN=... WHATSAPP_PHONE_NUMBER_ID=... npx -y -p @pappcorn/whatsapp-mcp pappcorn-whatsapp whoami
 ```
 
 You should see your number, its verified name, and a **quality rating**. Watch

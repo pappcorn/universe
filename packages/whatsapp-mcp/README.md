@@ -13,8 +13,10 @@ free-form replies inside the 24-hour window; resellers charge for both.
 2. **[Install it into Claude](../../docs/install.md)**.
 
 ```bash
-npm run whatsapp -- whoami
+npx -y -p @pappcorn/whatsapp-mcp pappcorn-whatsapp whoami
 ```
+
+(From a clone: `npm run whatsapp -- whoami`.)
 
 ## The 24-hour window — read this first
 
@@ -32,12 +34,12 @@ First-day move: have the person message you first, then reply freely for 24h.
 
 ## Tools
 
-| Tool | What it does |
-|---|---|
-| `whatsapp_whoami` | Your number, verified name, and **quality rating** |
+| Tool                      | What it does                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------ |
+| `whatsapp_whoami`         | Your number, verified name, and **quality rating**                             |
 | `whatsapp_list_templates` | Approved templates, their languages and how many `{{n}}` parameters each takes |
-| `whatsapp_send_template` | Send a pre-approved template — works cold, outside the window |
-| `whatsapp_send_message` | Free-form text — only inside an open 24-hour window |
+| `whatsapp_send_template`  | Send a pre-approved template — works cold, outside the window                  |
+| `whatsapp_send_message`   | Free-form text — only inside an open 24-hour window                            |
 
 Watch the quality rating. When it falls, Meta throttles and eventually bans the
 number.
@@ -66,12 +68,12 @@ is the temporary one, `131030` tells you the recipient isn't allowlisted.
 
 ## Configuration
 
-| Variable | Purpose |
-|---|---|
-| `WHATSAPP_ACCESS_TOKEN` | System User permanent token (three permissions — see the setup guide) |
-| `WHATSAPP_PHONE_NUMBER_ID` | Numeric ID from WhatsApp → API Setup. **Not** the phone number |
-| `WHATSAPP_WABA_ID` | Business account ID; needed only to list templates |
-| `WHATSAPP_GRAPH_API_VERSION` | Defaults to `v25.0` |
+| Variable                     | Purpose                                                               |
+| ---------------------------- | --------------------------------------------------------------------- |
+| `WHATSAPP_ACCESS_TOKEN`      | System User permanent token (three permissions — see the setup guide) |
+| `WHATSAPP_PHONE_NUMBER_ID`   | Numeric ID from WhatsApp → API Setup. **Not** the phone number        |
+| `WHATSAPP_WABA_ID`           | Business account ID; needed only to list templates                    |
+| `WHATSAPP_GRAPH_API_VERSION` | Defaults to `v25.0`                                                   |
 
 ## Not in v1
 

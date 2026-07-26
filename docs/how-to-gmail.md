@@ -166,18 +166,18 @@ landed (usually `~/Downloads`).
 
 ## Phase 2 — The permission (the part everyone asks about)
 
-Your app exists; now you authorize it into your own mailbox, once. From a clone
-of this repository:
+Your app exists; now you authorize it into your own mailbox, once. One command
+in any terminal — nothing to clone, it runs straight off the published npm
+package:
 
 ```bash
-cd packages/gmail-mcp
-node scripts/mint-token.mjs --client ~/Downloads/client_secret_xxx.json --account you@example.com
+npx -y -p @pappcorn/gmail-mcp pappcorn-gmail-setup --client ~/Downloads/client_secret_xxx.json --account you@example.com
 ```
 
 > **On Claude Cowork / Desktop?** You don't have to run this yourself — ask
-> Claude: _"run the mint-token step of the gmail-mcp setup guide with the
-> client JSON in my Downloads folder"_. It needs Node 20+ and this repo cloned;
-> Claude can check both and hand you the browser part below.
+> Claude: _"run the gmail-mcp setup command with the client JSON in my
+> Downloads folder"_. The only requirement is Node 20+; Claude can check that
+> and hand you the browser part below.
 
 The script prints a URL and waits. Open the URL. Now the screens, in order:
 
@@ -230,7 +230,7 @@ only by you). **The refresh token is never shown on screen.**
 ### 2.4 Verify
 
 ```bash
-npm run gmail -- whoami
+npx -y -p @pappcorn/gmail-mcp pappcorn-gmail whoami
 ```
 
 Your own address plus message/thread counts = done. Now delete the client JSON

@@ -33,7 +33,9 @@ people's mailboxes from _your_ app. With one user, there are no other people.
 
 - A Google account (personal `@gmail.com` or Workspace — both work).
 - Node.js 20 or newer (`node --version`).
-- This repository cloned locally.
+
+No cloning required — the setup and verification commands below run straight
+off the published npm package via `npx`.
 
 ---
 
@@ -97,12 +99,14 @@ authorize it (Step 6), and it is capped at 100 users. You are one user.
 
 ## Step 6 — Mint your refresh token
 
-From this repository:
+From any terminal (no clone needed):
 
 ```bash
-cd packages/gmail-mcp
-node scripts/mint-token.mjs --client ~/Downloads/client_secret_xxx.json --account you@example.com
+npx -y -p @pappcorn/gmail-mcp pappcorn-gmail-setup --client ~/Downloads/client_secret_xxx.json --account you@example.com
 ```
+
+(From a clone of this repo, the equivalent is
+`cd packages/gmail-mcp && npm run mint-token -- --client ... --account ...`.)
 
 The `--account` flag is optional but recommended: it makes the script refuse to
 save anything if you accidentally log in with a different Google account.
@@ -122,7 +126,7 @@ token is never printed to the screen** — it only lands in that file.
 ## Step 7 — Verify
 
 ```bash
-npm run gmail -- whoami
+npx -y -p @pappcorn/gmail-mcp pappcorn-gmail whoami
 ```
 
 You should see your own email address, plus message and thread totals. If you
