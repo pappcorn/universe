@@ -1,6 +1,6 @@
 {
   "name": "@pappcorn/whatsapp-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server for WhatsApp — send messages and approved templates from your own number via Meta's official WhatsApp Cloud API.",
   "license": "MIT",
   "repository": {
@@ -9,17 +9,30 @@
     "directory": "packages/whatsapp-mcp"
   },
   "homepage": "https://github.com/pappcorn/universe/tree/main/packages/whatsapp-mcp",
-  "keywords": ["mcp", "model-context-protocol", "whatsapp", "cloud-api", "claude"],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "whatsapp",
+    "cloud-api",
+    "claude"
+  ],
   "type": "commonjs",
   "main": "./dist/mcp.js",
   "bin": {
-    "pappcorn-whatsapp-mcp": "./dist/mcp.js"
+    "whatsapp-mcp": "./dist/mcp.js",
+    "pappcorn-whatsapp-mcp": "./dist/mcp.js",
+    "pappcorn-whatsapp": "./dist/cli.js"
   },
-  "files": ["dist", "bin", "README.md"],
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json && npm run bundle",
     "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=bin/mcp.cjs",
-    "whatsapp": "node -r @swc-node/register src/cli.ts"
+    "whatsapp": "node -r @swc-node/register src/cli.ts",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

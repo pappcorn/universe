@@ -4,6 +4,10 @@ This guide gets your assistant sending email **from your own address**, in about
 15 minutes. You will create your own Google app — nothing is shared with
 PappCorn or anyone else.
 
+> Prefer pictures? The same walkthrough exists with screenshots — including
+> the "Google hasn't verified this app" warning — at
+> [how-to-gmail.md](how-to-gmail.md).
+
 ## Why this is not one click
 
 Claude's built-in Google connector can read, search and **draft** your mail, but
@@ -20,8 +24,8 @@ version where the answer to "who can read my email?" is "nobody but me."
 
 A side effect worth knowing: because the app is yours and you are its only
 user, you never need Google's security review. That review — the thing that
-makes publishing a Gmail app expensive and slow — exists to protect *other*
-people's mailboxes from *your* app. With one user, there are no other people.
+makes publishing a Gmail app expensive and slow — exists to protect _other_
+people's mailboxes from _your_ app. With one user, there are no other people.
 
 ---
 
@@ -29,7 +33,9 @@ people's mailboxes from *your* app. With one user, there are no other people.
 
 - A Google account (personal `@gmail.com` or Workspace — both work).
 - Node.js 20 or newer (`node --version`).
-- This repository cloned locally.
+
+No cloning required — the setup and verification commands below run straight
+off the published npm package via `npx`.
 
 ---
 
@@ -93,12 +99,14 @@ authorize it (Step 6), and it is capped at 100 users. You are one user.
 
 ## Step 6 — Mint your refresh token
 
-From this repository:
+From any terminal (no clone needed):
 
 ```bash
-cd packages/gmail-mcp
-node scripts/mint-token.mjs --client ~/Downloads/client_secret_xxx.json --account you@example.com
+npx -y -p @pappcorn/gmail-mcp pappcorn-gmail-setup --client ~/Downloads/client_secret_xxx.json --account you@example.com
 ```
+
+(From a clone of this repo, the equivalent is
+`cd packages/gmail-mcp && npm run mint-token -- --client ... --account ...`.)
 
 The `--account` flag is optional but recommended: it makes the script refuse to
 save anything if you accidentally log in with a different Google account.
@@ -118,7 +126,7 @@ token is never printed to the screen** — it only lands in that file.
 ## Step 7 — Verify
 
 ```bash
-npm run gmail -- whoami
+npx -y -p @pappcorn/gmail-mcp pappcorn-gmail whoami
 ```
 
 You should see your own email address, plus message and thread totals. If you
@@ -138,13 +146,13 @@ Claude Code.
 
 ## When something breaks
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| Worked for a week, then stopped | App is in **Testing** status | Publish to Production (Step 4), re-run Step 6 |
-| `invalid_grant` right away | Token revoked, or password changed | Re-run Step 6 |
-| Fails at Step 6 with an API error | Gmail API not enabled | Step 2, then retry |
-| "Google hasn't verified this app" | Normal for your own app | Advanced → continue |
-| No refresh token returned | Google reused an old grant | Revoke the app under your Google account's Security → third-party access, re-run |
+| Symptom                           | Cause                              | Fix                                                                              |
+| --------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------- |
+| Worked for a week, then stopped   | App is in **Testing** status       | Publish to Production (Step 4), re-run Step 6                                    |
+| `invalid_grant` right away        | Token revoked, or password changed | Re-run Step 6                                                                    |
+| Fails at Step 6 with an API error | Gmail API not enabled              | Step 2, then retry                                                               |
+| "Google hasn't verified this app" | Normal for your own app            | Advanced → continue                                                              |
+| No refresh token returned         | Google reused an old grant         | Revoke the app under your Google account's Security → third-party access, re-run |
 
 Changing your Google password revokes Gmail-scoped tokens. That is Google
 protecting you, not a bug — just re-run Step 6.
@@ -156,10 +164,10 @@ protecting you, not a bug — just re-run Step 6.
 The v1 above is the smallest thing that works. If you want to tighten it:
 
 **Narrow the scopes.** `gmail.modify` lets the assistant read everything. If you
-only want it to *send*, use `gmail.send` alone: edit `SCOPES` in both
+only want it to _send_, use `gmail.send` alone: edit `SCOPES` in both
 `src/auth.ts` and `scripts/mint-token.mjs`, remove `gmail.modify` from the
 consent screen, and re-mint. The read/search/label/archive tools will stop
-working — by design. `gmail.send` is also a *sensitive* rather than *restricted*
+working — by design. `gmail.send` is also a _sensitive_ rather than _restricted_
 scope in Google's classification, a lower tier.
 
 **Use a dedicated account.** Point the assistant at a purpose-made address that

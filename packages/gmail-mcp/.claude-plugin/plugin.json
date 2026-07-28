@@ -1,7 +1,7 @@
 {
   "name": "gmail-mcp",
   "displayName": "Gmail",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Read, search, triage, draft and SEND email from your own Gmail account. Your credentials stay on your machine.",
   "author": { "name": "PappCorn" },
   "homepage": "https://github.com/pappcorn/universe/tree/main/packages/gmail-mcp",
