@@ -218,11 +218,21 @@ function listenForGrant() {
         );
       };
       // Query params are attacker-influenced (anything can hit the loopback
-      // port) — escape before embedding in the response HTML.
+      // port) — escape before embedding in the response HTML. Both quote
+      // characters are covered even though today's only interpolation is in
+      // element content: the next person to reuse this in an attribute should
+      // not have to notice that it was incomplete.
       const escapeHtml = (s) =>
         s.replace(
-          /[<>&"]/g,
-          (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])
+          /[<>&"']/g,
+          (c) =>
+            ({
+              '<': '&lt;',
+              '>': '&gt;',
+              '&': '&amp;',
+              '"': '&quot;',
+              "'": '&#39;',
+            }[c])
         );
 
       if (url.searchParams.get('state') !== state) {
@@ -459,6 +469,15 @@ async function exchangeAndWrite(code, redirectUri) {
   }
 
   const outPath = explicitOut ?? chooseDestination(account);
+  // A credential minted before 0.3.0 has no `account` field, so we cannot tell
+  // which mailbox it holds and must not refresh it in place. That is the right
+  // call, but it looks identical to "you have a second mailbox" unless the
+  // closing message says which one actually happened — so record it here.
+  const divertedFrom =
+    !explicitOut && outPath !== DEFAULT_OUT ? inspect(DEFAULT_OUT) : null;
+  const divertedBecauseUnlabelled =
+    !!divertedFrom && divertedFrom.mailbox === null;
+
   await confirmDestination(outPath, account);
 
   mkdirSync(dirname(outPath), { recursive: true });
@@ -490,10 +509,34 @@ async function exchangeAndWrite(code, redirectUri) {
     : 'USING IT: this path is not looked at by default, so point the folder that should use this\n' +
       "mailbox at it. In that folder's .env:\n";
 
+  // Only for the case above: the default path was left alone not because it
+  // belongs to someone else, but because we could not tell whose it is.
+  const unlabelledNote = divertedBecauseUnlabelled
+    ? `\nWHY NOT THE USUAL PATH: ${pretty(
+        DEFAULT_OUT
+      )} already exists but carries no\n` +
+      'readable `account` field — most likely minted by a version of this script older than\n' +
+      '0.3.0, which did not record one. There is no way to tell which mailbox it holds, and a\n' +
+      "refresh token that turns out to be another mailbox's cannot be recovered, so it was left\n" +
+      'untouched instead of refreshed in place.\n\n' +
+      '  • See what it actually is:\n' +
+      `        GMAIL_MCP_CREDENTIALS=${pretty(
+        DEFAULT_OUT
+      )} npx -y -p @pappcorn/gmail-mcp pappcorn-gmail whoami\n` +
+      `  • If it is this same mailbox and you want one file again, replace it deliberately:\n` +
+      `        ...pappcorn-gmail-setup --client <client.json> --out ${pretty(
+        DEFAULT_OUT
+      )} --force\n` +
+      `    then delete ${pretty(outPath)}.\n` +
+      '  • If it is a different mailbox, you are already done — keep both.\n'
+    : '';
+
   process.stdout.write(
     `\nWrote ${pretty(
       outPath
-    )} (chmod 600). The refresh token was NOT printed — it lives only in that file.\n\n` +
+    )} (chmod 600). The refresh token was NOT printed — it lives only in that file.\n` +
+      unlabelledNote +
+      '\n' +
       wiring +
       `\n    GMAIL_MCP_CREDENTIALS=${pretty(outPath)}\n` +
       `    GMAIL_ACCOUNT=${account}\n\n` +

@@ -52,6 +52,10 @@ One machine can now serve more than one mailbox safely.
   mailbox; `~/.config/pappcorn-gmail-mcp/<mailbox>.json` for any other one. It
   then prints the `.env` lines that point a project at it, including the
   reminder to add `.env` to `.gitignore`.
+- A credential minted before this version carries no `account` field, so
+  `mint-token` cannot tell which mailbox it holds and leaves it alone rather
+  than refreshing it in place. It now says exactly that — and how to check what
+  that older file is — instead of implying you had a second mailbox.
 - The global credential path still works exactly as before — every existing
   install keeps running untouched — but it is no longer the recommended way to
   configure more than one mailbox.
