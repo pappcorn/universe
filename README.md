@@ -17,7 +17,14 @@ your credentials to anyone.
 
 ---
 
-## Connectors
+## The catalog
+
+This repo is PappCorn's plugin marketplace for Claude — `pappcorn-plugins`.
+It carries two kinds of plugins:
+
+### Free connectors (bring your own credentials)
+
+Open-source, MIT-licensed, installable by anyone. The source lives right here.
 
 |     | Connector                                 | What it does                                                                              |
 | :-: | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -27,6 +34,19 @@ your credentials to anyone.
 Claude's built-in Google connector reads and drafts but **deliberately cannot
 send**. That gap is the reason this repo exists.
 
+### Licensed plugins
+
+Commercial plugins whose source lives in a private repository. The marketplace
+entry points at that repo, and **read access to the repo is the license**:
+with access granted, installation just works; without it, the install fails —
+that's expected, not broken.
+
+|     | Plugin           | What it does                                                                                                                                                       |
+| :-: | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 🏭  | **product-team** | PappCorn's six-agent [INSPIRED](https://www.svpg.com/books/inspired-how-to-create-tech-products-customers-love-2nd-edition/) product team plus its dev-loop skills |
+
+To request access, write to [cris@pappcorn.com](mailto:cris@pappcorn.com).
+
 ## Quick start
 
 ```bash
@@ -34,9 +54,16 @@ send**. That gap is the reason this repo exists.
 /plugin marketplace add pappcorn/universe
 
 # 2. Install what you need
-/plugin install gmail-mcp@pappcorn
-/plugin install whatsapp-mcp@pappcorn
+/plugin install gmail-mcp@pappcorn-plugins
+/plugin install whatsapp-mcp@pappcorn-plugins
 ```
+
+> **Marketplace renamed (July 2026):** this marketplace used to be called
+> `pappcorn`; it is now `pappcorn-plugins`. If you installed a plugin as
+> `gmail-mcp@pappcorn` or `whatsapp-mcp@pappcorn`, your installed copy keeps
+> working — but it will no longer receive updates. To migrate, re-add the
+> marketplace (`/plugin marketplace add pappcorn/universe`) and reinstall
+> (`/plugin install gmail-mcp@pappcorn-plugins`).
 
 The plugin asks for your credentials at install time and keeps them in your
 operating system's keychain.
