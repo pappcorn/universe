@@ -58,9 +58,13 @@ so any MCP config can launch them with `npx` — nothing to download first.
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-With no `env` block, the connector reads the credential file that the setup
-script wrote (`~/.config/pappcorn-gmail-mcp/credentials.json`). To pass secrets
-explicitly instead, add:
+With no `env` block, the connector resolves the credential from the working
+directory it is started in: the nearest `.env`, then `$GMAIL_MCP_CREDENTIALS`,
+then the file the setup script wrote
+(`~/.config/pappcorn-gmail-mcp/credentials.json`). See
+[Which mailbox does a folder use?](#which-mailbox-does-a-folder-use) below.
+
+To pass secrets explicitly instead, add:
 
 ```json
 "env": {
@@ -128,11 +132,50 @@ npx -y -p @pappcorn/gmail-mcp    pappcorn-gmail    whoami
 npx -y -p @pappcorn/whatsapp-mcp pappcorn-whatsapp whoami
 ```
 
-`whoami` prints the account the connector is authenticated as, and never prints
+`whoami` prints the account the connector is authenticated as — plus a
+`credential:` line saying where that credential was read from — and never prints
 any secret. If it fails, the error tells you what to fix.
+
+Run it **from the folder you will be working in**: Gmail identity is scoped to
+the working directory, so the answer can legitimately differ between folders.
 
 Once installed, ask your agent something simple — _"what's in my inbox from
 this week?"_ — and confirm the tools appear.
+
+---
+
+## Which mailbox does a folder use?
+
+The Gmail connector resolves its credential from the directory it is started
+in, so one machine can serve several mailboxes without them overwriting each
+other. Highest precedence first:
+
+1. `GMAIL_CLIENT_ID` + `GMAIL_CLIENT_SECRET` + `GMAIL_REFRESH_TOKEN` in the
+   process environment — what Path A supplies from your keychain.
+2. The nearest `.env`, searched from the working directory upward and stopping
+   at the repository root. It fills in what the environment does not set; it
+   never overrides it. Your home directory is never searched.
+3. `$GMAIL_MCP_CREDENTIALS`.
+4. `~/.config/pappcorn-gmail-mcp/credentials.json`.
+
+A per-project `.env` is the recommended shape:
+
+```bash
+GMAIL_MCP_CREDENTIALS=~/.config/pappcorn-gmail-mcp/you_at_work.com.json
+GMAIL_ACCOUNT=you@work.com
+```
+
+`GMAIL_ACCOUNT` is checked against the mailbox the credential really opens, and
+access is denied on a mismatch — so a misconfigured folder fails loudly instead
+of sending from the wrong address.
+
+> **If that folder is a git repository, add `.env` to `.gitignore`.** A refresh
+> token pushed to a remote is a total leak and survives in forks and caches;
+> revoke it rather than trying to erase it. Keeping the credential file itself
+> outside the repo and putting only the _path_ in `.env` avoids the risk
+> entirely.
+
+Full walkthrough: [setup-google-cloud.md](setup-google-cloud.md#one-machine-several-mailboxes).
 
 ---
 
@@ -140,13 +183,15 @@ this week?"_ — and confirm the tools appear.
 
 Useful when running from source or scripting.
 
-**Gmail**
+**Gmail** — resolved from the process environment first, then from the nearest
+`.env` (see above).
 
-| Variable                                                          | Purpose                                                                               |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` / `GMAIL_REFRESH_TOKEN` | Credential, supplied directly. Takes precedence over the file.                        |
-| `GMAIL_MCP_CREDENTIALS`                                           | Path to the credential file. Default `~/.config/pappcorn-gmail-mcp/credentials.json`. |
-| `GMAIL_FROM_NAME`                                                 | Optional display name on outgoing mail. Default: bare address.                        |
+| Variable                                                          | Purpose                                                                                                                                  |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` / `GMAIL_REFRESH_TOKEN` | Credential, supplied directly. Takes precedence over any file.                                                                           |
+| `GMAIL_MCP_CREDENTIALS`                                           | Path to the credential file. `~` and paths relative to the `.env` are expanded. Default `~/.config/pappcorn-gmail-mcp/credentials.json`. |
+| `GMAIL_ACCOUNT`                                                   | Asserts which mailbox this folder is for. A mismatch with the real mailbox denies access.                                                |
+| `GMAIL_FROM_NAME`                                                 | Optional display name on outgoing mail. Default: bare address.                                                                           |
 
 **WhatsApp**
 

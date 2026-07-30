@@ -69,13 +69,42 @@ mail out arbitrary files the process happens to be able to read.
 
 ## Configuration
 
-Credentials come from environment variables (`GMAIL_CLIENT_ID`,
-`GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`) — what the Claude plugin supplies
-from your OS keychain — or from a credential file
-(`$GMAIL_MCP_CREDENTIALS`, default `~/.config/pappcorn-gmail-mcp/credentials.json`).
+The credential is resolved **from the process working directory**, never from
+where the package is installed. Highest precedence first:
 
-Optional: `GMAIL_FROM_NAME` sets a display name on outgoing mail. Default is the
-bare address.
+1. `GMAIL_CLIENT_ID` + `GMAIL_CLIENT_SECRET` + `GMAIL_REFRESH_TOKEN` in the
+   process environment — what the Claude plugin supplies from your OS keychain.
+2. The nearest `.env`: searched from the working directory upward, stopping at
+   the first one found, at the repository root (`.git`), or before your home
+   directory — whichever comes first. It fills in variables the environment does
+   not set and never overrides them. When no `.env` is in scope, none is
+   borrowed from elsewhere.
+3. `$GMAIL_MCP_CREDENTIALS` — a credential file path.
+4. `~/.config/pappcorn-gmail-mcp/credentials.json` — the global default. Still
+   supported; no longer the recommended way to hold more than one mailbox.
+
+`mail_whoami` / `whoami` print which of the four won, so "which mailbox is this
+session on?" never has to be inferred.
+
+| Variable                | Purpose                                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------------------- |
+| `GMAIL_MCP_CREDENTIALS` | Credential file path. `~` is expanded; a relative path resolves against the `.env` that set it. |
+| `GMAIL_ACCOUNT`         | **Assertion.** The mailbox this configuration is for — verified against the real one.           |
+| `GMAIL_FROM_NAME`       | Display name on outgoing mail. Default: the bare address.                                       |
+| `GMAIL_ATTACHMENT_DIR`  | Directory attachments may be read from. Default: the working directory.                         |
+
+### `GMAIL_ACCOUNT` fails closed
+
+When set, the first Gmail call verifies it against **the mailbox the credential
+actually opens** — the live profile, not the `account` field written inside the
+credential file. If they disagree, every tool denies access with the standard
+"no access" message. Sending from the wrong mailbox is the one failure a third
+party sees, so it is treated as a security boundary, not a warning.
+
+> **`.env` in a git repository must be in `.gitignore`.** A refresh token pushed
+> to a remote is a total leak — it survives in forks, clones and CI caches, and
+> the only real remedy is revoking it. Prefer keeping the credential file
+> outside the repo and putting only its _path_ in `.env`.
 
 ## Multiple mailboxes, one Google Cloud project
 
@@ -92,9 +121,8 @@ own credentials. Tools arrive namespaced by server name
 always explicit which mailbox a call goes through.
 
 **Variant A — env vars per entry.** Same client, different refresh tokens.
-`GMAIL_ACCOUNT` is **required** on every entry here: the token cache is keyed
-by account, and two entries without it share one cache slot — one mailbox can
-briefly be served the other's access token.
+`GMAIL_ACCOUNT` is strongly recommended on every entry: it makes each entry
+assert which mailbox it is, so a copy-paste slip is denied instead of acted on.
 
 ```json
 {
@@ -123,9 +151,9 @@ briefly be served the other's access token.
 }
 ```
 
-**Variant B — credential file per entry.** Mint once per mailbox;
-`--account` writes the mailbox into the file (which keys the token cache, so
-the collision above can't happen on this route), `--out` picks the path:
+**Variant B — credential file per entry.** Mint once per mailbox. The setup
+script already gives each mailbox its own file rather than overwriting the
+previous one; `--out` picks the path when you want to choose it yourself:
 
 ```bash
 npx -y -p @pappcorn/gmail-mcp pappcorn-gmail-setup --client oauth-client.json --account you@work.com     --out ~/.config/pappcorn-gmail-mcp/work.json
@@ -135,13 +163,27 @@ npx -y -p @pappcorn/gmail-mcp pappcorn-gmail-setup --client oauth-client.json --
 Each entry's `env` is then just
 `{"GMAIL_MCP_CREDENTIALS": "/Users/you/.config/pappcorn-gmail-mcp/work.json"}`.
 
+**Variant C — one mailbox per folder.** If a project always uses the same
+mailbox, say so once in that folder's `.env` and stop configuring clients at
+all — every client started there resolves it:
+
+```bash
+GMAIL_MCP_CREDENTIALS=~/.config/pappcorn-gmail-mcp/work.json
+GMAIL_ACCOUNT=you@work.com
+```
+
 Notes:
 
 - **Use manual entries, not two plugin installs.** The plugin's `user_config`
   binding supports one credential set per install; multi-mailbox is the
-  manual-registration path.
-- Instances under one OS user share the single token-cache file, so
-  alternating mailboxes re-mints access tokens a bit more often. Harmless.
+  manual-registration or per-folder path.
+- The token cache is keyed by a digest of the credential itself, so each
+  mailbox gets its own cache slot and its own file. Two mailboxes cannot be
+  served each other's access token, and alternating between them does not
+  invalidate the cache.
+- The setup script refuses to overwrite a credential file — or a symlink,
+  which it will not follow silently — that holds a different mailbox. That
+  needs a confirmation, or `--force`.
 - These are OAuth _user_ credentials, not Google service-account keys — the
   connector deliberately doesn't support domain-wide delegation (see
   Security). One consent flow per mailbox is the model.

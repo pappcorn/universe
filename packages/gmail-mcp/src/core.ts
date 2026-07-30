@@ -11,13 +11,22 @@
 // Everything is scoped to ONE mailbox: the base path is users/me, and "me" is
 // whoever the refresh token was minted as — your own account. There is no way
 // to reach another mailbox from here — that's the point of the auth design.
-
+//
+// WHICH one, though, is the operator's to assert: if GMAIL_ACCOUNT is set,
+// `callGmail` will not do anything until the live profile has confirmed the
+// credential opens that exact mailbox. See ensureAssertedAccount below.
 
 import { randomBytes } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import { basename, resolve, sep } from 'node:path';
 
-import { authHeaders, loadCredentials } from './auth';
+import {
+  accountMismatchMessage,
+  assertedAccount,
+  authHeaders,
+  loadCredentials,
+  MailAccessError,
+} from './auth';
 
 export const API_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
@@ -97,7 +106,7 @@ export class GmailApiError extends Error {
   constructor(
     public op: string,
     public status: number,
-    public googleMessage: string,
+    public googleMessage: string
   ) {
     super(`Gmail API ${op} failed (HTTP ${status}): ${googleMessage}`);
     this.name = 'GmailApiError';
@@ -110,13 +119,71 @@ interface GmailErrorBody {
 
 type ParamVal = string | number | boolean | undefined | string[];
 
+// ──────────────────────────────────────────────────────────────────────────────
+// The GMAIL_ACCOUNT assertion — verified once per process, fails closed
+// ──────────────────────────────────────────────────────────────────────────────
+
+// GMAIL_ACCOUNT used to be carried around as a label and never checked, so a
+// credential could quietly open a different mailbox than the one the operator
+// believed they had configured. Now it is a gate: before the first API call
+// does anything, we ask Gmail who this credential actually is and refuse if it
+// disagrees. Deliberately NOT compared against the `account` field inside the
+// credential file — that field is only what someone wrote down.
+//
+// The check runs through its own fetch rather than through callGmail, so there
+// is no reentrancy and no window in which a concurrent caller slips past an
+// in-flight verification. The result (including a failure) is memoised: one
+// extra round trip per process, and a denial stays a denial.
+let assertion: Promise<void> | null = null;
+
+async function verifyAssertedAccount(expected: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/profile`, {
+    headers: await authHeaders(),
+  });
+  if (!res.ok) {
+    let message = `http_${res.status}`;
+    try {
+      const data = (await res.json()) as GmailErrorBody;
+      if (data.error?.message) message = data.error.message;
+    } catch {
+      // non-JSON error body; keep the status-only message
+    }
+    throw new GmailApiError(
+      'GET profile (account assertion)',
+      res.status,
+      message
+    );
+  }
+  const profile = (await res.json()) as { emailAddress?: string };
+  const actual = (profile.emailAddress ?? '').trim().toLowerCase();
+  if (actual !== expected.trim().toLowerCase()) {
+    throw new MailAccessError(accountMismatchMessage(expected));
+  }
+}
+
+function ensureAssertedAccount(): Promise<void> {
+  if (!assertion) {
+    const expected = assertedAccount();
+    assertion = expected ? verifyAssertedAccount(expected) : Promise.resolve();
+    // A rejected promise nobody has awaited yet must not crash the process.
+    assertion.catch(() => undefined);
+  }
+  return assertion;
+}
+
 // GET for reads (params in the query string; repeated params — e.g.
 // metadataHeaders — are appended once per value), POST for writes (JSON body).
 // The HTTP status carries the error; the JSON error body carries the message.
 async function callGmail(
   path: string,
-  opts: { method?: string; params?: Record<string, ParamVal>; body?: Record<string, unknown> } = {},
+  opts: {
+    method?: string;
+    params?: Record<string, ParamVal>;
+    body?: Record<string, unknown>;
+  } = {}
 ): Promise<Record<string, unknown>> {
+  await ensureAssertedAccount();
+
   const url = new URL(`${API_BASE}/${path}`);
   for (const [k, v] of Object.entries(opts.params ?? {})) {
     if (v === undefined) continue;
@@ -131,7 +198,9 @@ async function callGmail(
   const res = await fetch(url, {
     method,
     headers: await authHeaders(
-      opts.body !== undefined ? { 'Content-Type': 'application/json; charset=utf-8' } : {},
+      opts.body !== undefined
+        ? { 'Content-Type': 'application/json; charset=utf-8' }
+        : {}
     ),
     ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
   });
@@ -175,7 +244,10 @@ interface RawMessage {
   payload?: RawPart;
 }
 
-function headerOf(headers: RawHeader[] | undefined, name: string): string | undefined {
+function headerOf(
+  headers: RawHeader[] | undefined,
+  name: string
+): string | undefined {
   const lower = name.toLowerCase();
   return headers?.find((h) => (h.name ?? '').toLowerCase() === lower)?.value;
 }
@@ -187,30 +259,33 @@ function headerOf(headers: RawHeader[] | undefined, name: string): string | unde
 export function decodeEncodedWords(value: string): string {
   return value
     .replace(/=\?([^?]+)\?([bBqQ])\?([^?]*)\?=\s*(?==\?)/g, '=?$1?$2?$3?=') // join adjacent words
-    .replace(/=\?([^?]+)\?([bBqQ])\?([^?]*)\?=/g, (match, charset: string, enc: string, text: string) => {
-      try {
-        let bytes: Buffer;
-        if (enc.toLowerCase() === 'b') {
-          bytes = Buffer.from(text, 'base64');
-        } else {
-          const out: number[] = [];
-          for (let i = 0; i < text.length; i++) {
-            const c = text[i];
-            if (c === '_') out.push(0x20);
-            else if (c === '=' && i + 2 < text.length) {
-              out.push(parseInt(text.slice(i + 1, i + 3), 16));
-              i += 2;
-            } else out.push(text.charCodeAt(i));
+    .replace(
+      /=\?([^?]+)\?([bBqQ])\?([^?]*)\?=/g,
+      (match, charset: string, enc: string, text: string) => {
+        try {
+          let bytes: Buffer;
+          if (enc.toLowerCase() === 'b') {
+            bytes = Buffer.from(text, 'base64');
+          } else {
+            const out: number[] = [];
+            for (let i = 0; i < text.length; i++) {
+              const c = text[i];
+              if (c === '_') out.push(0x20);
+              else if (c === '=' && i + 2 < text.length) {
+                out.push(parseInt(text.slice(i + 1, i + 3), 16));
+                i += 2;
+              } else out.push(text.charCodeAt(i));
+            }
+            bytes = Buffer.from(out);
           }
-          bytes = Buffer.from(out);
+          return /iso-8859-1|latin1|windows-1252/i.test(charset)
+            ? bytes.toString('latin1')
+            : bytes.toString('utf8');
+        } catch {
+          return match;
         }
-        return /iso-8859-1|latin1|windows-1252/i.test(charset)
-          ? bytes.toString('latin1')
-          : bytes.toString('utf8');
-      } catch {
-        return match;
       }
-    });
+    );
 }
 
 function decodeB64Url(data: string): string {
@@ -246,8 +321,10 @@ function extractBody(payload: RawPart | undefined): string {
     const mime = part.mimeType ?? '';
     const data = part.body?.data;
     if (!data) return;
-    if (mime.startsWith('text/plain') && found.plain === undefined) found.plain = decodeB64Url(data);
-    else if (mime.startsWith('text/html') && found.html === undefined) found.html = decodeB64Url(data);
+    if (mime.startsWith('text/plain') && found.plain === undefined)
+      found.plain = decodeB64Url(data);
+    else if (mime.startsWith('text/html') && found.html === undefined)
+      found.html = decodeB64Url(data);
   };
   if (payload) walk(payload);
   if (found.plain !== undefined) return found.plain.trim();
@@ -345,9 +422,11 @@ function mimeParam(attr: string, value: string): string {
   if (/^[\x20-\x7e]*$/.test(value)) return quoted(value);
   const pct = encodeURIComponent(value).replace(
     /['()*]/g,
-    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
   );
-  return `${quoted(value.replace(/[^\x20-\x7e]/g, '_'))}; ${attr}*=UTF-8''${pct}`;
+  return `${quoted(
+    value.replace(/[^\x20-\x7e]/g, '_')
+  )}; ${attr}*=UTF-8''${pct}`;
 }
 
 export interface ComposeArgs {
@@ -375,7 +454,9 @@ function toAttachmentList(v: string | string[] | undefined): string[] {
 // /etc/passwd — could be attached and mailed out by a hostile prompt. Both
 // sides go through realpath so a symlink inside the fence can't point out.
 function resolveAttachmentPath(path: string): string {
-  const base = realpathSync(resolve(process.env.GMAIL_ATTACHMENT_DIR ?? process.cwd()));
+  const base = realpathSync(
+    resolve(process.env.GMAIL_ATTACHMENT_DIR ?? process.cwd())
+  );
   let real: string;
   try {
     real = realpathSync(resolve(base, path));
@@ -385,7 +466,7 @@ function resolveAttachmentPath(path: string): string {
   if (real !== base && !real.startsWith(base + sep)) {
     throw new Error(
       `Attachment is outside the allowed directory (${base}): ${path}. ` +
-        'Move the file there, or point GMAIL_ATTACHMENT_DIR at the folder you attach from.',
+        'Move the file there, or point GMAIL_ATTACHMENT_DIR at the folder you attach from.'
     );
   }
   return real;
@@ -408,11 +489,15 @@ function buildAttachmentParts(paths: string[]): string[][] {
     total += payload.length;
     if (total > MAX_ATTACHMENT_BYTES) {
       throw new Error(
-        `Attachments exceed Gmail's 25MB message limit (${Math.round(total / 1024 / 1024)}MB encoded so far at ${path}).`,
+        `Attachments exceed Gmail's 25MB message limit (${Math.round(
+          total / 1024 / 1024
+        )}MB encoded so far at ${path}).`
       );
     }
     const name = basename(real);
-    const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
+    const ext = name.includes('.')
+      ? name.slice(name.lastIndexOf('.') + 1).toLowerCase()
+      : '';
     const mimeType = ATTACHMENT_MIME[ext] ?? 'application/octet-stream';
     return [
       `Content-Type: ${mimeType}; ${mimeParam('name', name)}`,
@@ -448,20 +533,25 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
   if (!account) {
     throw new Error(
       'Could not determine the sending address for this mailbox. Re-run scripts/mint-token.mjs ' +
-        'so the credential records its account, or set GMAIL_ACCOUNT.',
+        'so the credential records its account, or set GMAIL_ACCOUNT.'
     );
   }
   const to = toList(args.to);
-  if (!to.length) throw new Error('send/draft requires at least one recipient in `to`.');
+  if (!to.length)
+    throw new Error('send/draft requires at least one recipient in `to`.');
   if (!args.subject) throw new Error('send/draft requires a `subject`.');
-  if (args.body === undefined || args.body === '') throw new Error('send/draft requires a `body`.');
+  if (args.body === undefined || args.body === '')
+    throw new Error('send/draft requires a `body`.');
 
   let threadId = args.thread_id;
   let inReplyTo: string | undefined;
   let references: string | undefined;
   if (args.reply_to_message_id) {
     const orig = (await callGmail(`messages/${args.reply_to_message_id}`, {
-      params: { format: 'metadata', metadataHeaders: ['Message-ID', 'References'] },
+      params: {
+        format: 'metadata',
+        metadataHeaders: ['Message-ID', 'References'],
+      },
     })) as RawMessage;
     const origMsgId = headerOf(orig.payload?.headers, 'Message-ID');
     const origRefs = headerOf(orig.payload?.headers, 'References');
@@ -475,7 +565,11 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
   const headers: string[] = [
     // Display name is opt-in via GMAIL_FROM_NAME. Default to the bare address:
     // this tool must never stamp someone else's name on your outgoing mail.
-    `From: ${process.env.GMAIL_FROM_NAME ? encodeAddress(`${process.env.GMAIL_FROM_NAME} <${account}>`) : encodeAddress(account)}`,
+    `From: ${
+      process.env.GMAIL_FROM_NAME
+        ? encodeAddress(`${process.env.GMAIL_FROM_NAME} <${account}>`)
+        : encodeAddress(account)
+    }`,
     `To: ${to.map(encodeAddress).join(', ')}`,
   ];
   const cc = toList(args.cc);
@@ -496,7 +590,9 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
     // multipart/alternative: a stripped-text part first (lowest fidelity),
     // then the HTML the caller supplied.
     const boundary = `=_pappcorn_${randomBytes(12).toString('hex')}`;
-    contentHeaders.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+    contentHeaders.push(
+      `Content-Type: multipart/alternative; boundary="${boundary}"`
+    );
     contentBody = [
       `--${boundary}`,
       'Content-Type: text/plain; charset=UTF-8',
@@ -572,31 +668,45 @@ export async function search(opts: {
   const rows = await Promise.all(
     stubs.map(async (stub) => {
       const msg = (await callGmail(`messages/${stub.id}`, {
-        params: { format: 'metadata', metadataHeaders: ['From', 'To', 'Subject', 'Date'] },
+        params: {
+          format: 'metadata',
+          metadataHeaders: ['From', 'To', 'Subject', 'Date'],
+        },
       })) as RawMessage;
       return toRow(msg);
-    }),
+    })
   );
-  return { items: rows, next_page_token: list.nextPageToken as string | undefined };
+  return {
+    items: rows,
+    next_page_token: list.nextPageToken as string | undefined,
+  };
 }
 
 // Read a full thread: every message's From/To/Cc/Date/Subject plus a
 // best-effort text body (prefer text/plain; fall back to stripped text/html).
-export async function readThread(opts: { thread_id: string }): Promise<ThreadResult> {
-  const data = await callGmail(`threads/${opts.thread_id}`, { params: { format: 'full' } });
-  const messages = ((data.messages as RawMessage[] | undefined) ?? []).map((msg): ThreadMessage => {
-    const h = msg.payload?.headers;
-    return {
-      id: msg.id ?? '',
-      from: decodeEncodedWords(headerOf(h, 'From') ?? ''),
-      to: decodeEncodedWords(headerOf(h, 'To') ?? ''),
-      cc: headerOf(h, 'Cc') ? decodeEncodedWords(headerOf(h, 'Cc') ?? '') : undefined,
-      date: headerOf(h, 'Date'),
-      subject: decodeEncodedWords(headerOf(h, 'Subject') ?? ''),
-      labelIds: msg.labelIds,
-      body: extractBody(msg.payload),
-    };
+export async function readThread(opts: {
+  thread_id: string;
+}): Promise<ThreadResult> {
+  const data = await callGmail(`threads/${opts.thread_id}`, {
+    params: { format: 'full' },
   });
+  const messages = ((data.messages as RawMessage[] | undefined) ?? []).map(
+    (msg): ThreadMessage => {
+      const h = msg.payload?.headers;
+      return {
+        id: msg.id ?? '',
+        from: decodeEncodedWords(headerOf(h, 'From') ?? ''),
+        to: decodeEncodedWords(headerOf(h, 'To') ?? ''),
+        cc: headerOf(h, 'Cc')
+          ? decodeEncodedWords(headerOf(h, 'Cc') ?? '')
+          : undefined,
+        date: headerOf(h, 'Date'),
+        subject: decodeEncodedWords(headerOf(h, 'Subject') ?? ''),
+        labelIds: msg.labelIds,
+        body: extractBody(msg.payload),
+      };
+    }
+  );
   return { id: (data.id as string | undefined) ?? opts.thread_id, messages };
 }
 
@@ -604,7 +714,10 @@ export async function readThread(opts: { thread_id: string }): Promise<ThreadRes
 export async function send(args: ComposeArgs): Promise<SendResult> {
   const built = await buildMessage(args);
   const data = await callGmail('messages/send', {
-    body: { raw: built.raw, ...(built.threadId ? { threadId: built.threadId } : {}) },
+    body: {
+      raw: built.raw,
+      ...(built.threadId ? { threadId: built.threadId } : {}),
+    },
   });
   return {
     id: data.id as string | undefined,
@@ -617,10 +730,21 @@ export async function send(args: ComposeArgs): Promise<SendResult> {
 export async function draft(args: ComposeArgs): Promise<DraftResult> {
   const built = await buildMessage(args);
   const data = await callGmail('drafts', {
-    body: { message: { raw: built.raw, ...(built.threadId ? { threadId: built.threadId } : {}) } },
+    body: {
+      message: {
+        raw: built.raw,
+        ...(built.threadId ? { threadId: built.threadId } : {}),
+      },
+    },
   });
-  const message = data.message as { id?: string; threadId?: string } | undefined;
-  return { draft_id: data.id as string | undefined, message_id: message?.id, threadId: message?.threadId };
+  const message = data.message as
+    | { id?: string; threadId?: string }
+    | undefined;
+  return {
+    draft_id: data.id as string | undefined,
+    message_id: message?.id,
+    threadId: message?.threadId,
+  };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -643,20 +767,31 @@ export async function ensureLabel(name: string): Promise<GmailLabel> {
   const found = labels.find((l) => l.name.toLowerCase() === name.toLowerCase());
   if (found) return found;
   const data = await callGmail('labels', {
-    body: { name, labelListVisibility: 'labelShow', messageListVisibility: 'show' },
+    body: {
+      name,
+      labelListVisibility: 'labelShow',
+      messageListVisibility: 'show',
+    },
   });
-  return { id: data.id as string, name: data.name as string, type: data.type as string | undefined };
+  return {
+    id: data.id as string,
+    name: data.name as string,
+    type: data.type as string | undefined,
+  };
 }
 
 // Resolve label NAMES (or raw ids) to ids. Labels being ADDED are auto-created
 // when missing; labels being REMOVED must exist (you can't remove a label the
 // mailbox doesn't have — that's a caller error worth surfacing).
-async function resolveLabelIds(names: string[], createMissing: boolean): Promise<string[]> {
+async function resolveLabelIds(
+  names: string[],
+  createMissing: boolean
+): Promise<string[]> {
   const ids: string[] = [];
   let labels = await listLabels();
   for (const name of names) {
     const found = labels.find(
-      (l) => l.name.toLowerCase() === name.toLowerCase() || l.id === name,
+      (l) => l.name.toLowerCase() === name.toLowerCase() || l.id === name
     );
     if (found) {
       ids.push(found.id);
@@ -665,7 +800,9 @@ async function resolveLabelIds(names: string[], createMissing: boolean): Promise
       ids.push(created.id);
       labels = [...labels, created];
     } else {
-      throw new Error(`Label "${name}" not found in the mailbox (run listLabels to see what exists).`);
+      throw new Error(
+        `Label "${name}" not found in the mailbox (run listLabels to see what exists).`
+      );
     }
   }
   return ids;
@@ -681,15 +818,21 @@ export async function modifyLabels(opts: {
   const hasMessage = Boolean(opts.message_id);
   const hasThread = Boolean(opts.thread_id);
   if (hasMessage === hasThread) {
-    throw new Error('modifyLabels requires exactly one of message_id or thread_id.');
+    throw new Error(
+      'modifyLabels requires exactly one of message_id or thread_id.'
+    );
   }
   const add = opts.add ?? [];
   const remove = opts.remove ?? [];
   if (!add.length && !remove.length) {
-    throw new Error('modifyLabels requires at least one label in add or remove.');
+    throw new Error(
+      'modifyLabels requires at least one label in add or remove.'
+    );
   }
   const addLabelIds = add.length ? await resolveLabelIds(add, true) : [];
-  const removeLabelIds = remove.length ? await resolveLabelIds(remove, false) : [];
+  const removeLabelIds = remove.length
+    ? await resolveLabelIds(remove, false)
+    : [];
   const path = opts.message_id
     ? `messages/${opts.message_id}/modify`
     : `threads/${opts.thread_id}/modify`;
@@ -700,7 +843,9 @@ export async function modifyLabels(opts: {
     },
   });
   return {
-    id: (data.id as string | undefined) ?? (opts.message_id || opts.thread_id || ''),
+    id:
+      (data.id as string | undefined) ??
+      (opts.message_id || opts.thread_id || ''),
     target: opts.message_id ? 'message' : 'thread',
     added: add,
     removed: remove,
@@ -709,7 +854,10 @@ export async function modifyLabels(opts: {
 }
 
 // Archive = remove INBOX (never delete — v1 has no delete by design).
-export async function archive(opts: { message_id?: string; thread_id?: string }): Promise<ModifyResult> {
+export async function archive(opts: {
+  message_id?: string;
+  thread_id?: string;
+}): Promise<ModifyResult> {
   const hasMessage = Boolean(opts.message_id);
   const hasThread = Boolean(opts.thread_id);
   if (hasMessage === hasThread) {
@@ -720,7 +868,9 @@ export async function archive(opts: { message_id?: string; thread_id?: string })
     : `threads/${opts.thread_id}/modify`;
   const data = await callGmail(path, { body: { removeLabelIds: ['INBOX'] } });
   return {
-    id: (data.id as string | undefined) ?? (opts.message_id || opts.thread_id || ''),
+    id:
+      (data.id as string | undefined) ??
+      (opts.message_id || opts.thread_id || ''),
     target: opts.message_id ? 'message' : 'thread',
     added: [],
     removed: ['INBOX'],
