@@ -16,7 +16,7 @@ Works in Claude Desktop and Claude Code. Nothing to clone, no files to edit.
 
 ```
 /plugin marketplace add pappcorn/universe
-/plugin install gmail-mcp@pappcorn
+/plugin install gmail-mcp@pappcorn-plugins
 ```
 
 You will be asked for your credentials. They go into your operating system's

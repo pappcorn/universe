@@ -248,7 +248,7 @@ from Downloads — everything it contained lives in the credential file.
 
 ```
 /plugin marketplace add pappcorn/universe
-/plugin install gmail-mcp@pappcorn
+/plugin install gmail-mcp@pappcorn-plugins
 ```
 
 You'll be prompted for the three credential values (client ID, client secret,
