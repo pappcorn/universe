@@ -119,9 +119,14 @@ The script prints a URL. Open it and:
 - Approve the Gmail permissions.
 - The browser redirects to a local address; the script catches it and closes.
 
-It then prints which mailbox authorized it and writes
-`~/.config/pappcorn-gmail-mcp/credentials.json` with `chmod 600`. **Your refresh
-token is never printed to the screen** — it only lands in that file.
+It then prints which mailbox authorized it and writes the credential with
+`chmod 600` — `~/.config/pappcorn-gmail-mcp/credentials.json` for your first
+mailbox. **Your refresh token is never printed to the screen** — it only lands
+in that file.
+
+The script will not silently overwrite a credential that belongs to a different
+mailbox, and it never follows a symlink at the destination without telling you.
+See [One machine, several mailboxes](#one-machine-several-mailboxes).
 
 ## Step 7 — Verify
 
@@ -129,11 +134,103 @@ token is never printed to the screen** — it only lands in that file.
 npx -y -p @pappcorn/gmail-mcp pappcorn-gmail whoami
 ```
 
-You should see your own email address, plus message and thread totals. If you
-do, you are done.
+You should see your own email address, message and thread totals, and a
+`credential:` line naming where that credential was read from. If you do, you
+are done.
 
 Then delete the OAuth client JSON you downloaded — its contents now live in the
 credential file.
+
+---
+
+## Where the credential comes from
+
+The connector resolves the credential **from the working directory it is
+started in**, never from where the package happens to be installed. Highest
+precedence first:
+
+| #   | Source                                                                               | Who uses it                                                |
+| --- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| 1   | `GMAIL_CLIENT_ID` + `GMAIL_CLIENT_SECRET` + `GMAIL_REFRESH_TOKEN` in the environment | The Claude plugin — from your OS keychain, nothing on disk |
+| 2   | The nearest `.env`                                                                   | Per-project setups: "this folder is that mailbox"          |
+| 3   | `$GMAIL_MCP_CREDENTIALS`                                                             | Explicit per-process overrides, scripts                    |
+| 4   | `~/.config/pappcorn-gmail-mcp/credentials.json`                                      | The single-mailbox default; still supported forever        |
+
+**The `.env` search** starts in the working directory and walks up, stopping at
+the first `.env` it finds. It stops at your repository root (the directory
+holding `.git`) and never looks inside your home directory, so a stray `~/.env`
+cannot quietly reroute every project on the machine. If no `.env` is in scope,
+none is borrowed from anywhere else — resolution simply continues at row 3.
+
+A `.env` **fills in** what the environment does not already set; it never
+overrides a variable that is already there. So installing the plugin with
+credentials in your keychain keeps working exactly as before, `.env` or not.
+
+`whoami` prints which row won:
+
+```
+mailbox:    you@example.com
+messages:   12043
+threads:    8120
+credential: ~/.config/gmail/work.json — resolved from ~/code/work-project/.env
+```
+
+---
+
+## One machine, several mailboxes
+
+A work mailbox and a personal one. Two clients. A shared address and your own.
+This is the normal case, and the answer is one credential file per mailbox plus
+one `.env` per project.
+
+**1. Mint each mailbox.** Run Step 6 once per account. The first one lands in
+the default path; every later one gets its own file, because overwriting the
+first would destroy a refresh token that cannot be recovered:
+
+```
+~/.config/pappcorn-gmail-mcp/credentials.json          # you@personal.com
+~/.config/pappcorn-gmail-mcp/you_at_work.com.json      # you@work.com
+```
+
+(Pass `--out <path>` if you want to choose the filenames yourself.)
+
+**2. Point each project at one.** In the project folder — or its repo root —
+create a `.env`:
+
+```bash
+GMAIL_MCP_CREDENTIALS=~/.config/pappcorn-gmail-mcp/you_at_work.com.json
+GMAIL_ACCOUNT=you@work.com
+```
+
+**`GMAIL_ACCOUNT` is an assertion, not a label.** Before the connector does
+anything, it asks Gmail which mailbox the credential actually opens. If the
+answer is not the one you declared, it refuses — it does not guess, and it does
+not fall back. Set it on every project where sending from the wrong address
+would matter, which is most of them.
+
+> ### ⚠️ If that folder is a git repository, `.env` must be in `.gitignore`
+>
+> A refresh token pushed to a remote is a **total leak**: it is a permanent key
+> to your mailbox, and it survives in forks, clones, CI caches and mirrors long
+> after you delete the commit. Assume anything pushed is burned — revoke it
+> under your Google account → Security → third-party access, and mint a new one.
+>
+> The safest habit is to keep secrets out of the repository entirely: put only
+> `GMAIL_MCP_CREDENTIALS` in `.env`, pointing at a credential file that lives
+> under `~/.config`. Then the worst case of a leaked `.env` is a path.
+>
+> A `.env` is also a file that configures your mail access, so treat one you
+> did not write with the same care as any other file in a repository you did
+> not write.
+
+**Registering more than one at once.** A running server is bound to exactly one
+credential — there is no account-switching tool, by design. To have both
+mailboxes available in a single session, register the server twice with
+different names; see
+[the connector README](../packages/gmail-mcp/README.md#multiple-mailboxes-one-google-cloud-project).
+
+**Existing setups do not need to change.** If one mailbox on the default path is
+all you have, nothing above applies to you and nothing has moved.
 
 ---
 
@@ -146,13 +243,16 @@ Claude Code.
 
 ## When something breaks
 
-| Symptom                           | Cause                              | Fix                                                                              |
-| --------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------- |
-| Worked for a week, then stopped   | App is in **Testing** status       | Publish to Production (Step 4), re-run Step 6                                    |
-| `invalid_grant` right away        | Token revoked, or password changed | Re-run Step 6                                                                    |
-| Fails at Step 6 with an API error | Gmail API not enabled              | Step 2, then retry                                                               |
-| "Google hasn't verified this app" | Normal for your own app            | Advanced → continue                                                              |
-| No refresh token returned         | Google reused an old grant         | Revoke the app under your Google account's Security → third-party access, re-run |
+| Symptom                                  | Cause                                     | Fix                                                                                 |
+| ---------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------- |
+| Worked for a week, then stopped          | App is in **Testing** status              | Publish to Production (Step 4), re-run Step 6                                       |
+| `invalid_grant` right away               | Token revoked, or password changed        | Re-run Step 6                                                                       |
+| Fails at Step 6 with an API error        | Gmail API not enabled                     | Step 2, then retry                                                                  |
+| "Google hasn't verified this app"        | Normal for your own app                   | Advanced → continue                                                                 |
+| No refresh token returned                | Google reused an old grant                | Revoke the app under your Google account's Security → third-party access, re-run    |
+| Wrong mailbox, or `whoami` surprises you | The folder resolves to another credential | Run `whoami` and read its `credential:` line; fix the `.env`                        |
+| "GMAIL_ACCOUNT asserts …"                | The assertion caught a mismatch           | Correct `.env`, or clear `GMAIL_ACCOUNT` and `whoami` to see what the credential is |
+| Setup refuses to write                   | The destination holds another mailbox     | Use `--out <path>`, or `--force` if you really mean to replace it                   |
 
 Changing your Google password revokes Gmail-scoped tokens. That is Google
 protecting you, not a bug — just re-run Step 6.

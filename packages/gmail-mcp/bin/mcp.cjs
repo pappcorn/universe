@@ -2985,7 +2985,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve2.call(this, root, ref);
+      let _sch = resolve3.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -3012,7 +3012,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve2(root, ref) {
+    function resolve3(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3643,7 +3643,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve2(baseURI, relativeURI, options) {
+    function resolve3(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse3(baseURI, schemelessOptions), parse3(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
@@ -3907,7 +3907,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve2,
+      resolve: resolve3,
       resolveComponent,
       equal,
       serialize,
@@ -18987,7 +18987,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
+        await new Promise((resolve3) => setTimeout(resolve3, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error2) {
@@ -19004,7 +19004,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve3, reject) => {
       const earlyReject = (error2) => {
         reject(error2);
       };
@@ -19082,7 +19082,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve2(parseResult.data);
+            resolve3(parseResult.data);
           }
         } catch (error2) {
           reject(error2);
@@ -19343,12 +19343,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve3, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve2, interval);
+      const timeoutId = setTimeout(resolve3, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -20448,7 +20448,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
+      await new Promise((resolve3) => setTimeout(resolve3, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -21097,113 +21097,282 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve2) => {
+    return new Promise((resolve3) => {
       const json = serializeMessage(message);
       if (this._stdout.write(json)) {
-        resolve2();
+        resolve3();
       } else {
-        this._stdout.once("drain", resolve2);
+        this._stdout.once("drain", resolve3);
       }
     });
   }
 };
 
-// src/core.ts
+// src/auth.ts
 var import_node_crypto = require("node:crypto");
 var import_node_fs2 = require("node:fs");
-var import_node_path = require("node:path");
+var import_node_os2 = require("node:os");
+var import_node_path2 = require("node:path");
 
-// src/auth.ts
+// src/env-file.ts
 var import_node_fs = require("node:fs");
 var import_node_os = require("node:os");
+var import_node_path = require("node:path");
+var MAX_DEPTH = 16;
+function findEnvFile(startDir, home = (0, import_node_os.homedir)()) {
+  let dir = (0, import_node_path.resolve)(startDir);
+  const stopAt = home ? (0, import_node_path.resolve)(home) : null;
+  for (let depth = 0; depth < MAX_DEPTH; depth++) {
+    if (stopAt && dir === stopAt) return null;
+    const candidate = (0, import_node_path.join)(dir, ".env");
+    if ((0, import_node_fs.existsSync)(candidate)) return candidate;
+    if ((0, import_node_fs.existsSync)((0, import_node_path.join)(dir, ".git"))) return null;
+    const parent = (0, import_node_path.dirname)(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+  return null;
+}
+function parseEnvFile(text) {
+  const values = {};
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const withoutExport = line.startsWith("export ") ? line.slice("export ".length).trim() : line;
+    const eq = withoutExport.indexOf("=");
+    if (eq <= 0) continue;
+    const key = withoutExport.slice(0, eq).trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+    let value = withoutExport.slice(eq + 1).trim();
+    if (value.startsWith('"') && value.length > 1) {
+      const end = findClosingQuote(value, '"');
+      if (end === -1) continue;
+      value = unescapeDoubleQuoted(value.slice(1, end));
+    } else if (value.startsWith("'") && value.length > 1) {
+      const end = value.indexOf("'", 1);
+      if (end === -1) continue;
+      value = value.slice(1, end);
+    } else {
+      const hash = value.indexOf("#");
+      if (hash !== -1) value = value.slice(0, hash);
+      value = value.trim();
+    }
+    values[key] = value;
+  }
+  return values;
+}
+function findClosingQuote(value, quote) {
+  for (let i = 1; i < value.length; i++) {
+    if (value[i] === "\\") {
+      i++;
+      continue;
+    }
+    if (value[i] === quote) return i;
+  }
+  return -1;
+}
+function unescapeDoubleQuoted(value) {
+  return value.replace(/\\([nrt"\\])/g, (_, ch) => {
+    switch (ch) {
+      case "n":
+        return "\n";
+      case "r":
+        return "\r";
+      case "t":
+        return "	";
+      default:
+        return ch;
+    }
+  });
+}
+function loadEnvFile(startDir, home = (0, import_node_os.homedir)()) {
+  const path = findEnvFile(startDir, home);
+  if (!path) return null;
+  try {
+    return { path, values: parseEnvFile((0, import_node_fs.readFileSync)(path, "utf8")) };
+  } catch {
+    return null;
+  }
+}
+function expandPath(value, baseDir, home = (0, import_node_os.homedir)()) {
+  let path = value.trim();
+  if (path === "~") path = home;
+  else if (path.startsWith("~/")) path = (0, import_node_path.join)(home, path.slice(2));
+  return (0, import_node_path.isAbsolute)(path) ? path : (0, import_node_path.resolve)(baseDir, path);
+}
+
+// src/auth.ts
 var SCOPES = [
   "https://www.googleapis.com/auth/gmail.modify",
   "https://www.googleapis.com/auth/gmail.send"
 ];
 var SCOPE = SCOPES.join(" ");
-var DEFAULT_CREDENTIALS_PATH = `${(0, import_node_os.homedir)()}/.config/pappcorn-gmail-mcp/credentials.json`;
-var TOKEN_CACHE_DIR = `${(0, import_node_os.homedir)()}/.cache/pappcorn-gmail-mcp`;
-var TOKEN_CACHE_PATH = `${TOKEN_CACHE_DIR}/token.json`;
+var DEFAULT_CREDENTIALS_PATH = `${(0, import_node_os2.homedir)()}/.config/pappcorn-gmail-mcp/credentials.json`;
+var TOKEN_CACHE_DIR = `${(0, import_node_os2.homedir)()}/.cache/pappcorn-gmail-mcp`;
 var MailAccessError = class extends Error {
   constructor(message) {
     super(message);
     this.name = "MailAccessError";
   }
 };
-function credentialsPath() {
-  return process.env.GMAIL_MCP_CREDENTIALS || DEFAULT_CREDENTIALS_PATH;
+function clean(v) {
+  return v && v.trim() && !v.includes("${") ? v : void 0;
+}
+function pick2(name, env, file, cwd) {
+  const direct = clean(env[name]);
+  if (direct) return { value: direct, origin: "environment", baseDir: cwd };
+  const fromFile = file ? clean(file.values[name]) : void 0;
+  if (fromFile && file)
+    return { value: fromFile, origin: "env-file", baseDir: (0, import_node_path2.dirname)(file.path) };
+  return void 0;
+}
+function resolveCredentialPlan(env, file, cwd, defaultPath = DEFAULT_CREDENTIALS_PATH) {
+  const id = pick2("GMAIL_CLIENT_ID", env, file, cwd);
+  const secret = pick2("GMAIL_CLIENT_SECRET", env, file, cwd);
+  const refresh = pick2("GMAIL_REFRESH_TOKEN", env, file, cwd);
+  if (id && secret && refresh) {
+    const origin = id.origin === "env-file" || secret.origin === "env-file" || refresh.origin === "env-file" ? "env-file" : "environment";
+    return {
+      kind: "inline",
+      origin,
+      credentials: {
+        client_id: id.value,
+        client_secret: secret.value,
+        refresh_token: refresh.value,
+        account: pick2("GMAIL_ACCOUNT", env, file, cwd)?.value
+      }
+    };
+  }
+  const configured = pick2("GMAIL_MCP_CREDENTIALS", env, file, cwd);
+  if (configured) {
+    return {
+      kind: "file",
+      origin: configured.origin,
+      path: expandPath(configured.value, configured.baseDir)
+    };
+  }
+  return { kind: "file", origin: "default", path: defaultPath };
+}
+var envFileLayer;
+function envFile() {
+  if (envFileLayer === void 0) envFileLayer = loadEnvFile(process.cwd());
+  return envFileLayer;
+}
+function assertedAccount() {
+  return pick2("GMAIL_ACCOUNT", process.env, envFile(), process.cwd())?.value;
+}
+var plan = null;
+function credentialPlan() {
+  if (!plan)
+    plan = resolveCredentialPlan(process.env, envFile(), process.cwd());
+  return plan;
+}
+var pretty = (path) => path.replace((0, import_node_os2.homedir)(), "~");
+function credentialSource() {
+  const p = credentialPlan();
+  const file = envFile();
+  const via = file ? ` ${pretty(file.path)}` : "";
+  if (p.kind === "inline") {
+    return p.origin === "env-file" ? `inline variables from${via}` : "environment variables";
+  }
+  switch (p.origin) {
+    case "env-file":
+      return `${pretty(p.path)} \u2014 resolved from${via}`;
+    case "environment":
+      return `${pretty(p.path)} \u2014 from $GMAIL_MCP_CREDENTIALS`;
+    default:
+      return `${pretty(p.path)} \u2014 global default`;
+  }
 }
 function noAccessMessage(path) {
-  const pretty = path.replace((0, import_node_os.homedir)(), "~");
-  return `No Gmail credential found. Either set GMAIL_CLIENT_ID + GMAIL_CLIENT_SECRET + GMAIL_REFRESH_TOKEN in the environment, or create ${pretty} by running the one-time setup: \`node scripts/mint-token.mjs --client <your-oauth-client.json>\`. Full walkthrough: docs/setup-google-cloud.md.`;
+  return `No Gmail credential for this working directory. Supply one of, in precedence order: (1) GMAIL_CLIENT_ID + GMAIL_CLIENT_SECRET + GMAIL_REFRESH_TOKEN in the environment \u2014 what the Claude plugin does; (2) a \`.env\` in this folder or its repo root setting GMAIL_MCP_CREDENTIALS to your credential file (keep the credential outside the repo, and \`.env\` in .gitignore); (3) $GMAIL_MCP_CREDENTIALS; (4) the global default ${pretty(
+    DEFAULT_CREDENTIALS_PATH
+  )}. This folder currently resolves to ${pretty(
+    path
+  )} \u2014 create it with the one-time setup: \`npx -y -p @pappcorn/gmail-mcp pappcorn-gmail-setup --client <your-oauth-client.json>\`. Full walkthrough: docs/setup-google-cloud.md.`;
 }
 var cachedCredentials = null;
 function loadCredentials() {
   if (cachedCredentials) return cachedCredentials;
-  const clean = (v) => v && !v.includes("${") ? v : void 0;
-  const envId = clean(process.env.GMAIL_CLIENT_ID);
-  const envSecret = clean(process.env.GMAIL_CLIENT_SECRET);
-  const envRefresh = clean(process.env.GMAIL_REFRESH_TOKEN);
-  if (envId && envSecret && envRefresh) {
-    cachedCredentials = {
-      client_id: envId,
-      client_secret: envSecret,
-      refresh_token: envRefresh,
-      account: process.env.GMAIL_ACCOUNT
-    };
+  const p = credentialPlan();
+  if (p.kind === "inline") {
+    cachedCredentials = p.credentials;
     return cachedCredentials;
   }
-  const path = credentialsPath();
   let raw;
   try {
-    raw = (0, import_node_fs.readFileSync)(path, "utf8");
+    raw = (0, import_node_fs2.readFileSync)(p.path, "utf8");
   } catch {
-    throw new MailAccessError(noAccessMessage(path));
+    throw new MailAccessError(noAccessMessage(p.path));
   }
   let creds;
   try {
     creds = JSON.parse(raw);
   } catch {
     throw new MailAccessError(
-      `${noAccessMessage(path)} (that file exists but is not valid JSON \u2014 re-run the setup script)`
+      `${noAccessMessage(
+        p.path
+      )} (that file exists but is not valid JSON \u2014 re-run the setup script)`
     );
   }
   if (!creds.client_id || !creds.client_secret || !creds.refresh_token) {
     throw new MailAccessError(
-      `${noAccessMessage(path)} (that file exists but is missing fields \u2014 re-run the setup script)`
+      `${noAccessMessage(
+        p.path
+      )} (that file exists but is missing fields \u2014 re-run the setup script)`
     );
   }
   cachedCredentials = creds;
   return cachedCredentials;
 }
-function readCachedToken(account) {
-  if (!(0, import_node_fs.existsSync)(TOKEN_CACHE_PATH)) return null;
+function accountMismatchMessage(expected) {
+  return `No Gmail access: GMAIL_ACCOUNT asserts ${expected}, but the credential in use opens a different mailbox. Refusing rather than acting on the wrong one. That credential came from ${credentialSource()} \u2014 point this folder at the right one (a \`.env\` next to your project setting GMAIL_MCP_CREDENTIALS is the tidiest way), or clear GMAIL_ACCOUNT and run \`whoami\` to see which mailbox this credential actually is.`;
+}
+function cacheId(creds) {
+  return (0, import_node_crypto.createHash)("sha256").update(`${creds.client_id}
+${creds.refresh_token}`).digest("hex").slice(0, 16);
+}
+function cachePath(id) {
+  return `${TOKEN_CACHE_DIR}/token-${id}.json`;
+}
+function readCachedToken(id) {
+  const path = cachePath(id);
+  if (!(0, import_node_fs2.existsSync)(path)) return null;
   try {
-    const cached2 = JSON.parse((0, import_node_fs.readFileSync)(TOKEN_CACHE_PATH, "utf8"));
-    if (cached2.account !== account) return null;
+    const cached2 = JSON.parse((0, import_node_fs2.readFileSync)(path, "utf8"));
+    if (cached2.id !== id) return null;
     if (cached2.scope !== SCOPE) return null;
-    if (!cached2.expires_at || cached2.expires_at - Math.floor(Date.now() / 1e3) < 60) return null;
+    if (!cached2.expires_at || cached2.expires_at - Math.floor(Date.now() / 1e3) < 60)
+      return null;
     return cached2.access_token;
   } catch {
     return null;
   }
 }
-function writeCachedToken(account, access_token, expires_at) {
-  (0, import_node_fs.mkdirSync)(TOKEN_CACHE_DIR, { recursive: true });
-  (0, import_node_fs.writeFileSync)(
-    TOKEN_CACHE_PATH,
-    JSON.stringify({ account, scope: SCOPE, access_token, expires_at }),
-    { mode: 384 }
+function writeCachedToken(id, access_token, expires_at) {
+  (0, import_node_fs2.mkdirSync)(TOKEN_CACHE_DIR, { recursive: true });
+  const path = cachePath(id);
+  (0, import_node_fs2.writeFileSync)(
+    path,
+    JSON.stringify({
+      id,
+      scope: SCOPE,
+      access_token,
+      expires_at
+    }),
+    {
+      mode: 384
+    }
   );
   try {
-    (0, import_node_fs.chmodSync)(TOKEN_CACHE_PATH, 384);
+    (0, import_node_fs2.chmodSync)(path, 384);
   } catch {
   }
 }
 async function getAccessToken() {
   const creds = loadCredentials();
-  const account = creds.account || "default";
-  const cached2 = readCachedToken(account);
+  const id = cacheId(creds);
+  const cached2 = readCachedToken(id);
   if (cached2) return cached2;
   const now = Math.floor(Date.now() / 1e3);
   const res = await fetch("https://oauth2.googleapis.com/token", {
@@ -21234,7 +21403,7 @@ Common causes: the Gmail API is not enabled on your Google Cloud project, the cl
     );
   }
   const data = await res.json();
-  writeCachedToken(account, data.access_token, now + (data.expires_in ?? 3600));
+  writeCachedToken(id, data.access_token, now + (data.expires_in ?? 3600));
   return data.access_token;
 }
 async function authHeaders(extra = {}) {
@@ -21242,6 +21411,9 @@ async function authHeaders(extra = {}) {
 }
 
 // src/core.ts
+var import_node_crypto2 = require("node:crypto");
+var import_node_fs3 = require("node:fs");
+var import_node_path3 = require("node:path");
 var API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 var GmailApiError = class extends Error {
   constructor(op, status, googleMessage) {
@@ -21255,7 +21427,40 @@ var GmailApiError = class extends Error {
   status;
   googleMessage;
 };
+var assertion = null;
+async function verifyAssertedAccount(expected) {
+  const res = await fetch(`${API_BASE}/profile`, {
+    headers: await authHeaders()
+  });
+  if (!res.ok) {
+    let message = `http_${res.status}`;
+    try {
+      const data = await res.json();
+      if (data.error?.message) message = data.error.message;
+    } catch {
+    }
+    throw new GmailApiError(
+      "GET profile (account assertion)",
+      res.status,
+      message
+    );
+  }
+  const profile = await res.json();
+  const actual = (profile.emailAddress ?? "").trim().toLowerCase();
+  if (actual !== expected.trim().toLowerCase()) {
+    throw new MailAccessError(accountMismatchMessage(expected));
+  }
+}
+function ensureAssertedAccount() {
+  if (!assertion) {
+    const expected = assertedAccount();
+    assertion = expected ? verifyAssertedAccount(expected) : Promise.resolve();
+    assertion.catch(() => void 0);
+  }
+  return assertion;
+}
 async function callGmail(path, opts = {}) {
+  await ensureAssertedAccount();
   const url = new URL(`${API_BASE}/${path}`);
   for (const [k, v] of Object.entries(opts.params ?? {})) {
     if (v === void 0) continue;
@@ -21290,28 +21495,31 @@ function headerOf(headers, name) {
   return headers?.find((h) => (h.name ?? "").toLowerCase() === lower)?.value;
 }
 function decodeEncodedWords(value) {
-  return value.replace(/=\?([^?]+)\?([bBqQ])\?([^?]*)\?=\s*(?==\?)/g, "=?$1?$2?$3?=").replace(/=\?([^?]+)\?([bBqQ])\?([^?]*)\?=/g, (match, charset, enc, text) => {
-    try {
-      let bytes;
-      if (enc.toLowerCase() === "b") {
-        bytes = Buffer.from(text, "base64");
-      } else {
-        const out = [];
-        for (let i = 0; i < text.length; i++) {
-          const c = text[i];
-          if (c === "_") out.push(32);
-          else if (c === "=" && i + 2 < text.length) {
-            out.push(parseInt(text.slice(i + 1, i + 3), 16));
-            i += 2;
-          } else out.push(text.charCodeAt(i));
+  return value.replace(/=\?([^?]+)\?([bBqQ])\?([^?]*)\?=\s*(?==\?)/g, "=?$1?$2?$3?=").replace(
+    /=\?([^?]+)\?([bBqQ])\?([^?]*)\?=/g,
+    (match, charset, enc, text) => {
+      try {
+        let bytes;
+        if (enc.toLowerCase() === "b") {
+          bytes = Buffer.from(text, "base64");
+        } else {
+          const out = [];
+          for (let i = 0; i < text.length; i++) {
+            const c = text[i];
+            if (c === "_") out.push(32);
+            else if (c === "=" && i + 2 < text.length) {
+              out.push(parseInt(text.slice(i + 1, i + 3), 16));
+              i += 2;
+            } else out.push(text.charCodeAt(i));
+          }
+          bytes = Buffer.from(out);
         }
-        bytes = Buffer.from(out);
+        return /iso-8859-1|latin1|windows-1252/i.test(charset) ? bytes.toString("latin1") : bytes.toString("utf8");
+      } catch {
+        return match;
       }
-      return /iso-8859-1|latin1|windows-1252/i.test(charset) ? bytes.toString("latin1") : bytes.toString("utf8");
-    } catch {
-      return match;
     }
-  });
+  );
 }
 function decodeB64Url(data) {
   return Buffer.from(data, "base64url").toString("utf8");
@@ -21326,8 +21534,10 @@ function extractBody(payload) {
     const mime = part.mimeType ?? "";
     const data = part.body?.data;
     if (!data) return;
-    if (mime.startsWith("text/plain") && found.plain === void 0) found.plain = decodeB64Url(data);
-    else if (mime.startsWith("text/html") && found.html === void 0) found.html = decodeB64Url(data);
+    if (mime.startsWith("text/plain") && found.plain === void 0)
+      found.plain = decodeB64Url(data);
+    else if (mime.startsWith("text/html") && found.html === void 0)
+      found.html = decodeB64Url(data);
   };
   if (payload) walk(payload);
   if (found.plain !== void 0) return found.plain.trim();
@@ -21394,21 +21604,25 @@ function mimeParam(attr, value) {
     /['()*]/g,
     (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
   );
-  return `${quoted(value.replace(/[^\x20-\x7e]/g, "_"))}; ${attr}*=UTF-8''${pct}`;
+  return `${quoted(
+    value.replace(/[^\x20-\x7e]/g, "_")
+  )}; ${attr}*=UTF-8''${pct}`;
 }
 function toAttachmentList(v) {
   if (v === void 0) return [];
   return (Array.isArray(v) ? v : [v]).map((s) => s.trim()).filter(Boolean);
 }
 function resolveAttachmentPath(path) {
-  const base = (0, import_node_fs2.realpathSync)((0, import_node_path.resolve)(process.env.GMAIL_ATTACHMENT_DIR ?? process.cwd()));
+  const base = (0, import_node_fs3.realpathSync)(
+    (0, import_node_path3.resolve)(process.env.GMAIL_ATTACHMENT_DIR ?? process.cwd())
+  );
   let real;
   try {
-    real = (0, import_node_fs2.realpathSync)((0, import_node_path.resolve)(base, path));
+    real = (0, import_node_fs3.realpathSync)((0, import_node_path3.resolve)(base, path));
   } catch {
     throw new Error(`Attachment not found or unreadable: ${path}`);
   }
-  if (real !== base && !real.startsWith(base + import_node_path.sep)) {
+  if (real !== base && !real.startsWith(base + import_node_path3.sep)) {
     throw new Error(
       `Attachment is outside the allowed directory (${base}): ${path}. Move the file there, or point GMAIL_ATTACHMENT_DIR at the folder you attach from.`
     );
@@ -21421,7 +21635,7 @@ function buildAttachmentParts(paths) {
     const real = resolveAttachmentPath(path);
     let data;
     try {
-      data = (0, import_node_fs2.readFileSync)(real);
+      data = (0, import_node_fs3.readFileSync)(real);
     } catch {
       throw new Error(`Attachment not found or unreadable: ${path}`);
     }
@@ -21429,10 +21643,12 @@ function buildAttachmentParts(paths) {
     total += payload.length;
     if (total > MAX_ATTACHMENT_BYTES) {
       throw new Error(
-        `Attachments exceed Gmail's 25MB message limit (${Math.round(total / 1024 / 1024)}MB encoded so far at ${path}).`
+        `Attachments exceed Gmail's 25MB message limit (${Math.round(
+          total / 1024 / 1024
+        )}MB encoded so far at ${path}).`
       );
     }
-    const name = (0, import_node_path.basename)(real);
+    const name = (0, import_node_path3.basename)(real);
     const ext = name.includes(".") ? name.slice(name.lastIndexOf(".") + 1).toLowerCase() : "";
     const mimeType = ATTACHMENT_MIME[ext] ?? "application/octet-stream";
     return [
@@ -21457,15 +21673,20 @@ async function buildMessage(args) {
     );
   }
   const to = toList(args.to);
-  if (!to.length) throw new Error("send/draft requires at least one recipient in `to`.");
+  if (!to.length)
+    throw new Error("send/draft requires at least one recipient in `to`.");
   if (!args.subject) throw new Error("send/draft requires a `subject`.");
-  if (args.body === void 0 || args.body === "") throw new Error("send/draft requires a `body`.");
+  if (args.body === void 0 || args.body === "")
+    throw new Error("send/draft requires a `body`.");
   let threadId = args.thread_id;
   let inReplyTo;
   let references;
   if (args.reply_to_message_id) {
     const orig = await callGmail(`messages/${args.reply_to_message_id}`, {
-      params: { format: "metadata", metadataHeaders: ["Message-ID", "References"] }
+      params: {
+        format: "metadata",
+        metadataHeaders: ["Message-ID", "References"]
+      }
     });
     const origMsgId = headerOf(orig.payload?.headers, "Message-ID");
     const origRefs = headerOf(orig.payload?.headers, "References");
@@ -21492,8 +21713,10 @@ async function buildMessage(args) {
   const contentHeaders = [];
   let contentBody;
   if (args.html) {
-    const boundary = `=_pappcorn_${(0, import_node_crypto.randomBytes)(12).toString("hex")}`;
-    contentHeaders.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+    const boundary = `=_pappcorn_${(0, import_node_crypto2.randomBytes)(12).toString("hex")}`;
+    contentHeaders.push(
+      `Content-Type: multipart/alternative; boundary="${boundary}"`
+    );
     contentBody = [
       `--${boundary}`,
       "Content-Type: text/plain; charset=UTF-8",
@@ -21515,7 +21738,7 @@ async function buildMessage(args) {
   let bodyBlock;
   const attachmentPaths = toAttachmentList(args.attachments);
   if (attachmentPaths.length) {
-    const mixed = `=_pappcorn_mixed_${(0, import_node_crypto.randomBytes)(12).toString("hex")}`;
+    const mixed = `=_pappcorn_mixed_${(0, import_node_crypto2.randomBytes)(12).toString("hex")}`;
     headers.push(`Content-Type: multipart/mixed; boundary="${mixed}"`);
     const parts = [`--${mixed}`, ...contentHeaders, "", contentBody];
     for (const part of buildAttachmentParts(attachmentPaths)) {
@@ -21553,34 +21776,47 @@ async function search(opts) {
   const rows = await Promise.all(
     stubs.map(async (stub) => {
       const msg = await callGmail(`messages/${stub.id}`, {
-        params: { format: "metadata", metadataHeaders: ["From", "To", "Subject", "Date"] }
+        params: {
+          format: "metadata",
+          metadataHeaders: ["From", "To", "Subject", "Date"]
+        }
       });
       return toRow(msg);
     })
   );
-  return { items: rows, next_page_token: list.nextPageToken };
+  return {
+    items: rows,
+    next_page_token: list.nextPageToken
+  };
 }
 async function readThread(opts) {
-  const data = await callGmail(`threads/${opts.thread_id}`, { params: { format: "full" } });
-  const messages = (data.messages ?? []).map((msg) => {
-    const h = msg.payload?.headers;
-    return {
-      id: msg.id ?? "",
-      from: decodeEncodedWords(headerOf(h, "From") ?? ""),
-      to: decodeEncodedWords(headerOf(h, "To") ?? ""),
-      cc: headerOf(h, "Cc") ? decodeEncodedWords(headerOf(h, "Cc") ?? "") : void 0,
-      date: headerOf(h, "Date"),
-      subject: decodeEncodedWords(headerOf(h, "Subject") ?? ""),
-      labelIds: msg.labelIds,
-      body: extractBody(msg.payload)
-    };
+  const data = await callGmail(`threads/${opts.thread_id}`, {
+    params: { format: "full" }
   });
+  const messages = (data.messages ?? []).map(
+    (msg) => {
+      const h = msg.payload?.headers;
+      return {
+        id: msg.id ?? "",
+        from: decodeEncodedWords(headerOf(h, "From") ?? ""),
+        to: decodeEncodedWords(headerOf(h, "To") ?? ""),
+        cc: headerOf(h, "Cc") ? decodeEncodedWords(headerOf(h, "Cc") ?? "") : void 0,
+        date: headerOf(h, "Date"),
+        subject: decodeEncodedWords(headerOf(h, "Subject") ?? ""),
+        labelIds: msg.labelIds,
+        body: extractBody(msg.payload)
+      };
+    }
+  );
   return { id: data.id ?? opts.thread_id, messages };
 }
 async function send(args) {
   const built = await buildMessage(args);
   const data = await callGmail("messages/send", {
-    body: { raw: built.raw, ...built.threadId ? { threadId: built.threadId } : {} }
+    body: {
+      raw: built.raw,
+      ...built.threadId ? { threadId: built.threadId } : {}
+    }
   });
   return {
     id: data.id,
@@ -21591,10 +21827,19 @@ async function send(args) {
 async function draft(args) {
   const built = await buildMessage(args);
   const data = await callGmail("drafts", {
-    body: { message: { raw: built.raw, ...built.threadId ? { threadId: built.threadId } : {} } }
+    body: {
+      message: {
+        raw: built.raw,
+        ...built.threadId ? { threadId: built.threadId } : {}
+      }
+    }
   });
   const message = data.message;
-  return { draft_id: data.id, message_id: message?.id, threadId: message?.threadId };
+  return {
+    draft_id: data.id,
+    message_id: message?.id,
+    threadId: message?.threadId
+  };
 }
 async function listLabels() {
   const data = await callGmail("labels");
@@ -21609,9 +21854,17 @@ async function ensureLabel(name) {
   const found = labels.find((l) => l.name.toLowerCase() === name.toLowerCase());
   if (found) return found;
   const data = await callGmail("labels", {
-    body: { name, labelListVisibility: "labelShow", messageListVisibility: "show" }
+    body: {
+      name,
+      labelListVisibility: "labelShow",
+      messageListVisibility: "show"
+    }
   });
-  return { id: data.id, name: data.name, type: data.type };
+  return {
+    id: data.id,
+    name: data.name,
+    type: data.type
+  };
 }
 async function resolveLabelIds(names, createMissing) {
   const ids = [];
@@ -21627,7 +21880,9 @@ async function resolveLabelIds(names, createMissing) {
       ids.push(created.id);
       labels = [...labels, created];
     } else {
-      throw new Error(`Label "${name}" not found in the mailbox (run listLabels to see what exists).`);
+      throw new Error(
+        `Label "${name}" not found in the mailbox (run listLabels to see what exists).`
+      );
     }
   }
   return ids;
@@ -21636,12 +21891,16 @@ async function modifyLabels(opts) {
   const hasMessage = Boolean(opts.message_id);
   const hasThread = Boolean(opts.thread_id);
   if (hasMessage === hasThread) {
-    throw new Error("modifyLabels requires exactly one of message_id or thread_id.");
+    throw new Error(
+      "modifyLabels requires exactly one of message_id or thread_id."
+    );
   }
   const add = opts.add ?? [];
   const remove = opts.remove ?? [];
   if (!add.length && !remove.length) {
-    throw new Error("modifyLabels requires at least one label in add or remove.");
+    throw new Error(
+      "modifyLabels requires at least one label in add or remove."
+    );
   }
   const addLabelIds = add.length ? await resolveLabelIds(add, true) : [];
   const removeLabelIds = remove.length ? await resolveLabelIds(remove, false) : [];
@@ -21712,14 +21971,24 @@ function formatThreadMessage(m) {
   ].join("\n");
 }
 var composeShape = {
-  to: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).describe('Recipient(s): email or "Name <email>"; array or comma-separated string.'),
+  to: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).describe(
+    'Recipient(s): email or "Name <email>"; array or comma-separated string.'
+  ),
   subject: external_exports.string().describe("Subject line (UTF-8 fine; encoded per RFC 2047 on the wire)."),
-  body: external_exports.string().describe("Message body. Plain text by default; when html=true this IS the HTML."),
+  body: external_exports.string().describe(
+    "Message body. Plain text by default; when html=true this IS the HTML."
+  ),
   cc: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).optional().describe("Cc recipient(s)."),
   bcc: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).optional().describe("Bcc recipient(s)."),
-  reply_to_message_id: external_exports.string().optional().describe("Message id being replied to (from mail_search / mail_read_thread). Sets In-Reply-To/References and inherits the thread."),
-  thread_id: external_exports.string().optional().describe("Thread id to attach to (inferred from reply_to_message_id when replying)."),
-  html: external_exports.boolean().optional().describe("Send as HTML (multipart/alternative with an auto-derived text part). Default: plain text."),
+  reply_to_message_id: external_exports.string().optional().describe(
+    "Message id being replied to (from mail_search / mail_read_thread). Sets In-Reply-To/References and inherits the thread."
+  ),
+  thread_id: external_exports.string().optional().describe(
+    "Thread id to attach to (inferred from reply_to_message_id when replying)."
+  ),
+  html: external_exports.boolean().optional().describe(
+    "Send as HTML (multipart/alternative with an auto-derived text part). Default: plain text."
+  ),
   attachments: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).optional().describe(
     "Local file path(s) to attach (multipart/mixed; filename = basename, Content-Type by extension). Files must live inside the allowed directory (GMAIL_ATTACHMENT_DIR, default: the working directory) \u2014 paths outside it are rejected. Paths are NOT comma-split \u2014 pass an array for several files. Total \u2264 25MB (Gmail limit)."
   )
@@ -21728,7 +21997,7 @@ function registerTools(server) {
   server.registerTool(
     "mail_whoami",
     {
-      description: "Verify the mail credential: returns the authenticated mailbox (emailAddress \u2014 the account that granted the token) plus messagesTotal/threadsTotal. Never prints any credential field.",
+      description: "Verify the mail credential: returns the authenticated mailbox (emailAddress \u2014 the account that granted the token), messagesTotal/threadsTotal, and where that credential was resolved from (the environment, a .env, or a credential file path). Use it to confirm WHICH mailbox this session is on before sending anything. Never prints any credential field.",
       inputSchema: {}
     },
     async () => {
@@ -21736,9 +22005,10 @@ function registerTools(server) {
         const p = await getProfile();
         return ok(
           [
-            `mailbox:  ${p.emailAddress ?? ""}`,
-            `messages: ${p.messagesTotal ?? "?"}`,
-            `threads:  ${p.threadsTotal ?? "?"}`
+            `mailbox:    ${p.emailAddress ?? ""}`,
+            `messages:   ${p.messagesTotal ?? "?"}`,
+            `threads:    ${p.threadsTotal ?? "?"}`,
+            `credential: ${credentialSource()}`
           ].join("\n")
         );
       } catch (err) {
@@ -21751,17 +22021,28 @@ function registerTools(server) {
     {
       description: "Search messages in the authenticated mailbox with Gmail query syntax (from:, to:, subject:, label:, is:unread, newer_than:7d, \u2026). Returns one block per message: message id + thread id + date + from + subject + snippet. Use the thread id with mail_read_thread, the message id with mail_send (reply_to_message_id) / mail_label / mail_archive.",
       inputSchema: {
-        q: external_exports.string().optional().describe('Gmail search query (e.g. "from:noreply@vercel.com is:unread newer_than:7d").'),
-        label_ids: external_exports.array(external_exports.string()).optional().describe('Restrict to these label IDS (e.g. ["INBOX","UNREAD"]). Names must be resolved via mail_label / labels first.'),
+        q: external_exports.string().optional().describe(
+          'Gmail search query (e.g. "from:noreply@vercel.com is:unread newer_than:7d").'
+        ),
+        label_ids: external_exports.array(external_exports.string()).optional().describe(
+          'Restrict to these label IDS (e.g. ["INBOX","UNREAD"]). Names must be resolved via mail_label / labels first.'
+        ),
         max: external_exports.number().int().min(1).max(100).optional().describe("Messages per page (default 20, max 100)."),
         page_token: external_exports.string().optional().describe("Pagination token from a previous call.")
       }
     },
     async (args) => {
       try {
-        const page = await search({ q: args.q, label_ids: args.label_ids, max: args.max, page_token: args.page_token });
+        const page = await search({
+          q: args.q,
+          label_ids: args.label_ids,
+          max: args.max,
+          page_token: args.page_token
+        });
         const rows = page.items.map(formatRow);
-        return ok((rows.length ? rows.join("\n\n") : "(0 messages)") + pageTail(page.next_page_token));
+        return ok(
+          (rows.length ? rows.join("\n\n") : "(0 messages)") + pageTail(page.next_page_token)
+        );
       } catch (err) {
         return fail(err);
       }
@@ -21797,7 +22078,9 @@ function registerTools(server) {
     async (args) => {
       try {
         const res = await send(args);
-        return ok(`Sent. message id:${res.id ?? "?"}  thread:${res.threadId ?? "?"}`);
+        return ok(
+          `Sent. message id:${res.id ?? "?"}  thread:${res.threadId ?? "?"}`
+        );
       } catch (err) {
         return fail(err);
       }
@@ -21812,7 +22095,9 @@ function registerTools(server) {
     async (args) => {
       try {
         const res = await draft(args);
-        return ok(`Draft created. draft id:${res.draft_id ?? "?"}  message id:${res.message_id ?? "?"}  thread:${res.threadId ?? "?"}`);
+        return ok(
+          `Draft created. draft id:${res.draft_id ?? "?"}  message id:${res.message_id ?? "?"}  thread:${res.threadId ?? "?"}`
+        );
       } catch (err) {
         return fail(err);
       }
@@ -21833,7 +22118,9 @@ function registerTools(server) {
       try {
         if (!args.message_id && !args.thread_id) {
           const labels = await listLabels();
-          const rows = labels.map((l) => `${l.id}  ${l.name}${l.type === "system" ? "  (system)" : ""}`);
+          const rows = labels.map(
+            (l) => `${l.id}  ${l.name}${l.type === "system" ? "  (system)" : ""}`
+          );
           return ok(rows.length ? rows.join("\n") : "(0 labels)");
         }
         const res = await modifyLabels({
@@ -21856,13 +22143,20 @@ labels now: ${res.labelIds.join(", ")}` : "")
     {
       description: "Archive a message or thread (exactly one id): removes the INBOX label so it leaves the inbox but stays searchable. This is the strongest removal v1 allows \u2014 there is NO delete by design.",
       inputSchema: {
-        message_id: external_exports.string().optional().describe("Message id to archive (mutually exclusive with thread_id)."),
-        thread_id: external_exports.string().optional().describe("Thread id to archive (mutually exclusive with message_id).")
+        message_id: external_exports.string().optional().describe(
+          "Message id to archive (mutually exclusive with thread_id)."
+        ),
+        thread_id: external_exports.string().optional().describe(
+          "Thread id to archive (mutually exclusive with message_id)."
+        )
       }
     },
     async (args) => {
       try {
-        const res = await archive({ message_id: args.message_id, thread_id: args.thread_id });
+        const res = await archive({
+          message_id: args.message_id,
+          thread_id: args.thread_id
+        });
         return ok(`Archived ${res.target} id:${res.id} (INBOX removed).`);
       } catch (err) {
         return fail(err);

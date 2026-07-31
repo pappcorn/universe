@@ -234,8 +234,34 @@ only by you). **The refresh token is never shown on screen.**
 npx -y -p @pappcorn/gmail-mcp pappcorn-gmail whoami
 ```
 
-Your own address plus message/thread counts = done. Now delete the client JSON
-from Downloads — everything it contained lives in the credential file.
+Your own address plus message/thread counts = done. The `credential:` line
+underneath tells you which file that identity came from — worth a glance, and
+essential once you have more than one mailbox. Now delete the client JSON from
+Downloads: everything it contained lives in the credential file.
+
+### 2.5 A second mailbox, later
+
+Run Phase 2 again logged in as the other account. The setup script will **not**
+overwrite the credential you just made — a refresh token cannot be recovered,
+so a second mailbox gets its own file:
+
+```
+~/.config/pappcorn-gmail-mcp/credentials.json          # the first one
+~/.config/pappcorn-gmail-mcp/you_at_work.com.json      # the second
+```
+
+To make a project use the second one, put two lines in that folder's `.env`:
+
+```bash
+GMAIL_MCP_CREDENTIALS=~/.config/pappcorn-gmail-mcp/you_at_work.com.json
+GMAIL_ACCOUNT=you@work.com
+```
+
+`GMAIL_ACCOUNT` is checked against the mailbox that actually answers, so a wrong
+credential is refused rather than used. **If that folder is a git repository,
+add `.env` to `.gitignore` first** — a refresh token pushed to a remote is a
+total leak. Details:
+[One machine, several mailboxes](setup-google-cloud.md#one-machine-several-mailboxes).
 
 ---
 
@@ -259,7 +285,8 @@ any file — and handed to the connector as environment variables.
 > `~/.config/pappcorn-gmail-mcp/credentials.json` from Phase 2. Ask Claude to
 > read them into the prompt for you — or, if you keep the file, you can skip
 > the prompt entirely by leaving the fields empty: with no explicit values, the
-> connector reads that file on its own.
+> connector resolves the credential from the folder it is started in (nearest
+> `.env`, then `$GMAIL_MCP_CREDENTIALS`, then that file).
 
 ### Claude Code (from source or npm)
 

@@ -34,6 +34,13 @@ yarn-error.log
 testem.log
 /typings
 
+# Local configuration. The connectors resolve credentials from the nearest
+# .env, so one can easily exist here — and a refresh token pushed to a remote
+# is a total leak. Never track these.
+.env
+.env.*
+!.env.example
+
 # System Files
 .DS_Store
 Thumbs.db

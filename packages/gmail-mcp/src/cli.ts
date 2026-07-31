@@ -5,13 +5,15 @@
 // code here; auth lives in auth.ts, API ops in core.ts.
 //
 // Run via: node -r @swc-node/register src/cli.ts <cmd> …
-// Auth: OAuth credential file at ~/.config/pappcorn-gmail-mcp/credentials.json (override:
-// See docs/setup-google-cloud.md.
+// Auth: resolved from the WORKING DIRECTORY — process environment, then the
+// nearest `.env` (walking up to the repo root), then $GMAIL_MCP_CREDENTIALS,
+// then ~/.config/pappcorn-gmail-mcp/credentials.json. `whoami` prints which one
+// won. See docs/setup-google-cloud.md.
 //
-// Exit codes: 0 ok | 1 local config (credential missing/revoked) | 2 bad args
-// | 3 Gmail API failure. The CLI never prints any credential field.
+// Exit codes: 0 ok | 1 local config (credential missing/revoked/wrong mailbox)
+// | 2 bad args | 3 Gmail API failure. The CLI never prints any credential field.
 
-import { loadCredentials, MailAccessError } from './auth';
+import { credentialSource, loadCredentials, MailAccessError } from './auth';
 import {
   archive,
   draft,
@@ -101,8 +103,12 @@ function printRows(rows: MessageRow[]): void {
   }
   for (const r of rows) {
     const labels = r.labelIds?.length ? `  [${r.labelIds.join(',')}]` : '';
-    process.stdout.write(`id:${r.id}  thread:${r.threadId ?? ''}  ${r.date ?? ''}${labels}\n`);
-    process.stdout.write(`  from: ${r.from ?? ''}  —  ${r.subject ?? '(no subject)'}\n`);
+    process.stdout.write(
+      `id:${r.id}  thread:${r.threadId ?? ''}  ${r.date ?? ''}${labels}\n`
+    );
+    process.stdout.write(
+      `  from: ${r.from ?? ''}  —  ${r.subject ?? '(no subject)'}\n`
+    );
     if (r.snippet) process.stdout.write(`  ${r.snippet}\n`);
     process.stdout.write('\n');
   }
@@ -115,7 +121,8 @@ function printThreadMessage(m: ThreadMessage): void {
   if (m.cc) process.stdout.write(`cc:      ${m.cc}\n`);
   process.stdout.write(`date:    ${m.date ?? ''}\n`);
   process.stdout.write(`subject: ${m.subject ?? ''}\n`);
-  if (m.labelIds?.length) process.stdout.write(`labels:  ${m.labelIds.join(', ')}\n`);
+  if (m.labelIds?.length)
+    process.stdout.write(`labels:  ${m.labelIds.join(', ')}\n`);
   process.stdout.write(`\n${m.body}\n\n`);
 }
 
@@ -138,23 +145,31 @@ async function readStdin(): Promise<string> {
 async function cmdWhoami(argv: string[]): Promise<void> {
   const { flags } = parseFlags(argv);
   const p = await getProfile();
+  // `credential` answers "which mailbox is this folder on, and why" — the
+  // question that made multi-mailbox setups dangerous. Paths only, no secrets.
   if (flags.json) {
-    printJson(p);
+    printJson({ ...p, credential: credentialSource() });
     return;
   }
   process.stdout.write(
     [
-      `mailbox:  ${p.emailAddress ?? ''}`,
-      `messages: ${p.messagesTotal ?? '?'}`,
-      `threads:  ${p.threadsTotal ?? '?'}`,
-    ].join('\n') + '\n',
+      `mailbox:    ${p.emailAddress ?? ''}`,
+      `messages:   ${p.messagesTotal ?? '?'}`,
+      `threads:    ${p.threadsTotal ?? '?'}`,
+      `credential: ${credentialSource()}`,
+    ].join('\n') + '\n'
   );
 }
 
 async function cmdSearch(argv: string[]): Promise<void> {
   const { positional, flags } = parseFlags(argv);
-  const q = positional.join(' ') || (typeof flags.q === 'string' ? flags.q : undefined);
-  if (!q) fail(2, 'Usage: search <query> [--max N] [--page P] [--json]   (Gmail query syntax, e.g. "from:x is:unread")');
+  const q =
+    positional.join(' ') || (typeof flags.q === 'string' ? flags.q : undefined);
+  if (!q)
+    fail(
+      2,
+      'Usage: search <query> [--max N] [--page P] [--json]   (Gmail query syntax, e.g. "from:x is:unread")'
+    );
   const page = await search({
     q,
     max: flags.max !== undefined ? Number(flags.max) : undefined,
@@ -170,14 +185,20 @@ async function cmdSearch(argv: string[]): Promise<void> {
 
 async function cmdRead(argv: string[]): Promise<void> {
   const { positional, flags } = parseFlags(argv);
-  const threadId = positional[0] ?? (typeof flags.thread === 'string' ? flags.thread : undefined);
+  const threadId =
+    positional[0] ??
+    (typeof flags.thread === 'string' ? flags.thread : undefined);
   if (!threadId) fail(2, 'Usage: read <threadId> [--json]');
   const t = await readThread({ thread_id: threadId });
   if (flags.json) {
     printJson(t);
     return;
   }
-  process.stdout.write(`thread:${t.id}  (${t.messages.length} message${t.messages.length === 1 ? '' : 's'})\n\n`);
+  process.stdout.write(
+    `thread:${t.id}  (${t.messages.length} message${
+      t.messages.length === 1 ? '' : 's'
+    })\n\n`
+  );
   for (const m of t.messages) printThreadMessage(m);
 }
 
@@ -185,17 +206,27 @@ async function cmdRead(argv: string[]): Promise<void> {
 // flag for several files: --attach a.pdf --attach b.png
 function attachFlag(v: FlagVal | FlagVal[] | undefined): string[] | undefined {
   if (v === undefined) return undefined;
-  const out = (Array.isArray(v) ? v : [v]).filter((x): x is string => typeof x === 'string');
+  const out = (Array.isArray(v) ? v : [v]).filter(
+    (x): x is string => typeof x === 'string'
+  );
   return out.length ? out : undefined;
 }
 
-async function composeFromFlags(argv: string[], cmd: 'send' | 'draft'): Promise<ComposeArgs> {
+async function composeFromFlags(
+  argv: string[],
+  cmd: 'send' | 'draft'
+): Promise<ComposeArgs> {
   const { flags } = parseFlags(argv);
   const usage = `Usage: ${cmd} --to <addr> --subject <s> --body <text|-> [--cc <addr>] [--bcc <addr>] [--attach <file>]... [--reply-to-message <id>] [--thread <id>] [--html] [--json]   (--body - reads stdin)`;
   const to = listFlag(flags.to);
   if (!to) fail(2, usage);
-  if (typeof flags.subject !== 'string') fail(2, `${cmd} requires --subject <s>.\n${usage}`);
-  if (typeof flags.body !== 'string') fail(2, `${cmd} requires --body <text> (or --body - to read stdin).\n${usage}`);
+  if (typeof flags.subject !== 'string')
+    fail(2, `${cmd} requires --subject <s>.\n${usage}`);
+  if (typeof flags.body !== 'string')
+    fail(
+      2,
+      `${cmd} requires --body <text> (or --body - to read stdin).\n${usage}`
+    );
   const body = flags.body === '-' ? await readStdin() : flags.body;
   if (!body.trim()) fail(2, `${cmd}: the body is empty.`);
   return {
@@ -204,7 +235,10 @@ async function composeFromFlags(argv: string[], cmd: 'send' | 'draft'): Promise<
     body,
     cc: listFlag(flags.cc),
     bcc: listFlag(flags.bcc),
-    reply_to_message_id: typeof flags['reply-to-message'] === 'string' ? flags['reply-to-message'] : undefined,
+    reply_to_message_id:
+      typeof flags['reply-to-message'] === 'string'
+        ? flags['reply-to-message']
+        : undefined,
     thread_id: typeof flags.thread === 'string' ? flags.thread : undefined,
     html: flags.html === true,
     attachments: attachFlag(flags.attach),
@@ -219,7 +253,9 @@ async function cmdSend(argv: string[]): Promise<void> {
     printJson(res);
     return;
   }
-  process.stdout.write(`Sent. message id:${res.id ?? '?'}  thread:${res.threadId ?? '?'}\n`);
+  process.stdout.write(
+    `Sent. message id:${res.id ?? '?'}  thread:${res.threadId ?? '?'}\n`
+  );
 }
 
 async function cmdDraft(argv: string[]): Promise<void> {
@@ -231,7 +267,9 @@ async function cmdDraft(argv: string[]): Promise<void> {
     return;
   }
   process.stdout.write(
-    `Draft created. draft id:${res.draft_id ?? '?'}  message id:${res.message_id ?? '?'}  thread:${res.threadId ?? '?'}\n`,
+    `Draft created. draft id:${res.draft_id ?? '?'}  message id:${
+      res.message_id ?? '?'
+    }  thread:${res.threadId ?? '?'}\n`
   );
 }
 
@@ -247,7 +285,9 @@ async function cmdLabels(argv: string[]): Promise<void> {
     return;
   }
   for (const l of labels) {
-    process.stdout.write(`${l.id}  ${l.name}${l.type === 'system' ? '  (system)' : ''}\n`);
+    process.stdout.write(
+      `${l.id}  ${l.name}${l.type === 'system' ? '  (system)' : ''}\n`
+    );
   }
 }
 
@@ -257,7 +297,10 @@ async function cmdLabel(argv: string[]): Promise<void> {
   const add = listFlag(flags.add);
   const remove = listFlag(flags.remove);
   if (!id || (!add && !remove)) {
-    fail(2, 'Usage: label <id> --add a,b [--remove c,d] [--thread] [--json]   (--thread targets a thread id; default is a message id)');
+    fail(
+      2,
+      'Usage: label <id> --add a,b [--remove c,d] [--thread] [--json]   (--thread targets a thread id; default is a message id)'
+    );
   }
   const res = await modifyLabels({
     ...(flags.thread ? { thread_id: id } : { message_id: id }),
@@ -273,20 +316,28 @@ async function cmdLabel(argv: string[]): Promise<void> {
       (res.added.length ? `  added: ${res.added.join(', ')}` : '') +
       (res.removed.length ? `  removed: ${res.removed.join(', ')}` : '') +
       (res.labelIds ? `\nlabels now: ${res.labelIds.join(', ')}` : '') +
-      '\n',
+      '\n'
   );
 }
 
 async function cmdArchive(argv: string[]): Promise<void> {
   const { positional, flags } = parseFlags(argv);
   const id = positional[0];
-  if (!id) fail(2, 'Usage: archive <id> [--thread] [--json]   (--thread targets a thread id; default is a message id)');
-  const res = await archive(flags.thread ? { thread_id: id } : { message_id: id });
+  if (!id)
+    fail(
+      2,
+      'Usage: archive <id> [--thread] [--json]   (--thread targets a thread id; default is a message id)'
+    );
+  const res = await archive(
+    flags.thread ? { thread_id: id } : { message_id: id }
+  );
   if (flags.json) {
     printJson(res);
     return;
   }
-  process.stdout.write(`Archived ${res.target} id:${res.id} (INBOX removed).\n`);
+  process.stdout.write(
+    `Archived ${res.target} id:${res.id} (INBOX removed).\n`
+  );
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -307,11 +358,18 @@ Commands:
   label     Add/remove labels on a message or thread.       label <id> --add a,b [--remove c,d] [--thread] [--json]
   archive   Archive (remove INBOX); never deletes.          archive <id> [--thread] [--json]
 
-Auth: OAuth credential file at ~/.config/pappcorn-gmail-mcp/credentials.json (override: $GMAIL_MCP_CREDENTIALS),
+Auth is resolved from the working directory, highest precedence first:
+  1. GMAIL_CLIENT_ID + GMAIL_CLIENT_SECRET + GMAIL_REFRESH_TOKEN in the environment
+  2. the nearest .env (this folder, walking up to the repo root) — fills in what the environment lacks
+  3. $GMAIL_MCP_CREDENTIALS (a credential file path)
+  4. ~/.config/pappcorn-gmail-mcp/credentials.json (global default; still supported, no longer recommended)
+Set GMAIL_ACCOUNT to assert which mailbox this folder is for: a mismatch is denied, not guessed.
+Run \`whoami\` to see which of the four won.
+
 Notes: --body - reads the body from stdin (pipe long bodies). --to/--cc/--bcc repeat or take comma lists.
        --attach repeats per file (never comma-split; total ≤ 25MB — the Gmail message limit).
        Label names resolve case-insensitively; names being ADDED are auto-created. v1 never deletes mail.
-Exit codes: 0 ok | 1 local config (credential missing/revoked) | 2 bad args | 3 Gmail API failure.
+Exit codes: 0 ok | 1 local config (credential missing/revoked/wrong mailbox) | 2 bad args | 3 Gmail API failure.
 `;
 
 type Handler = (argv: string[]) => Promise<void> | void;

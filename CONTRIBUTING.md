@@ -19,9 +19,14 @@ standalone publishable npm package.
 ## Before you open a PR
 
 - **Build cleanly.** `npx nx run-many -t build` with no errors.
+- **Test.** `npx nx run-many -t test` where a connector has tests (Node's
+  built-in runner — no test framework to install). Logic that decides _which
+  account a credential belongs to_, or whether a credential file gets
+  overwritten, should come with tests: those are the paths that hurt when wrong.
 - **Actually run it.** Every connector has a CLI (`npm run gmail -- whoami`,
   `npm run whatsapp -- whoami`). Exercise the path you changed against a real
-  account — these tools touch real inboxes and real people.
+  account — these tools touch real inboxes and real people. If you can't, say so
+  in the PR rather than implying you did.
 - **Format.** `npm run format`.
 
 ## How a PR gets merged
