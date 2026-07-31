@@ -132,9 +132,14 @@ type ParamVal = string | number | boolean | undefined | string[];
 //
 // The check runs through its own fetch rather than through callGmail, so there
 // is no reentrancy and no window in which a concurrent caller slips past an
-// in-flight verification. The result (including a failure) is memoised: one
-// extra round trip per process, and a denial stays a denial.
-let assertion: Promise<void> | null = null;
+// in-flight verification.
+//
+// What gets memoised is a VERDICT about identity — the mailbox matched, or it
+// did not. A denial stays a denial: a mismatch will not resolve itself, and
+// re-asking Gmail on every call would only deny more slowly. But failing to
+// REACH Gmail is not a verdict. A transient 503 on the very first call must not
+// leave this process unable to touch mail for as long as it lives, so that memo
+// is cleared and the next call asks again.
 
 async function verifyAssertedAccount(expected: string): Promise<void> {
   const res = await fetch(`${API_BASE}/profile`, {
@@ -161,15 +166,47 @@ async function verifyAssertedAccount(expected: string): Promise<void> {
   }
 }
 
-function ensureAssertedAccount(): Promise<void> {
-  if (!assertion) {
-    const expected = assertedAccount();
-    assertion = expected ? verifyAssertedAccount(expected) : Promise.resolve();
+/**
+ * Build the gate that guards every Gmail call.
+ *
+ * Dependencies are injected so the memo contract can be exercised without a
+ * network, a credential, or a real mailbox — that contract is the part worth
+ * testing, and it is invisible from the outside once it is wrong.
+ *
+ * A `MailAccessError` is a verdict about identity and is remembered. Anything
+ * else — a 5xx, a DNS failure, a token endpoint that timed out — says nothing
+ * about which mailbox this is, so it is forgotten and the next call retries.
+ */
+export function createAssertionGate(
+  asserted: () => string | undefined,
+  verify: (expected: string) => Promise<void>
+): () => Promise<void> {
+  let verdict: Promise<void> | null = null;
+
+  return function ensure(): Promise<void> {
+    if (verdict) return verdict;
+
+    const expected = asserted();
+    if (!expected) {
+      verdict = Promise.resolve();
+      return verdict;
+    }
+
+    const attempt = verify(expected).catch((err: unknown) => {
+      if (!(err instanceof MailAccessError)) verdict = null;
+      throw err;
+    });
+    verdict = attempt;
     // A rejected promise nobody has awaited yet must not crash the process.
-    assertion.catch(() => undefined);
-  }
-  return assertion;
+    attempt.catch(() => undefined);
+    return verdict;
+  };
 }
+
+const ensureAssertedAccount = createAssertionGate(
+  assertedAccount,
+  verifyAssertedAccount
+);
 
 // GET for reads (params in the query string; repeated params — e.g.
 // metadataHeaders — are appended once per value), POST for writes (JSON body).

@@ -21427,7 +21427,6 @@ var GmailApiError = class extends Error {
   status;
   googleMessage;
 };
-var assertion = null;
 async function verifyAssertedAccount(expected) {
   const res = await fetch(`${API_BASE}/profile`, {
     headers: await authHeaders()
@@ -21451,14 +21450,28 @@ async function verifyAssertedAccount(expected) {
     throw new MailAccessError(accountMismatchMessage(expected));
   }
 }
-function ensureAssertedAccount() {
-  if (!assertion) {
-    const expected = assertedAccount();
-    assertion = expected ? verifyAssertedAccount(expected) : Promise.resolve();
-    assertion.catch(() => void 0);
-  }
-  return assertion;
+function createAssertionGate(asserted, verify) {
+  let verdict = null;
+  return function ensure() {
+    if (verdict) return verdict;
+    const expected = asserted();
+    if (!expected) {
+      verdict = Promise.resolve();
+      return verdict;
+    }
+    const attempt = verify(expected).catch((err) => {
+      if (!(err instanceof MailAccessError)) verdict = null;
+      throw err;
+    });
+    verdict = attempt;
+    attempt.catch(() => void 0);
+    return verdict;
+  };
 }
+var ensureAssertedAccount = createAssertionGate(
+  assertedAccount,
+  verifyAssertedAccount
+);
 async function callGmail(path, opts = {}) {
   await ensureAssertedAccount();
   const url = new URL(`${API_BASE}/${path}`);
