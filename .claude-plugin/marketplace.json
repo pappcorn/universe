@@ -13,6 +13,12 @@
       "description": "Read, search, triage, draft and SEND email from your own Gmail account. Uses your own Google OAuth app — your credentials never leave your machine."
     },
     {
+      "name": "gsheets-mcp",
+      "source": "./packages/gsheets-mcp",
+      "version": "0.1.0",
+      "description": "Inspect, search and EDIT Google Sheets that were shared with you — in place, without loading the file into the context. Every write is previewed and confirmed. Uses your own Google OAuth app."
+    },
+    {
       "name": "whatsapp-mcp",
       "source": "./packages/whatsapp-mcp",
       "version": "0.2.0",
