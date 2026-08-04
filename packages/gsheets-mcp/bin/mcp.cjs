@@ -21260,6 +21260,7 @@ var DRIVE_BASE = "https://www.googleapis.com/drive/v3/files";
 var SPREADSHEET_MIME = "application/vnd.google-apps.spreadsheet";
 var XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 var MAX_READ_CELLS = 5e3;
+var MAX_SCAN_CELLS = 2e6;
 var DEFAULT_MAX_MATCHES = 50;
 var SheetsApiError = class extends Error {
   status;
@@ -21396,7 +21397,7 @@ async function find(spreadsheetId, range, query, opts = {}) {
   const needle = opts.caseSensitive ? query : query.toLowerCase();
   const { values } = await readRange(spreadsheetId, range, {
     render: "UNFORMATTED_VALUE",
-    cap: Infinity
+    cap: MAX_SCAN_CELLS
   });
   const anchor = rangeAnchor(range);
   const sheetPrefix = range.includes("!") ? range.slice(0, range.lastIndexOf("!") + 1) : "";
@@ -21428,6 +21429,16 @@ async function find(spreadsheetId, range, query, opts = {}) {
 function editToken(spreadsheetId, range, before, after) {
   const payload = JSON.stringify({ spreadsheetId, range, before, after });
   return (0, import_node_crypto.createHash)("sha256").update(payload).digest("hex").slice(0, 16);
+}
+async function usedRowCount(spreadsheetId, range) {
+  const tab = range.includes("!") ? range.slice(0, range.lastIndexOf("!")) : range;
+  const looksLikeBareRange = /^\$?[A-Za-z]{1,3}(\$?\d+)?(:\$?[A-Za-z]{1,3}(\$?\d+)?)?$/.test(tab);
+  const probe = looksLikeBareRange ? "A:A" : `${tab}!A:A`;
+  const { values } = await readRange(spreadsheetId, probe, {
+    render: "UNFORMATTED_VALUE",
+    cap: MAX_SCAN_CELLS
+  });
+  return values.length;
 }
 async function updateRange(spreadsheetId, range, values, opts = {}) {
   const valueInputOption = opts.raw ? "RAW" : "USER_ENTERED";
@@ -21505,10 +21516,14 @@ function logWrite(entry) {
     };
   }
 }
+function escapeDriveQuery(value) {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
 async function locate(nameQuery, opts = {}) {
   const mimeClause = opts.includeXlsx ? `(mimeType='${SPREADSHEET_MIME}' or mimeType='${XLSX_MIME}')` : `mimeType='${SPREADSHEET_MIME}'`;
-  const escaped = nameQuery.replace(/'/g, "\\'");
-  const q = `${mimeClause} and name contains '${escaped}' and trashed=false`;
+  const q = `${mimeClause} and name contains '${escapeDriveQuery(
+    nameQuery
+  )}' and trashed=false`;
   const params = new URLSearchParams({
     q,
     pageSize: String(opts.limit ?? 20),
@@ -21886,7 +21901,7 @@ function registerTools(server) {
   server.registerTool(
     "sheet_append",
     {
-      description: "Add rows after the last used row of a tab. Two-phase like sheet_update: preview first, then confirm with the token. Appending cannot overwrite existing data, but it still changes a file someone else owns, so the human still approves it.",
+      description: "Add rows after the last used row of a tab. Two-phase like sheet_update: preview first, then confirm with the token. Appending cannot overwrite existing data, but it still changes a file someone else owns, so the human still approves it. The token is bound to the table's current height, which means it is single-use \u2014 confirming appends once, not once per call \u2014 and a concurrent append by someone else invalidates it.",
       inputSchema: {
         spreadsheet: spreadsheetArg,
         range: external_exports.string().describe(
@@ -21902,15 +21917,16 @@ function registerTools(server) {
     async ({ spreadsheet, range, values, confirm_token, raw }) => {
       try {
         const id = resolveSpreadsheetId(spreadsheet);
-        const token = editToken(id, `append:${range}`, [], values);
+        const height = await usedRowCount(id, range);
+        const token = editToken(id, `append:${range}`, { height }, values);
         if (!confirm_token) {
           const anchor = rangeAnchor(range);
           return ok(
             [
               `PREVIEW \u2014 sheet_append to ${range}`,
               "",
-              `${values.length} row(s) would be added after the last used row:`,
-              formatGrid(values.slice(0, 12), anchor.row, anchor.col),
+              `${values.length} row(s) would be added after row ${height}:`,
+              formatGrid(values.slice(0, 12), height + 1, anchor.col),
               ...values.length > 12 ? [`(+${values.length - 12} more rows)`] : [],
               "",
               `confirm_token: ${token}`,
@@ -21921,7 +21937,15 @@ function registerTools(server) {
         }
         if (confirm_token !== token) {
           return ok(
-            "REFUSED \u2014 the confirmation does not match these rows. Nothing was written. Re-run the preview and confirm the rows that actually come back."
+            [
+              "REFUSED \u2014 the confirmation no longer matches this sheet. Nothing was written.",
+              "",
+              `The table is ${height} row(s) tall now. Either these are not the rows that were previewed, someone else appended in the meantime, or this confirmation was already used once.`,
+              "",
+              `new confirm_token: ${token}`,
+              "",
+              "Re-run the preview, show the human what would land now, and get their yes again."
+            ].join("\n")
           );
         }
         const meta = await getMeta(id).catch(() => null);

@@ -11,6 +11,7 @@ import { describe, it } from 'node:test';
 import {
   columnLetter,
   editToken,
+  escapeDriveQuery,
   quoteSheetName,
   rangeAnchor,
   resolveSpreadsheetId,
@@ -151,6 +152,45 @@ describe('editToken', () => {
     assert.notEqual(
       editToken('X', 'A1', [['a']], [['b']]),
       editToken('X', 'A2', [['a']], [['b']])
+    );
+  });
+});
+
+describe('escapeDriveQuery', () => {
+  // Drive's query language delimits strings with ' and escapes with \.
+  // Escaping quotes BEFORE backslashes lets attacker-supplied input escape the
+  // escape and break out of the literal — this is the bug these tests pin.
+
+  it('escapes a bare quote', () => {
+    assert.equal(escapeDriveQuery("Alexa's hoja"), "Alexa\\'s hoja");
+  });
+
+  it('escapes a backslash before it can shield a quote', () => {
+    assert.equal(escapeDriveQuery('a\\b'), 'a\\\\b');
+  });
+
+  it('does not let a backslash-quote pair break out of the string literal', () => {
+    // Naive `.replace(/'/g, "\\'")` turns this into  x\\' or \'1\'=\'1  where
+    // \\ is an escaped backslash and the next ' CLOSES the literal.
+    const escaped = escapeDriveQuery("x\\' or '1'='1");
+    // Every quote must be preceded by an ODD number of backslashes to stay
+    // escaped. Walk the string and assert exactly that.
+    for (let i = 0; i < escaped.length; i++) {
+      if (escaped[i] !== "'") continue;
+      let slashes = 0;
+      for (let j = i - 1; j >= 0 && escaped[j] === '\\'; j--) slashes++;
+      assert.equal(
+        slashes % 2,
+        1,
+        `quote at ${i} escapes out of the literal: ${escaped}`
+      );
+    }
+  });
+
+  it('leaves an ordinary name untouched', () => {
+    assert.equal(
+      escapeDriveQuery('Conciliación agosto'),
+      'Conciliación agosto'
     );
   });
 });

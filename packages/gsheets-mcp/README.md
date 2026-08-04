@@ -67,8 +67,8 @@ range today, returns a before/after preview and a token, and stops.
    → WRITTEN
 ```
 
-The token is a fingerprint of _(file, range, current values, new values)_, so it does two jobs
-at once:
+The token is a fingerprint of _(file, range, **current state**, new values)_, so it does three
+jobs at once:
 
 - **The human gate.** No token, no write — enforced in the connector, not in a prompt that a
   model can talk itself out of.
@@ -76,6 +76,21 @@ at once:
   that range between the preview and the yes, the fingerprint no longer matches and the write
   is **refused**, with a fresh preview. A shared spreadsheet cannot be silently clobbered by a
   stale confirmation.
+- **Single use.** The write moves the state the token was bound to, so the same token cannot
+  be presented twice. One "yes" buys exactly one write.
+
+**What "current state" means depends on the operation**, and getting this right is the whole
+guarantee:
+
+| Tool                                 | Bound to                                    |
+| ------------------------------------ | ------------------------------------------- |
+| `sheet_update`, `sheet_batch_update` | The values currently in the target range(s) |
+| `sheet_append`                       | The **table's current height**              |
+
+Append needs the special case because it overwrites nothing, so there is no prior grid to
+fingerprint. Binding it to an empty "before" would leave the token a pure function of its own
+arguments — valid forever, replayable, and blind to a concurrent append. Height fixes all
+three: your own append moves it, and so does anyone else's.
 
 There is no bypass flag. A connector that edits other people's spreadsheets should not ship
 one.

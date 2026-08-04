@@ -41,6 +41,10 @@ export const XLSX_MIME =
 /** Hard ceiling on cells returned by a single read, so one call can't blow up a
  *  context window. Callers asking for more get a clear error, not a silent cut. */
 export const MAX_READ_CELLS = 5000;
+/** Ceiling on cells `find` will pull INTO THIS PROCESS while scanning. Two
+ *  orders of magnitude above the caller-facing cap, because none of it reaches
+ *  the model — but bounded, so a pathological sheet cannot exhaust memory. */
+export const MAX_SCAN_CELLS = 2_000_000;
 /** Default ceiling on matches returned by `find`. */
 export const DEFAULT_MAX_MATCHES = 50;
 
@@ -303,10 +307,12 @@ export async function find(
 ): Promise<{ matches: Match[]; scannedRows: number; truncated: boolean }> {
   const maxMatches = opts.maxMatches ?? DEFAULT_MAX_MATCHES;
   const needle = opts.caseSensitive ? query : query.toLowerCase();
-  // cap: Infinity — the whole point is that this data does NOT flow outward.
+  // Far above the caller-facing MAX_READ_CELLS — this data does NOT flow
+  // outward, so the model's budget doesn't apply. But it is still a ceiling:
+  // without one, a pathological sheet could OOM the server process.
   const { values } = await readRange(spreadsheetId, range, {
     render: 'UNFORMATTED_VALUE',
-    cap: Infinity,
+    cap: MAX_SCAN_CELLS,
   });
 
   const anchor = rangeAnchor(range);
@@ -359,6 +365,38 @@ export function editToken(
 ): string {
   const payload = JSON.stringify({ spreadsheetId, range, before, after });
   return createHash('sha256').update(payload).digest('hex').slice(0, 16);
+}
+
+/** How tall the target tab's table is right now — the "before" state an APPEND
+ *  has to be fingerprinted against.
+ *
+ *  An append overwrites nothing, so there is no prior grid to hash. Without an
+ *  anchor its token would be a pure function of its own arguments, which breaks
+ *  the gate in two ways: a token stays valid forever (so one human "yes" could
+ *  be replayed to append the same rows again and again), and a concurrent
+ *  append goes undetected. Anchoring to the table's height fixes both — our own
+ *  append changes it, and so does anyone else's.
+ *
+ *  It reads column A only, so it stays cheap on a huge tab. That is also its
+ *  limit, and it is worth stating plainly: the anchor is the used height of
+ *  column A, so a table whose first column is sparse gives a weaker signal. For
+ *  append targets — tables with a populated first column — it is exact. */
+export async function usedRowCount(
+  spreadsheetId: string,
+  range: string
+): Promise<number> {
+  const tab = range.includes('!')
+    ? range.slice(0, range.lastIndexOf('!'))
+    : range;
+  // A bare "A:H" is a range, not a tab name; anything else is the tab.
+  const looksLikeBareRange =
+    /^\$?[A-Za-z]{1,3}(\$?\d+)?(:\$?[A-Za-z]{1,3}(\$?\d+)?)?$/.test(tab);
+  const probe = looksLikeBareRange ? 'A:A' : `${tab}!A:A`;
+  const { values } = await readRange(spreadsheetId, probe, {
+    render: 'UNFORMATTED_VALUE',
+    cap: MAX_SCAN_CELLS,
+  });
+  return values.length;
 }
 
 export interface WriteResult {
@@ -524,6 +562,16 @@ export interface DriveFile {
   url: string;
 }
 
+/** Escape a value for Drive's query language, which delimits strings with `'`
+ *  and uses `\` as its escape character.
+ *
+ *  ORDER MATTERS: backslashes first, then quotes. Escaping quotes first would
+ *  leave an attacker-supplied `\` free to escape the backslash we just added,
+ *  so `x\' or '1'='1` would break out of the string literal. */
+export function escapeDriveQuery(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 export async function locate(
   nameQuery: string,
   opts: { includeXlsx?: boolean; limit?: number } = {}
@@ -531,8 +579,9 @@ export async function locate(
   const mimeClause = opts.includeXlsx
     ? `(mimeType='${SPREADSHEET_MIME}' or mimeType='${XLSX_MIME}')`
     : `mimeType='${SPREADSHEET_MIME}'`;
-  const escaped = nameQuery.replace(/'/g, "\\'");
-  const q = `${mimeClause} and name contains '${escaped}' and trashed=false`;
+  const q = `${mimeClause} and name contains '${escapeDriveQuery(
+    nameQuery
+  )}' and trashed=false`;
   const params = new URLSearchParams({
     q,
     pageSize: String(opts.limit ?? 20),

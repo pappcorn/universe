@@ -9,13 +9,22 @@
 // assistant is expected to put that preview in front of the human; the human
 // decides; only then does a second call carrying the token actually write.
 //
-// The token is a fingerprint of (file, range, current values, new values), so it
+// The token is a fingerprint of (file, range, CURRENT STATE, new values), so it
 // does double duty:
 //   · the human gate — no token, no write, enforced here rather than in prose;
-//   · optimistic concurrency — if anyone edited the range between the preview
-//     and the confirmation, the fingerprint no longer matches and the write is
-//     refused with a fresh preview. A shared finance sheet cannot be silently
-//     clobbered by a stale confirmation.
+//   · optimistic concurrency — if the sheet moved between the preview and the
+//     confirmation, the fingerprint no longer matches and the write is refused
+//     with a fresh preview. A shared finance sheet cannot be silently clobbered
+//     by a stale confirmation, and a token cannot be replayed for a second
+//     write, because the first write moves the state it was bound to.
+//
+// "Current state" differs by operation, and getting this right is the whole
+// guarantee:
+//   · update / batch_update — the values currently in the target range(s).
+//   · append — overwrites nothing, so there is no prior grid. It binds to the
+//     TABLE'S CURRENT HEIGHT instead. Binding to nothing (as an empty "before")
+//     would leave the token a pure function of its own arguments: valid
+//     forever, replayable, and blind to a concurrent append.
 //
 // There is deliberately no bypass flag. A connector that edits other people's
 // spreadsheets should not ship one.
@@ -41,6 +50,7 @@ import {
   readRange,
   resolveSpreadsheetId,
   updateRange,
+  usedRowCount,
   type BatchEdit,
   type Match,
   type RangeValues,
@@ -498,7 +508,9 @@ export function registerTools(server: McpServer): void {
       description:
         'Add rows after the last used row of a tab. Two-phase like sheet_update: preview first, ' +
         'then confirm with the token. Appending cannot overwrite existing data, but it still ' +
-        'changes a file someone else owns, so the human still approves it.',
+        'changes a file someone else owns, so the human still approves it. The token is bound ' +
+        "to the table's current height, which means it is single-use — confirming appends once, " +
+        'not once per call — and a concurrent append by someone else invalidates it.',
       inputSchema: {
         spreadsheet: spreadsheetArg,
         range: z
@@ -525,9 +537,12 @@ export function registerTools(server: McpServer): void {
     async ({ spreadsheet, range, values, confirm_token, raw }) => {
       try {
         const id = resolveSpreadsheetId(spreadsheet);
-        // Nothing is overwritten by an append, so the "before" is empty by
-        // definition — the token here is purely the human gate.
-        const token = editToken(id, `append:${range}`, [], values);
+        // An append overwrites nothing, so there is no prior grid to hash.
+        // Anchor the token to how tall the table is RIGHT NOW instead: that
+        // makes the token single-use (our own append moves the anchor) and
+        // detects a concurrent append (someone else's moves it too).
+        const height = await usedRowCount(id, range);
+        const token = editToken(id, `append:${range}`, { height }, values);
 
         if (!confirm_token) {
           const anchor = rangeAnchor(range);
@@ -535,8 +550,8 @@ export function registerTools(server: McpServer): void {
             [
               `PREVIEW — sheet_append to ${range}`,
               '',
-              `${values.length} row(s) would be added after the last used row:`,
-              formatGrid(values.slice(0, 12), anchor.row, anchor.col),
+              `${values.length} row(s) would be added after row ${height}:`,
+              formatGrid(values.slice(0, 12), height + 1, anchor.col),
               ...(values.length > 12
                 ? [`(+${values.length - 12} more rows)`]
                 : []),
@@ -549,8 +564,17 @@ export function registerTools(server: McpServer): void {
         }
         if (confirm_token !== token) {
           return ok(
-            'REFUSED — the confirmation does not match these rows. Nothing was written. Re-run ' +
-              'the preview and confirm the rows that actually come back.'
+            [
+              'REFUSED — the confirmation no longer matches this sheet. Nothing was written.',
+              '',
+              `The table is ${height} row(s) tall now. Either these are not the rows that were ` +
+                'previewed, someone else appended in the meantime, or this confirmation was ' +
+                'already used once.',
+              '',
+              `new confirm_token: ${token}`,
+              '',
+              'Re-run the preview, show the human what would land now, and get their yes again.',
+            ].join('\n')
           );
         }
 
