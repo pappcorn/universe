@@ -10,16 +10,16 @@
   },
   "private": true,
   "devDependencies": {
-    "@nx/js": "21.1.1",
+    "@nx/js": "23.1.1",
     "@swc-node/register": "~1.9.1",
     "@swc/core": "~1.5.7",
     "@swc/helpers": "~0.5.11",
-    "@types/node": "^20.19.43",
+    "@types/node": "^26.1.2",
     "esbuild": "^0.28.1",
-    "nx": "21.1.1",
-    "prettier": "^2.6.2",
+    "nx": "23.1.1",
+    "prettier": "^3.9.6",
     "tslib": "^2.3.0",
-    "typescript": "~5.7.2"
+    "typescript": "~7.0.2"
   },
   "overrides": {
     "minimatch@^9.0.0": "^9.0.9",
