@@ -564,10 +564,11 @@ jobs:
           # kind of noise.
           #
           # Read the existing comments into a variable rather than piping the API
-          # call straight into grep: a failed read and an absent marker both look
-          # like empty output to grep, and only one of them means "post". Failing
-          # open is the right call — a duplicate comment beats silence — but that
-          # has to be a decision the code states, not a coincidence of exit codes.
+          # call straight into grep: a failed read and a genuinely absent marker
+          # both arrive at grep as empty input, so the pipeline cannot tell them
+          # apart. Both should post — a duplicate comment beats silence — so the
+          # variable does not change the outcome. It makes failing open a choice
+          # the code states, instead of a coincidence of exit codes.
           MARKER='<!-- cris-approve:automerge-unavailable -->'
           existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
             --jq '.[].body' 2>/dev/null) || existing=''
