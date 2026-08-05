@@ -111,16 +111,26 @@ jobs:
           UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
           IN_SCOPE: ${{ steps.scope.outputs.in_scope }}
         run: |
+          # Both reasons can hold at once (a major github-actions bump is exactly
+          # that), and each is independently worth knowing. Accumulate rather than
+          # branch: an if/else here reports the first and swallows the second, so
+          # the reviewer sees "touches .github/" and never learns it is also a
+          # major.
+          reasons=""
           if [ "$IN_SCOPE" = "false" ]; then
-            reason="it edits files under \`.github/\`, which \`CODEOWNERS\` anchors to a human on purpose — that is the directory deciding who approves, so I do not merge it."
-          else
-            reason="it is a **major** bump (\`$UPDATE_TYPE\`). Someone should read the changelog."
+            reasons="$reasons
+          - it edits files under \`.github/\`, which \`CODEOWNERS\` anchors to a human on purpose — that is the directory deciding who approves."
           fi
-          # Built with printf, not an indented YAML block scalar: the block's
-          # leading spaces would survive into the comment and Markdown renders
-          # four-space-indented lines as a code block.
-          printf '%s\n\n%s\n\n%s\n%s\n' \
-            "🤖 **Not auto-merging this one** — $reason" \
+          if [ "$UPDATE_TYPE" = "version-update:semver-major" ]; then
+            reasons="$reasons
+          - it is a **major** bump (\`$UPDATE_TYPE\`). Someone should read the changelog."
+          fi
+          # Built with printf into a file, not passed as an indented literal:
+          # Markdown renders four-space-indented lines as a code block, and the
+          # bullets above must stay bullets.
+          printf '%s\n%s\n\n%s\n\n%s\n%s\n' \
+            "🤖 **Not auto-merging this one:**" \
+            "$reasons" \
             "cc @ni500 @lcaloguerea" \
             "---" \
             "🤖 _Cris · PappCorn's AI agent_" > body.md
