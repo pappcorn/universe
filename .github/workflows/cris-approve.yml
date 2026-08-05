@@ -1,0 +1,533 @@
+# Cris — review & merge assistant, triggered by the `ready-to-merge` label
+#
+# When a PR gets the `ready-to-merge` label, Cris checks the objective gate (not
+# draft, CI + claude-review green), resolves .github/CODEOWNERS for the changed
+# paths, and then takes ONE of four actions depending on who owns what.
+#
+# ── The rule Cris enforces ──
+# Cris's approval is only DANGEROUS when Cris is a code owner of the touched
+# paths, because then it satisfies `require_code_owner_reviews` on `main` all by
+# itself. Everything follows from that:
+#
+#   1. author IS a code owner of every changed path, and Cris owns them all
+#      → APPROVE + arm auto-merge.
+#      The human is in the loop: they WROTE it. GitHub just won't let them
+#      approve themselves. This is the one deadlock Cris exists to break.
+#
+#   2. author is NOT a code owner of everything, and Cris owns some changed path
+#      → DO NOT APPROVE. Comment + tag the owners.
+#      Cris's approval would BE the code-owner approval — it would merge someone
+#      else's code with no human review. This is the case every outside
+#      contribution lands in, and it is why a drive-by PR can never be merged by
+#      the agent.
+#
+#   3. Cris owns NOTHING in the changed set
+#      → APPROVE + comment + tag the owners.
+#      Safe by construction: the approval is non-binding, since
+#      `require_code_owner_reviews` still waits for the real owner.
+#      It is a signal that the machine gate passed, not a merge authorization.
+#
+#   4. author owns everything but Cris owns only PART of it
+#      → DO NOT APPROVE. Comment + tag the owners, naming the out-of-scope paths.
+#      `require_code_owner_reviews` is NOT per-file — ONE approval from a code
+#      owner of ANY touched file satisfies the gate for the WHOLE PR. So
+#      "I approve only my part" does not exist; Cris's signature would also
+#      unlock the paths Cris does not own. Withholding it is the only honest
+#      option when you cannot approve a part without approving the whole.
+#
+#      In this repo case (4) means the PR touched `/.github/`, the one path
+#      deliberately anchored to humans (see .github/CODEOWNERS). That is exactly
+#      when a human should look: it is the directory that defines who approves.
+#
+# ── Structural-deadlock diagnostic (cases 3 and 4) ──
+# Where Cris does NOT unblock, the comment tags the human owners. If the ONLY
+# human owner of the touched paths IS the author, that cc is a dead end: GitHub
+# forbids self-approval, so nobody can satisfy require_code_owner_reviews. Cris
+# names the deadlock and gives the way out, which differs per case — case 3 can
+# suggest co-ownership (it turns future PRs into case 1); case 4 must not, since
+# the paths holding it are anchored to a human on purpose.
+#
+# Cris NEVER approves its own PR (its work needs human eyes), and only acts when
+# the `ready-to-merge` label was applied by a human code owner — the label
+# triggers a merge, so it is an authorization, not a note.
+#
+# ── Two identities, on purpose ──
+#   • GITHUB_TOKEN does all the READS (PR files, CODEOWNERS, check runs, reviews),
+#     the commenting, and the auto-merge arming. It can read the Checks API; a
+#     fine-grained PAT CANNOT (GitHub disabled the Checks permission for
+#     fine-grained PATs), which is exactly why the gate read lives there.
+#   • CRIS_APPROVE_PAT (cris-pappcorn's token) does the APPROVE and the
+#     "Cris is not approving" comment, so both come from the same face. The
+#     APPROVE is the one thing that REQUIRES a PAT: GITHUB_TOKEN cannot approve
+#     PRs, and a GitHub App cannot be a CODEOWNER. The PAT needs only
+#     `Pull requests: Read and write` + `Metadata` + access to this repo.
+#
+# ── The merge NEVER bypasses a rule ──
+# Cris never merges directly and never uses an admin/ruleset bypass. In case (1)
+# it arms GitHub's NATIVE auto-merge: GitHub performs the merge itself, and only
+# once every branch-protection condition holds. Auto-merge is by definition
+# incapable of bypassing — it WAITS. Never add `--admin`, and never grant this
+# workflow a bypass.
+#
+# ── Manual setup (one-time) ──
+#   1. GitHub user account cris-pappcorn, org member with WRITE on this repo.
+#   2. cris-pappcorn listed as a CODEOWNER in .github/CODEOWNERS — otherwise its
+#      approval does not satisfy the gate and every PR lands in case (3).
+#   3. A fine-grained PAT for cris-pappcorn (resource owner = pappcorn org,
+#      repo = universe; Pull requests: RW + Metadata) stored as the repo secret
+#      CRIS_APPROVE_PAT.
+#   4. Keep CRIS_LOGIN below in sync with the account login.
+#
+# Security, and this matters more here than in a private repo: this workflow
+# never runs PR code — it only reads metadata and approves. CODEOWNERS is read
+# from the BASE branch, never from the PR head, so a fork cannot edit CODEOWNERS
+# to make itself approvable. The `pull_request` (not `pull_request_target`)
+# trigger means fork PRs get no secrets: CRIS_APPROVE_PAT is empty for them and
+# the approve step no-ops. Do NOT switch to `pull_request_target` — that would
+# expose the PAT to fork-branch code.
+
+name: Cris Approve
+
+on:
+  pull_request:
+    types: [labeled]
+
+# These apply to GITHUB_TOKEN (reads, comments, auto-merge arming). The APPROVE
+# step uses CRIS_APPROVE_PAT instead and is unaffected by this block.
+#
+# Commenting on a PR is governed by `pull-requests`, NOT by `issues` — for
+# permission purposes a PR is not an issue, even though the comments endpoint
+# lives under `/issues/`.
+permissions:
+  contents: write # arming native auto-merge
+  checks: read
+  pull-requests: write
+  issues: write
+
+env:
+  # The Cris GitHub account login. Keep in sync with .github/CODEOWNERS.
+  CRIS_LOGIN: cris-pappcorn
+
+jobs:
+  approve:
+    name: Cris reviews & approves
+    if: github.event.label.name == 'ready-to-merge'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Job-level env, not step-level: `secrets` is readable here, and this is the
+    # only reliable way to branch a step's `if` on whether the PAT exists. A
+    # step's own `env:` block is not visible to that same step's `if`.
+    env:
+      HAS_PAT: ${{ secrets.CRIS_APPROVE_PAT != '' }}
+    steps:
+      # ── Step 1: decide, with GITHUB_TOKEN (it can read the Checks API) ──
+      - name: Resolve CODEOWNERS & decide
+        id: gate
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const prNumber = pr.number;
+            const cris = process.env.CRIS_LOGIN.toLowerCase();
+            const author = pr.user ? pr.user.login.toLowerCase() : '';
+            const labeler = context.payload.sender ? context.payload.sender.login.toLowerCase() : '';
+
+            const setDecision = (d) => core.setOutput('decision', d);
+            setDecision('none');
+
+            // This step runs with GITHUB_TOKEN because it is the only token that
+            // can read the Checks API, so whatever it posts comes from
+            // `github-actions[bot]`, not from Cris. Hence the signature: only
+            // writes that already come from the Cris account are exempt.
+            const SIGNATURE = '\n\n---\n🤖 _Cris · PappCorn\'s AI agent_';
+
+            // Gate FAILED: something is wrong and fixable. Undo the label +
+            // explain, so the state self-heals and the run can be retried after
+            // the fix.
+            //
+            // Refusing is a LEGITIMATE outcome of the gate, not an infrastructure
+            // failure — so no step of the refusal may take down the others.
+            // Deliberate order: remove the label first (which clears the
+            // dangerous state), then comment (best-effort), and always mark the
+            // failure.
+            async function abort(reason) {
+              try {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: prNumber, name: 'ready-to-merge' });
+              } catch (e) {
+                core.warning(`Could not remove the ready-to-merge label: ${e.message}`);
+              }
+              try {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: prNumber,
+                  body: `🤖 **Cris did not approve** — ${reason}\n\nFix it and re-apply the \`ready-to-merge\` label.` +
+                        SIGNATURE,
+                });
+              } catch (e) {
+                core.warning(`Could not comment the refusal on the PR: ${e.message}`);
+              }
+              core.setFailed(reason);
+            }
+
+            // Cris ABSTAINS: nothing is wrong with the PR — it simply is not
+            // Cris's call. The label STAYS (the PR really is ready; it just needs
+            // a human) and the job does NOT fail: there is nothing to retry.
+            async function abstain(reason) {
+              try {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: prNumber,
+                  body: `🤖 **Cris abstains** — ${reason}\n\n` +
+                    `The PR keeps the \`ready-to-merge\` label: all that is missing is the human review.` +
+                    SIGNATURE,
+                });
+              } catch (e) {
+                core.warning(`Could not comment the abstention on the PR: ${e.message}`);
+              }
+              core.info(`Abstained: ${reason}`);
+            }
+
+            // ── CODEOWNERS matching (GitHub's gitignore-like subset) ──
+            // Last matching pattern wins. A pattern with no leading/interior slash
+            // matches at ANY depth; one with a slash is anchored to the repo root.
+            function compile(pattern) {
+              let p = pattern;
+              const dirOnly = p.endsWith('/');
+              if (dirOnly) p = p.slice(0, -1);
+              let anchored = false;
+              if (p.startsWith('/')) { anchored = true; p = p.slice(1); }
+              if (p.includes('/')) anchored = true;
+              const body = p
+                .replace(/\*\*/g, '\x00GS\x00')
+                .replace(/\*/g, '\x00S\x00')
+                .replace(/\?/g, '\x00Q\x00')
+                .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+                .replace(/\x00GS\x00/g, '.*')
+                .replace(/\x00S\x00/g, '[^/]*')
+                .replace(/\x00Q\x00/g, '[^/]');
+              const prefix = anchored ? '^' : '^(?:.*/)?';
+              // A directory pattern owns everything beneath it; a bare name owns
+              // either the file itself or, if it is a directory, its whole subtree.
+              const suffix = dirOnly ? '/.*$' : '(?:/.*)?$';
+              return new RegExp(prefix + body + suffix);
+            }
+
+            function parseCodeowners(text) {
+              const rules = [];
+              for (const raw of text.split('\n')) {
+                const line = raw.replace(/#.*$/, '').trim();
+                if (!line) continue;
+                const [pattern, ...owners] = line.split(/\s+/);
+                if (!pattern || !owners.length) continue;
+                rules.push({
+                  re: compile(pattern),
+                  owners: owners.map(o => o.replace(/^@/, '').toLowerCase()),
+                });
+              }
+              return rules;
+            }
+
+            // Read CODEOWNERS from the BASE branch — the copy GitHub actually
+            // enforces. Never from the head: a PR (least of all a fork's) must not
+            // be able to edit CODEOWNERS to grant itself an approver.
+            let rules;
+            try {
+              const res = await github.rest.repos.getContent({
+                owner, repo, path: '.github/CODEOWNERS', ref: pr.base.ref,
+              });
+              rules = parseCodeowners(Buffer.from(res.data.content, 'base64').toString('utf8'));
+            } catch (e) {
+              return abstain('I could not read `.github/CODEOWNERS` on the base branch; without it I cannot tell whether my approval would be binding.');
+            }
+            if (!rules.length) {
+              return abstain('`.github/CODEOWNERS` on the base is empty: my approval would satisfy the gate with no owner behind it.');
+            }
+
+            const ownersOf = (file) => {
+              let found = [];
+              for (const r of rules) if (r.re.test(file)) found = r.owners; // last match wins
+              return found;
+            };
+
+            // ── Objective gate first ──
+            if (pr.draft) return abort('the PR is still a draft.');
+
+            const checkRuns = await github.paginate(github.rest.checks.listForRef, {
+              owner, repo, ref: pr.head.sha, per_page: 100,
+            });
+            // These names are coupled to the JOB names in ci.yml ('main') and
+            // claude-code-review.yml ('claude-review'). If either job is renamed,
+            // update it here — otherwise the gate silently never finds the check.
+            for (const name of ['main', 'claude-review']) {
+              const runs = checkRuns.filter(c => c.name === name);
+              if (!runs.length) return abort(`the \`${name}\` check has not run on the current commit.`);
+              const latest = runs.sort((a, b) => new Date(b.started_at) - new Date(a.started_at))[0];
+              if (latest.status !== 'completed' || latest.conclusion !== 'success') {
+                return abort(`the \`${name}\` check is not green (state: ${latest.conclusion ?? latest.status}).`);
+              }
+            }
+
+            // ── Who owns what ──
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner, repo, pull_number: prNumber, per_page: 100,
+            });
+            const owned = files.map(f => ({ file: f.filename, owners: ownersOf(f.filename) }))
+                               .filter(f => f.owners.length); // unowned paths impose no gate
+            const union = [...new Set(owned.flatMap(f => f.owners))];
+            const humanOwners = union.filter(o => o !== cris);
+            const tag = humanOwners.length ? humanOwners.map(o => '@' + o).join(' ') : '(no human code owner)';
+
+            const authorOwnsAll = owned.every(f => f.owners.includes(author));
+            const crisOwnsAll = owned.length > 0 && owned.every(f => f.owners.includes(cris));
+            const crisOwnsAny = owned.some(f => f.owners.includes(cris));
+            // The owned files Cris does NOT own — what puts a PR in case (4).
+            // Named in the comment so the human sees exactly what is holding it
+            // without opening the diff. Capped: a large PR must not produce a wall
+            // of paths.
+            const outOfScopeAll = owned.filter(f => !f.owners.includes(cris)).map(f => f.file);
+            const outOfScope = outOfScopeAll.length > 5
+              ? [...outOfScopeAll.slice(0, 5), `…+${outOfScopeAll.length - 5} more`]
+              : outOfScopeAll;
+
+            // ── Structural deadlock: the only human owner IS the author ──
+            // When Cris does not sign (cases 3 and 4), the message tags the human
+            // owners. But if the ONLY human owner is the author, that cc leads
+            // nowhere: GitHub does not allow approving your own PR, so no one can
+            // satisfy `require_code_owner_reviews`.
+            //
+            // This changes NO decision — it only adds the diagnosis and the way
+            // out, because both ways out are human configuration, not something
+            // Cris can or should resolve by signing. The suggested exit differs
+            // per case, and the difference is not cosmetic: in case (4) what holds
+            // the PR is a path anchored to a human ON PURPOSE (`/.github/` is the
+            // governance lock — a Cris that can approve changes to its own
+            // approver has no guard rail). There, "add me as co-owner" is exactly
+            // the advice not to follow.
+            const onlyAuthorIsOwner =
+              humanOwners.length > 0 && humanOwners.every(o => o === author);
+            const deadlockNote = (maySuggestCoOwnership) => {
+              if (!onlyAuthorIsOwner) return '';
+              const exit = maySuggestCoOwnership
+                ? `(a) add me as a co-owner of those paths in \`.github/CODEOWNERS\` — that turns this into case 1 and ` +
+                  `I arm the merge myself — or (b) give them a second human owner. ` +
+                  `Note: I read CODEOWNERS from the BASE branch (\`${pr.base.ref}\`), so the change has to have ` +
+                  `landed there, not just on your branch.`
+                : `the way out is NOT to add me as an owner of those paths: they are anchored to a human on purpose ` +
+                  `(\`/.github/\` defines who approves and what runs in CI — that lock does not open). ` +
+                  `You need a second human owner, or split the PR so the governance change goes separately.`;
+              return `\n\n⚠️ **Structural deadlock**: the only human code owner of what this touches is the author ` +
+                     `themselves (@${pr.user.login}), and GitHub does not allow self-approval — with the current ` +
+                     `configuration nobody can satisfy \`require_code_owner_reviews\`. This is fixed in configuration, ` +
+                     `not by signing: ${exit}`;
+            };
+
+            // ── Identity gate: Cris never approves its own work ──
+            if (author === cris) {
+              return abstain(`this PR is mine — my own work needs human eyes. cc ${tag}`);
+            }
+
+            // Don't stack duplicate approvals on the same head.
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner, repo, pull_number: prNumber, per_page: 100,
+            });
+            const alreadyApproved = reviews.some(
+              r => r.user && r.user.login.toLowerCase() === cris &&
+                   r.state === 'APPROVED' && r.commit_id === pr.head.sha,
+            );
+
+            // ── The four cases ──
+            let decision, note;
+            if (authorOwnsAll && crisOwnsAll) {
+              // (1) The deadlock Cris exists to break.
+              decision = 'approve_and_merge';
+              note = `The author (@${pr.user.login}) is a code owner of everything this touches and cannot approve ` +
+                     `themselves. Gate is green. I approve and arm GitHub's native auto-merge: it will merge once every ` +
+                     `protection is satisfied.`;
+            } else if (!authorOwnsAll && crisOwnsAny) {
+              // (2) The dangerous one — Cris's approval WOULD be the code-owner approval.
+              decision = 'comment_only';
+              note = `The author (@${pr.user.login}) is **not** a code owner of everything this touches, and I **am** an ` +
+                     `owner of part of it. If I approved, my approval *would be* the code-owner approval and this would ` +
+                     `merge with no human review. I am not approving. This needs ${tag}.`;
+            } else if (!crisOwnsAny) {
+              // (3) Non-binding approval — CODEOWNERS still waits for the real owner.
+              decision = 'approve';
+              note = `I am not a code owner of anything this touches, so my approval is **not binding**: ` +
+                     `\`require_code_owner_reviews\` still waits for ${tag}. I leave it as a signal that the machine ` +
+                     `gate passed.` + deadlockNote(true);
+            } else {
+              // (4) Author owns everything, Cris owns only part.
+              //
+              // `require_code_owner_reviews` is NOT per-file — one approval from a
+              // code owner of ANY touched file satisfies the gate for the WHOLE
+              // PR. So "I approve only my part" does not exist: Cris's signature
+              // would also unlock the paths Cris does not own. Withholding it is
+              // the only honest option.
+              decision = 'comment_only';
+              note = `The author (@${pr.user.login}) is a code owner of everything this touches, but I only own part of ` +
+                     `it (outside my scope: ${outOfScope.map(f => '`' + f + '`').join(', ')}). ` +
+                     `If I approved, my signature would unblock the whole PR — \`require_code_owner_reviews\` is ` +
+                     `satisfied by a single owner approval, not file by file. I am not approving. This needs ${tag}.` +
+                     deadlockNote(false);
+            }
+
+            // ── Labeler gate ──
+            // The label AUTHORIZES action, so it only counts coming from a human
+            // code owner. Two strengths, matching what is actually at stake:
+            //   • to MERGE (case 1) the labeler must own the touched paths — the
+            //     label is the ship order, and only those owners can give it;
+            //   • to APPROVE non-bindingly (cases 3/4) any human owner in
+            //     CODEOWNERS suffices, since the merge stays blocked regardless.
+            // Case 2 already withholds the approval, so it keeps its own message.
+            const allHumanOwners = [...new Set(rules.flatMap(r => r.owners))].filter(o => o !== cris);
+            if (decision === 'approve_and_merge' && (labeler === cris || !union.includes(labeler))) {
+              return abstain(
+                `the label was applied by @${labeler || '?'}, who is not a code owner of the touched paths. ` +
+                `\`ready-to-merge\` is the ship order, so I only take it from an owner of those paths. cc ${tag}`,
+              );
+            }
+            if (decision === 'approve' && (labeler === cris || !allHumanOwners.includes(labeler))) {
+              return abstain(
+                `the label was applied by @${labeler || '?'}, who is not a code owner in \`CODEOWNERS\`. cc ${tag}`,
+              );
+            }
+
+            // Do not re-sign a commit Cris already approved. Scope matters: this
+            // can only suppress a repeated APPROVAL, never a notice — a
+            // `comment_only` on a previously signed commit must still be posted,
+            // or the human never learns why the PR is not moving.
+            if (alreadyApproved && decision === 'approve') {
+              core.info('Cris already approved this commit — nothing to do.');
+              return;
+            }
+            core.setOutput('already_approved', alreadyApproved ? 'true' : 'false');
+            setDecision(decision);
+            core.setOutput('note', note);
+            core.info(`decision=${decision} authorOwnsAll=${authorOwnsAll} crisOwnsAll=${crisOwnsAll} crisOwnsAny=${crisOwnsAny}`);
+
+      # ── Step 2: the APPROVE, as cris-pappcorn (only a real user can approve) ──
+      # On a fork PR the secret is empty, `if` is false, and this no-ops — which is
+      # the intended behaviour: an outside contribution is case (2) anyway.
+      - name: Approve as Cris
+        if: >-
+          (steps.gate.outputs.decision == 'approve' ||
+           steps.gate.outputs.decision == 'approve_and_merge') &&
+          steps.gate.outputs.already_approved != 'true' &&
+          env.HAS_PAT == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ secrets.CRIS_APPROVE_PAT }}
+          script: |
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner, repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              event: 'APPROVE',
+              body: `✅ **Approved by Cris**\n\n${process.env.NOTE}`,
+            });
+            core.info('Cris approved.');
+        env:
+          NOTE: ${{ steps.gate.outputs.note }}
+
+      # Without the PAT there is no approval, and therefore no merge. Say so in
+      # the log instead of degrading silently into "the label did nothing".
+      - name: Warn when the PAT is missing
+        if: >-
+          (steps.gate.outputs.decision == 'approve' ||
+           steps.gate.outputs.decision == 'approve_and_merge') &&
+          env.HAS_PAT != 'true'
+        run: |
+          echo "::warning::CRIS_APPROVE_PAT is not set — Cris cannot approve. Either it is a fork PR (expected: secrets are withheld from forks) or the repo secret is missing. The PR waits for a human owner."
+
+      # ── Step 3: when Cris does NOT approve, say so and pull in a human ──
+      #
+      # Posted with the PAT so it comes from the `cris-pappcorn` account, not from
+      # `github-actions[bot]`. Not cosmetic: the APPROVE already comes from Cris,
+      # so a refusal from a generic bot breaks the thread — the same actor saying
+      # two things with two different faces. If the PAT is absent (fork PRs get
+      # empty secrets) it falls back to GITHUB_TOKEN and then DOES sign, because
+      # there it really is necessary to say who is speaking. No path is left
+      # unattributed.
+      - name: Comment & tag the human owner (as Cris)
+        id: comment_as_cris
+        if: steps.gate.outputs.decision == 'comment_only'
+        continue-on-error: true
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ secrets.CRIS_APPROVE_PAT || github.token }}
+          script: |
+            const asCris = process.env.AS_CRIS === 'true';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `🤖 **Cris is not approving this PR** (on purpose)\n\n${process.env.NOTE}\n\n` +
+                    `The objective gate (CI + \`claude-review\`) is green; what is missing is human judgement.` +
+                    (asCris ? '' : `\n\n---\n🤖 _Cris · PappCorn's AI agent_`),
+            });
+        env:
+          NOTE: ${{ steps.gate.outputs.note }}
+          AS_CRIS: ${{ secrets.CRIS_APPROVE_PAT != '' }}
+
+      # Safety net: if the PAT exists but cannot comment (trimmed permissions,
+      # expired token), the notice must NOT be lost — it is the only thing telling
+      # the human why their PR is not moving. Retried with GITHUB_TOKEN, signed.
+      - name: Comment fallback (bot, signed)
+        if: >-
+          steps.gate.outputs.decision == 'comment_only' &&
+          steps.comment_as_cris.outcome == 'failure'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            core.warning('Commenting as cris-pappcorn failed; retrying as github-actions.');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `🤖 **Cris is not approving this PR** (on purpose)\n\n${process.env.NOTE}\n\n` +
+                    `The objective gate (CI + \`claude-review\`) is green; what is missing is human judgement.` +
+                    `\n\n---\n🤖 _Cris · PappCorn's AI agent_`,
+            });
+        env:
+          NOTE: ${{ steps.gate.outputs.note }}
+
+      # ── Step 4: arm GitHub's native auto-merge (case 1 only) ──
+      # Cris never merges directly and NEVER bypasses a protection. `--auto` makes
+      # GitHub perform the merge itself, only once every condition holds; it waits
+      # rather than overrides, and cancels if anything goes red. Never add
+      # `--admin`.
+      #
+      # The merge runs with CRIS_APPROVE_PAT, not github.token. GitHub does not let
+      # an event generated with GITHUB_TOKEN trigger another workflow (its
+      # anti-recursion rule), which would leave downstream checks frozen in
+      # `action_required`. With the PAT the merge is attributed to cris-pappcorn
+      # and events trigger workflows normally.
+      - name: Arm native auto-merge
+        if: steps.gate.outputs.decision == 'approve_and_merge'
+        env:
+          GH_TOKEN: ${{ secrets.CRIS_APPROVE_PAT || github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$HAS_PAT" != "true" ]; then
+            echo "::warning::CRIS_APPROVE_PAT missing — nothing was approved, so auto-merge will simply wait for a human."
+          fi
+
+          # ── Merge strategy ──
+          # Squash flattens the parents into one. For a feature PR that is right:
+          # what matters is the content. But for a PR whose purpose is TOPOLOGICAL
+          # — one that brings the base into the branch — it destroys exactly what
+          # the PR came to contribute, and it does so silently: the PR merges green
+          # and the next sync shows phantom conflicts over files already applied.
+          #
+          # So: preserve history when the PR itself contains merge commits.
+          # An ordinary feature PR keeps squash.
+          merges=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/commits" --paginate \
+            --jq '[.[] | select((.parents | length) > 1)] | length')
+
+          if [ "$merges" -gt 0 ]; then
+            METHOD=--merge
+            echo "Strategy: merge commit ($merges merge commit(s) in the PR) — preserve ancestry."
+          else
+            METHOD=--squash
+            echo "Strategy: squash (ordinary feature PR, no ancestry to preserve)."
+          fi
+
+          gh pr merge "$PR" --auto "$METHOD" --repo "$GITHUB_REPOSITORY"

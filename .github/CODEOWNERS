@@ -3,10 +3,28 @@
 # GitHub requests these people as reviewers automatically on any PR touching
 # the matching paths, which is what keeps the "every PR opens with an assignee
 # and a reviewer" rule self-enforcing rather than something to remember.
+#
+# `main` is protected with `require_code_owner_reviews`, so a name here is not a
+# suggestion — it is who can unblock a merge.
+#
+# ── Three maintainers, one of them an agent ──
+# @cris-pappcorn is PappCorn's AI agent and a maintainer of this repo alongside
+# its two humans. What that means in practice is spelled out in CONTRIBUTING.md
+# and enforced by .github/workflows/cris-approve.yml: Cris only signs where its
+# signature cannot be the thing that lets unreviewed code through. It never
+# approves its own PRs, and never approves code from an author who is not
+# already a code owner of everything they touched.
 
 # Everything, by default.
-*                       @ni500 @lcaloguerea
+*                        @ni500 @lcaloguerea @cris-pappcorn
 
-# Connectors handle real credentials — keep both owners on them.
-/packages/gmail-mcp/    @ni500 @lcaloguerea
-/packages/whatsapp-mcp/ @ni500 @lcaloguerea
+# Connectors handle real credentials — keep both humans on them.
+/packages/gmail-mcp/     @ni500 @lcaloguerea @cris-pappcorn
+/packages/whatsapp-mcp/  @ni500 @lcaloguerea @cris-pappcorn
+
+# ── The governance lock ──
+# Humans only, on purpose. `/.github/` decides WHO approves and WHAT runs in CI,
+# including cris-approve.yml itself. An agent that can approve changes to its own
+# approver has no guard rail at all, so Cris is deliberately not an owner here.
+# A PR touching this directory always waits for a human.
+/.github/                @ni500 @lcaloguerea
