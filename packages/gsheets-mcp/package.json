@@ -1,0 +1,46 @@
+{
+  "name": "@pappcorn/gsheets-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Google Sheets — inspect, search and EDIT spreadsheets shared with you, in place, without loading them into the context. Uses your own Google OAuth app.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pappcorn/universe.git",
+    "directory": "packages/gsheets-mcp"
+  },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/gsheets-mcp",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "google-sheets",
+    "spreadsheet",
+    "claude"
+  ],
+  "type": "commonjs",
+  "main": "./dist/mcp.js",
+  "bin": {
+    "gsheets-mcp": "./dist/mcp.js",
+    "pappcorn-gsheets-mcp": "./dist/mcp.js",
+    "pappcorn-gsheets-setup": "./scripts/mint-token.mjs"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "scripts",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && npm run bundle",
+    "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=bin/mcp.cjs",
+    "mint-token": "node scripts/mint-token.mjs",
+    "test": "node --test -r @swc-node/register test/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

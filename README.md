@@ -26,13 +26,16 @@ It carries two kinds of plugins:
 
 Open-source, MIT-licensed, installable by anyone. The source lives right here.
 
-|     | Connector                                 | What it does                                                                              |
-| :-: | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
-| ✉️  | [**gmail-mcp**](packages/gmail-mcp)       | Read, search, triage, draft and **send** email — with attachments — from your own account |
-| 💬  | [**whatsapp-mcp**](packages/whatsapp-mcp) | Send messages and approved templates from your own business number                        |
+|     | Connector                                 | What it does                                                                                      |
+| :-: | ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| ✉️  | [**gmail-mcp**](packages/gmail-mcp)       | Read, search, triage, draft and **send** email — with attachments — from your own account         |
+| 📊  | [**gsheets-mcp**](packages/gsheets-mcp)   | Inspect, search and **edit** Google Sheets shared with you, without loading them into the context |
+| 💬  | [**whatsapp-mcp**](packages/whatsapp-mcp) | Send messages and approved templates from your own business number                                |
 
 Claude's built-in Google connector reads and drafts but **deliberately cannot
-send**. That gap is the reason this repo exists.
+send**, and it cannot **edit** a spreadsheet — only read one, in full, which
+gets expensive fast on a file with tens of thousands of rows. Those gaps are the
+reason this repo exists.
 
 ### Licensed plugins
 
@@ -55,6 +58,7 @@ To request access, write to [cris@pappcorn.com](mailto:cris@pappcorn.com).
 
 # 2. Install what you need
 /plugin install gmail-mcp@pappcorn-plugins
+/plugin install gsheets-mcp@pappcorn-plugins
 /plugin install whatsapp-mcp@pappcorn-plugins
 ```
 
