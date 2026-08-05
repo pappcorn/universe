@@ -562,9 +562,17 @@ jobs:
           # Say it on the PR, not just in a log nobody opens. Once: re-labelling
           # is how this gets retried, and a pile of identical comments is its own
           # kind of noise.
+          #
+          # Read the existing comments into a variable rather than piping the API
+          # call straight into grep: a failed read and an absent marker both look
+          # like empty output to grep, and only one of them means "post". Failing
+          # open is the right call — a duplicate comment beats silence — but that
+          # has to be a decision the code states, not a coincidence of exit codes.
           MARKER='<!-- cris-approve:automerge-unavailable -->'
-          if ! gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
-                 --jq '.[].body' | grep -qF "$MARKER"; then
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq '.[].body' 2>/dev/null) || existing=''
+
+          if ! printf '%s' "$existing" | grep -qF "$MARKER"; then
             gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$MARKER
           ⚠️ **Cleared, but you have to press the button.**
 
