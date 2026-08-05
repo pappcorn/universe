@@ -1,0 +1,127 @@
+# Auto-merge Dependabot's routine bumps.
+#
+# `main` requires a code-owner approval, and dependabot[bot] is not a code owner
+# — so without this, every patch bump sits waiting for a human to rubber-stamp
+# it. That is the failure mode this repo already lived: six moderate advisories
+# open on `main` with nobody watching. A dependency bot whose PRs never merge is
+# worse than no bot, because it manufactures a backlog that trains you to ignore
+# it.
+#
+# So Cris approves and arms auto-merge, but only inside a narrow box:
+#
+#   • the author must be dependabot[bot] (checked twice, see below);
+#   • the bump must be patch or minor — never a major;
+#   • the diff must not touch `.github/`. A github-actions bump edits the
+#     workflow files, and `.github/` is anchored to humans in CODEOWNERS on
+#     purpose: it is the directory that decides who approves. An agent that can
+#     merge changes to its own approver has no guard rail. Those bumps are still
+#     opened, they just wait for Nic or Leo.
+#
+# Auto-merge itself never bypasses anything: GitHub performs the merge only once
+# every branch protection is satisfied — CI green, claude-review green, approval
+# present. It waits; it cannot override.
+#
+# ── Why pull_request_target, and why that is safe here ──
+# A `pull_request` run triggered by Dependabot gets a read-only token and NO
+# access to repo secrets, so CRIS_APPROVE_PAT would be empty and the approval
+# could never happen. `pull_request_target` runs in the context of the BASE
+# branch, where the secret is available. The standing danger of that trigger is
+# running untrusted PR code with secrets in scope — so this workflow does not
+# check out the PR at all. There is no `actions/checkout`, no `npm install`, no
+# build step: it reads metadata and calls the API. Do not add a checkout of
+# `github.event.pull_request.head.sha` here.
+
+name: Dependabot auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write # arming native auto-merge
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    # First guard: the event actor. Combined with the metadata step below (which
+    # only succeeds on a genuine Dependabot branch) this is belt and braces.
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HAS_PAT: ${{ secrets.CRIS_APPROVE_PAT != '' }}
+    steps:
+      - name: Read the bump metadata
+        id: meta
+        uses: dependabot/fetch-metadata@08eff52bf64351f401fb50d4972fa95b9f2c2d1b # v2.4.0
+        with:
+          github-token: ${{ github.token }}
+
+      # Second guard: the author on the PR record itself, not just the actor.
+      - name: Assert the PR really is Dependabot's
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const author = context.payload.pull_request.user.login;
+            if (author !== 'dependabot[bot]') {
+              core.setFailed(`Refusing: PR author is ${author}, not dependabot[bot].`);
+            }
+
+      # Third guard: the governance lock. A github-actions bump edits
+      # .github/workflows/*, which CODEOWNERS anchors to humans on purpose.
+      - name: Refuse if the diff touches .github/
+        id: scope
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner, repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number, per_page: 100,
+            });
+            const governance = files.map(f => f.filename).filter(f => f.startsWith('.github/'));
+            core.setOutput('in_scope', governance.length ? 'false' : 'true');
+            if (governance.length) {
+              core.info(`Touches ${governance.join(', ')} — leaving this one for a human.`);
+            }
+
+      - name: Approve and arm auto-merge
+        if: >-
+          env.HAS_PAT == 'true' &&
+          steps.scope.outputs.in_scope == 'true' &&
+          (steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+           steps.meta.outputs.update-type == 'version-update:semver-minor')
+        env:
+          GH_TOKEN: ${{ secrets.CRIS_APPROVE_PAT }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+        run: |
+          gh pr review "$PR_URL" --approve --body \
+            "✅ Routine dependency bump (\`$UPDATE_TYPE\`), nothing under \`.github/\`. Approved and queued for auto-merge — GitHub will merge it once CI and \`claude-review\` are green."
+          gh pr merge "$PR_URL" --auto --squash
+
+      - name: Say why it was left alone
+        if: >-
+          steps.scope.outputs.in_scope == 'false' ||
+          steps.meta.outputs.update-type == 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ secrets.CRIS_APPROVE_PAT || github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          IN_SCOPE: ${{ steps.scope.outputs.in_scope }}
+        run: |
+          if [ "$IN_SCOPE" = "false" ]; then
+            reason="it edits files under \`.github/\`, which \`CODEOWNERS\` anchors to a human on purpose — that is the directory deciding who approves, so I do not merge it."
+          else
+            reason="it is a **major** bump (\`$UPDATE_TYPE\`). Someone should read the changelog."
+          fi
+          # Built with printf, not an indented YAML block scalar: the block's
+          # leading spaces would survive into the comment and Markdown renders
+          # four-space-indented lines as a code block.
+          printf '%s\n\n%s\n\n%s\n%s\n' \
+            "🤖 **Not auto-merging this one** — $reason" \
+            "cc @ni500 @lcaloguerea" \
+            "---" \
+            "🤖 _Cris · PappCorn's AI agent_" > body.md
+          gh pr comment "$PR_URL" --body-file body.md

@@ -1,0 +1,55 @@
+# Dependabot — keep the dependency surface current without drowning the repo.
+#
+# Two ecosystems: npm (one root manifest, this is an Nx monorepo with a single
+# lockfile) and github-actions (the workflows in .github/workflows, which pin
+# actions by SHA and would otherwise silently rot).
+#
+# Grouping is the whole point of this file. Ungrouped, a weekly npm run on a repo
+# this size opens a dozen PRs that each need a review and a green CI. Grouped,
+# it opens two: one for the routine patch/minor bumps, one for the majors that
+# actually deserve a human reading the changelog.
+
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Bogota
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # The boring ones, together. These are what dependabot-auto-merge.yml is
+      # allowed to merge on its own once CI is green.
+      routine:
+        patterns: ['*']
+        update-types: [minor, patch]
+      # Majors travel alone: a breaking change needs a human reading the
+      # changelog, and bundling it with ten safe bumps hides it.
+      majors:
+        patterns: ['*']
+        update-types: [major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Bogota
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ['*']

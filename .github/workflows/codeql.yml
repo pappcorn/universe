@@ -1,0 +1,62 @@
+# CodeQL — static analysis for the connectors.
+#
+# Free on public repos, and worth having here specifically: these packages parse
+# untrusted input (API responses, file paths, search queries) and hold OAuth
+# credentials. CodeQL's `security-extended` suite is what catches the classes of
+# bug a reviewer skims past — injection through a query string, a path that
+# escapes its directory, a regex that backtracks.
+#
+# It runs on PRs (so a finding blocks before merge), on pushes to main (so the
+# baseline stays honest), and weekly — because a query pack update can find a bug
+# in code nobody touched.
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays 07:00 UTC ≈ 02:00 Bogotá. Off-hours, once a week.
+    - cron: '0 7 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      security-events: write # publish results to the Security tab
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # One language, but kept as a matrix so adding Python or Go later is a
+        # one-line change rather than a restructure.
+        language: [javascript-typescript]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@42213152a85ae7569bdb6bec7bcd74cd691bfe41 # v3.30.9
+        with:
+          languages: ${{ matrix.language }}
+          # Default + the extra security queries. The connectors are small enough
+          # that the extra analysis time is irrelevant.
+          queries: security-extended
+
+      # No build step: `javascript-typescript` is analysed from source, and the
+      # packages are plain TS with no codegen. Adding a build here would only slow
+      # the run down.
+      - name: Analyze
+        uses: github/codeql-action/analyze@42213152a85ae7569bdb6bec7bcd74cd691bfe41 # v3.30.9
+        with:
+          category: /language:${{ matrix.language }}

@@ -1,0 +1,115 @@
+# Publish a connector to npm from a tag.
+#
+# Until now publishing was a human on a laptop running `npm publish`, which has
+# two problems: the artifact is whatever happened to be in that working tree, and
+# nobody downstream can verify where it came from. This makes the tag the trigger
+# and GitHub the publisher, so every release is built from a clean checkout of a
+# commit that is actually on `main`, with npm provenance attached — the sigstore
+# attestation that lets anyone verify this tarball was built by this workflow
+# from this commit.
+#
+# ── How to cut a release ──
+#   1. Bump the version in packages/<name>/package.json, on a PR, and merge it.
+#   2. Tag that merge commit with `<name>@<version>` and push the tag:
+#
+#        git tag gmail-mcp@0.3.1 && git push origin gmail-mcp@0.3.1
+#
+# The tag name IS the instruction: the package to publish and the version it must
+# already declare. A mismatch between the two fails the run before anything is
+# published — see the assertion step. Scoped per package on purpose: these
+# connectors version independently, and a repo-wide `v1.2.3` tag would force them
+# to move in lockstep for no reason.
+#
+# ── One-time setup ──
+# Either an npm automation token in the repo secret NPM_TOKEN, or (better) npm
+# trusted publishing configured for this repo, which drops the secret entirely.
+# Provenance requires `id-token: write`, which is already granted below.
+
+name: Release
+
+on:
+  push:
+    tags:
+      # <package-dir>@<semver>, e.g. gmail-mcp@0.3.1
+      - '*@*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Parse the tag
+        id: tag
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          pkg="${REF_NAME%@*}"
+          version="${REF_NAME##*@}"
+          if [ ! -d "packages/$pkg" ]; then
+            echo "::error::Tag '$REF_NAME' names package '$pkg', but packages/$pkg does not exist."
+            exit 1
+          fi
+          echo "dir=packages/$pkg"   >> "$GITHUB_OUTPUT"
+          echo "version=$version"    >> "$GITHUB_OUTPUT"
+          echo "Releasing $pkg@$version"
+
+      # A tag that disagrees with the manifest is the single most common way to
+      # publish the wrong thing. Catch it before the build, not after the push.
+      - name: Assert the manifest matches the tag
+        env:
+          DIR: ${{ steps.tag.outputs.dir }}
+          WANT: ${{ steps.tag.outputs.version }}
+        run: |
+          got=$(node -p "require('./$DIR/package.json').version")
+          if [ "$got" != "$WANT" ]; then
+            echo "::error::Tag says $WANT but $DIR/package.json says $got. Bump the manifest, or retag."
+            exit 1
+          fi
+          echo "Manifest agrees: $got"
+
+      # The tag must point at a commit that is actually on main. Without this,
+      # anyone who can push a tag can publish an arbitrary tree under the
+      # @pappcorn scope — the review gate would be bypassed entirely.
+      - name: Assert the tag is on main
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          # Fetch into an explicit remote-tracking ref: a tag checkout does not
+          # configure one, so a bare `git fetch origin main` would only leave
+          # FETCH_HEAD and `origin/main` would not resolve.
+          git fetch origin main:refs/remotes/origin/main -q
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::$SHA is not an ancestor of origin/main. Only reviewed, merged commits get published."
+            exit 1
+          fi
+
+      - name: Set up Node
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci --legacy-peer-deps
+
+      # Build and test the whole workspace, not just the tagged package: these
+      # connectors share a root lockfile, and a release is the wrong moment to
+      # discover that a sibling broke.
+      - run: npx nx run-many -t build test
+
+      - name: Publish
+        working-directory: ${{ steps.tag.outputs.dir }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
