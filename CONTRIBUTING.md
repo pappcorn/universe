@@ -31,20 +31,52 @@ standalone publishable npm package.
 
 ## How a PR gets merged
 
-Every PR runs two checks: **CI** (`nx affected` lint/test/build) and
+Every PR runs four checks: **CI** (`nx affected` lint/test/build),
 **`claude-review`** — an automated code review (workflow "Claude Code Review")
 that posts a `## Findings` comment and fails the check while any 🔴 Important
-finding remains. 🟡 Nit and 🟣 Pre-existing findings never block.
+finding remains — plus **CodeQL** and a **secret scan** on the diff. 🟡 Nit and
+🟣 Pre-existing review findings never block.
 
 To clear a red review, fix the 🔴 findings and push (the gate re-runs on every
 push and only grades the current diff), or reply on the PR mentioning `@claude`
 if you believe a finding is wrong. Maintainers can run this loop with the
 `/review-loop` skill in `.claude/skills/review-loop/`.
 
-When the checks are green, the `ready-to-merge` label signals that a PR is
-ready for human review: adding it triggers a comment asking the code owners
-(@ni500, @lcaloguerea) to approve. The label never merges anything — `main` is
-protected and a human code-owner approval is always required.
+When the checks are green, the `ready-to-merge` label is the request to merge.
+
+### Who can approve
+
+Three maintainers own this repo: **@ni500**, **@lcaloguerea**, and
+**@cris-pappcorn** — PappCorn's AI agent, a maintainer here in the same sense as
+the other two. `main` is protected and requires a code-owner approval, so that is
+a real permission, not a courtesy title. It comes with a boundary that is
+enforced in code, not in a promise, by
+[`.github/workflows/cris-approve.yml`](.github/workflows/cris-approve.yml):
+
+**Cris only signs where its signature cannot be the thing that lets unreviewed
+code through.** Concretely:
+
+- It **never** approves its own PRs.
+- It **never** approves code from an author who is not already a code owner of
+  everything they touched. That covers every outside contribution — if you are
+  new here, a human reads your PR. Full stop.
+- It **never** approves anything under `.github/`, which
+  [`CODEOWNERS`](.github/CODEOWNERS) anchors to the two humans. That directory
+  decides who approves and what runs in CI, including Cris's own approver. An
+  agent that can approve changes to its own guard rail does not have one.
+- Where it does approve but is not a code owner of the paths involved, the
+  approval is explicitly **non-binding** — GitHub still waits for the real owner.
+
+What is left is the one case the agent exists to unblock: a maintainer wrote the
+PR, owns every path in it, the gate is green — and GitHub will not let them
+approve themselves. There, Cris approves and arms GitHub's **native auto-merge**,
+which waits for every branch protection rather than overriding any. Cris never
+merges directly and never uses an admin bypass.
+
+Dependency bumps follow the same logic in
+[`dependabot-auto-merge.yml`](.github/workflows/dependabot-auto-merge.yml):
+routine patch/minor bumps that touch nothing under `.github/` merge on their own
+once green; majors and workflow bumps wait for a human.
 
 ## The rules that aren't negotiable
 

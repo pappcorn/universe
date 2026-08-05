@@ -1,0 +1,46 @@
+# Delete the head branch once a PR is merged.
+#
+# The repo setting `delete_branch_on_merge` also does this, and it is enabled.
+# This workflow exists anyway for two reasons: it is version-controlled (a
+# setting silently flipped in the UI leaves no trace, this does), and it lets the
+# rule carry exceptions the setting cannot express — the `never delete` list
+# below. Both firing on the same PR is harmless: whichever loses the race gets a
+# 422 for a ref that is already gone, and the step tolerates it.
+#
+# It never touches a fork's branch: we have no write access there, and deleting a
+# contributor's branch out from under them would be rude even if we did.
+
+name: Delete merged branch
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  delete:
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !contains(fromJSON('["main","develop","release","prod","production"]'), github.event.pull_request.head.ref)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Delete head branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Deleting merged branch: $HEAD_REF"
+          # Already deleted by the repo setting? That is a success, not a failure.
+          if ! gh api -X DELETE "repos/$REPO/git/refs/heads/$HEAD_REF" 2>err.log; then
+            if grep -qi 'reference does not exist\|Not Found' err.log; then
+              echo "Already gone (repo setting got there first)."
+            else
+              cat err.log >&2
+              exit 1
+            fi
+          fi
