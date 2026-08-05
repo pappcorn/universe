@@ -59,8 +59,12 @@
 #   • CRIS_APPROVE_PAT (cris-pappcorn's token) does the APPROVE and the
 #     "Cris is not approving" comment, so both come from the same face. The
 #     APPROVE is the one thing that REQUIRES a PAT: GITHUB_TOKEN cannot approve
-#     PRs, and a GitHub App cannot be a CODEOWNER. The PAT needs only
-#     `Pull requests: Read and write` + `Metadata` + access to this repo.
+#     PRs, and a GitHub App cannot be a CODEOWNER. The PAT needs
+#     `Pull requests: Read and write` + `Contents: Read and write` + `Metadata`
+#     + access to this repo. Contents is not optional and not obvious: the same
+#     token also arms the merge (see step 4), and merging writes to a branch, so
+#     a PAT scoped to Pull requests alone approves fine and then fails the merge
+#     with `Resource not accessible by personal access token`.
 #
 # ── The merge NEVER bypasses a rule ──
 # Cris never merges directly and never uses an admin/ruleset bypass. In case (1)
@@ -74,9 +78,11 @@
 #   2. cris-pappcorn listed as a CODEOWNER in .github/CODEOWNERS — otherwise its
 #      approval does not satisfy the gate and every PR lands in case (3).
 #   3. A fine-grained PAT for cris-pappcorn (resource owner = pappcorn org,
-#      repo = universe; Pull requests: RW + Metadata) stored as the repo secret
-#      CRIS_APPROVE_PAT.
-#   4. Keep CRIS_LOGIN below in sync with the account login.
+#      repo = universe; Pull requests: RW + Contents: RW + Metadata) stored as
+#      the repo secret CRIS_APPROVE_PAT.
+#   4. "Allow auto-merge" enabled in the repository settings. Without it the
+#      arming call is rejected outright — the design cannot work.
+#   5. Keep CRIS_LOGIN below in sync with the account login.
 #
 # Security, and this matters more here than in a private repo: this workflow
 # never runs PR code — it only reads metadata and approves. CODEOWNERS is read
@@ -499,7 +505,21 @@ jobs:
       # an event generated with GITHUB_TOKEN trigger another workflow (its
       # anti-recursion rule), which would leave downstream checks frozen in
       # `action_required`. With the PAT the merge is attributed to cris-pappcorn
-      # and events trigger workflows normally.
+      # and events trigger workflows normally. That token therefore needs
+      # `Contents: RW` on top of `Pull requests: RW` — merging writes to a branch.
+      #
+      # ── Arming is best-effort, on purpose ──
+      # Everything this gate exists to decide has ALREADY happened by the time we
+      # get here: the objective checks were read and Cris approved. Arming is the
+      # convenience on top. So a failure to arm must not take the check red —
+      # the PR is cleared, it just needs a hand on the button, and saying that in
+      # a comment is more useful than a red X on a healthy diff.
+      #
+      # This is not hypothetical: the step has already gone red twice for reasons
+      # that had nothing to do with the diff — `allow_auto_merge` off at the repo
+      # level, and a PAT without `Contents: RW`. Both are settings, invisible from
+      # the PR, and both trained the reader to ignore a red gate. A gate that
+      # cries wolf about its own plumbing is worse than one that stays quiet.
       - name: Arm native auto-merge
         if: steps.gate.outputs.decision == 'approve_and_merge'
         env:
@@ -530,4 +550,41 @@ jobs:
             echo "Strategy: squash (ordinary feature PR, no ancestry to preserve)."
           fi
 
-          gh pr merge "$PR" --auto "$METHOD" --repo "$GITHUB_REPOSITORY"
+          if err=$(gh pr merge "$PR" --auto "$METHOD" --repo "$GITHUB_REPOSITORY" 2>&1); then
+            echo "$err"
+            echo "Auto-merge armed. GitHub merges once every protection is satisfied."
+            exit 0
+          fi
+
+          echo "$err"
+          echo "::warning::Could not arm auto-merge: $err"
+
+          # Say it on the PR, not just in a log nobody opens. Once: re-labelling
+          # is how this gets retried, and a pile of identical comments is its own
+          # kind of noise.
+          #
+          # Read the existing comments into a variable rather than piping the API
+          # call straight into grep: a failed read and a genuinely absent marker
+          # both arrive at grep as empty input, so the pipeline cannot tell them
+          # apart. Both should post — a duplicate comment beats silence — so the
+          # variable does not change the outcome. It makes failing open a choice
+          # the code states, instead of a coincidence of exit codes.
+          MARKER='<!-- cris-approve:automerge-unavailable -->'
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq '.[].body' 2>/dev/null) || existing=''
+
+          if ! printf '%s' "$existing" | grep -qF "$MARKER"; then
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$MARKER
+          ⚠️ **Cleared, but you have to press the button.**
+
+          The gate passed and I approved this PR. Arming GitHub's native auto-merge failed, which is an issue with the automation's own plumbing — a repository setting or a token permission — not with this diff:
+
+          \`\`\`
+          $err
+          \`\`\`
+
+          Merge it by hand when you are ready. Nothing here is bypassed: every branch protection still applies to that merge.
+
+          See the setup checklist at the top of \`.github/workflows/cris-approve.yml\`." >/dev/null || \
+              echo "::warning::Could not post the auto-merge comment either."
+          fi
