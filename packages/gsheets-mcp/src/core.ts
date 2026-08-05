@@ -503,7 +503,7 @@ export async function batchUpdate(
 
 const LOG_DIR =
   process.env.GSHEETS_MCP_LOG_DIR ||
-  `${homedir()}/.local/state/pappcorn-gsheets-mcp`;
+  `${homedir()}/.local/state/pappcorn/gsheets-mcp`;
 const LOG_PATH = `${LOG_DIR}/writes.jsonl`;
 
 /** Append-only record of what was changed, so a write is always answerable

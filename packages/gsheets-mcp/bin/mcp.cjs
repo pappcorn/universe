@@ -21122,8 +21122,8 @@ var SCOPES = [
   "https://www.googleapis.com/auth/drive.file"
 ];
 var SCOPE = SCOPES.join(" ");
-var DEFAULT_CREDENTIALS_PATH = `${(0, import_node_os.homedir)()}/.config/pappcorn-gsheets-mcp/credentials.json`;
-var TOKEN_CACHE_DIR = `${(0, import_node_os.homedir)()}/.cache/pappcorn-gsheets-mcp`;
+var DEFAULT_CREDENTIALS_PATH = `${(0, import_node_os.homedir)()}/.config/pappcorn/gsheets-mcp/credentials.json`;
+var TOKEN_CACHE_DIR = `${(0, import_node_os.homedir)()}/.cache/pappcorn/gsheets-mcp`;
 var TOKEN_CACHE_PATH = `${TOKEN_CACHE_DIR}/token.json`;
 var SheetsAccessError = class extends Error {
   constructor(message) {
@@ -21136,7 +21136,7 @@ function credentialsPath() {
 }
 function noAccessMessage(path) {
   const pretty = path.replace((0, import_node_os.homedir)(), "~");
-  return `No Google Sheets credential found. Either set GSHEETS_CLIENT_ID + GSHEETS_CLIENT_SECRET + GSHEETS_REFRESH_TOKEN in the environment, or create ${pretty} by running the one-time setup: \`npx -p @pappcorn/gsheets-mcp pappcorn-gsheets-setup --client <your-oauth-client.json>\`. Full walkthrough: README.md.`;
+  return `No Google Sheets credential found. Either set GSHEETS_CLIENT_ID + GSHEETS_CLIENT_SECRET + GSHEETS_REFRESH_TOKEN in the environment, or create ${pretty} by running the one-time setup: \`npx -p @pappcorn/gsheets-mcp pappcorn-gsheets-setup --client <your-oauth-client.json>\`. Full walkthrough: docs/setup-google-sheets.md.`;
 }
 var cachedCredentials = null;
 function loadCredentials() {
@@ -21486,7 +21486,7 @@ async function batchUpdate(spreadsheetId, edits, opts = {}) {
     updatedCells: r.updatedCells ?? 0
   }));
 }
-var LOG_DIR = process.env.GSHEETS_MCP_LOG_DIR || `${(0, import_node_os2.homedir)()}/.local/state/pappcorn-gsheets-mcp`;
+var LOG_DIR = process.env.GSHEETS_MCP_LOG_DIR || `${(0, import_node_os2.homedir)()}/.local/state/pappcorn/gsheets-mcp`;
 var LOG_PATH = `${LOG_DIR}/writes.jsonl`;
 function logWrite(entry) {
   const trim = (grid) => grid.slice(0, 20).map(

@@ -96,7 +96,7 @@ There is no bypass flag. A connector that edits other people's spreadsheets shou
 one.
 
 Every committed write is appended to a local audit log at
-`~/.local/state/pappcorn-gsheets-mcp/writes.jsonl` — timestamp, file, range, before, after.
+`~/.local/state/pappcorn/gsheets-mcp/writes.jsonl` — timestamp, file, range, before, after.
 Override the directory with `$GSHEETS_MCP_LOG_DIR`.
 
 ---
@@ -119,7 +119,12 @@ Decide which copy is the live one, and say so out loud.
 
 ## Setup
 
-You need a Google Cloud project of your own. About ten minutes, once.
+You need a Google Cloud project of your own. About 15 minutes, once — or **about 3 minutes if
+you already set up the [Gmail connector](../gmail-mcp/README.md)**, since the same project and
+OAuth client are reusable.
+
+**→ Full walkthrough with screenshots: [docs/setup-google-sheets.md](../../docs/setup-google-sheets.md)**,
+including the short path for an existing app and a troubleshooting table. The compact version:
 
 1. **Create a project** at [console.cloud.google.com](https://console.cloud.google.com).
 2. **Enable two APIs**: _Google Sheets API_ **and** _Google Drive API_. Missing the Drive one
@@ -173,7 +178,7 @@ Two ways to supply them, checked in this order:
    This is the plugin path: collected at install time, stored in your OS keychain, never
    written to disk.
 2. **Credential file** — `$GSHEETS_MCP_CREDENTIALS`, else
-   `~/.config/pappcorn-gsheets-mcp/credentials.json` (chmod 600). This is what the setup script
+   `~/.config/pappcorn/gsheets-mcp/credentials.json` (chmod 600). This is what the setup script
    writes.
 
 **Why 3-legged OAuth and not a service account with domain-wide delegation:** domain-wide

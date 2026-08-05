@@ -3,7 +3,7 @@
 // Zero npm dependencies; Node 20+ built-ins only.
 //
 // Run this AFTER creating your own OAuth client in Google Cloud — the full
-// walkthrough is in README.md. Short version: create a project, enable the
+// walkthrough is in docs/setup-google-sheets.md. Short version: create a project, enable the
 // Google Sheets API AND the Google Drive API, configure the consent screen
 // (User type "External"), PUBLISH the app to Production, then create an OAuth
 // client of type "Desktop app" and download its JSON.
@@ -39,7 +39,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/drive.file',
 ];
-const DEFAULT_OUT = `${homedir()}/.config/pappcorn-gsheets-mcp/credentials.json`;
+const DEFAULT_OUT = `${homedir()}/.config/pappcorn/gsheets-mcp/credentials.json`;
 const TIMEOUT_MS = 5 * 60 * 1000;
 
 function fail(code, msg) {
@@ -83,7 +83,7 @@ and writes the credential file (chmod 600).
   --out      Where to write the credential. Defaults to the path the MCP server
              reads.
 
-Setup walkthrough: README.md
+Setup walkthrough: docs/setup-google-sheets.md
 `;
 
 const flags = parseFlags(process.argv.slice(2));
@@ -297,7 +297,7 @@ async function exchangeAndWrite(code, redirectUri) {
       '  3. Keep the credential file private. Anyone holding it can read AND EDIT every\n' +
       '     spreadsheet this account can open.\n\n' +
       'If it stops working after about a week, your OAuth app is still in "Testing" status.\n' +
-      'Publish it to Production — see README.md.\n'
+      'Publish it to Production — see docs/setup-google-sheets.md.\n'
   );
   process.exit(0);
 }

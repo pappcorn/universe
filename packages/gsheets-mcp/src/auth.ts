@@ -21,7 +21,7 @@
 //      them at install time, stores them in the OS keychain, and passes them to
 //      this process as env vars. Nothing touches disk.
 //   2. A credential JSON file — $GSHEETS_MCP_CREDENTIALS, else
-//      ~/.config/pappcorn-gsheets-mcp/credentials.json (chmod 600). This is what
+//      ~/.config/pappcorn/gsheets-mcp/credentials.json (chmod 600). This is what
 //      scripts/mint-token.mjs writes.
 //
 // If neither is present the server has no access and says so plainly.
@@ -52,8 +52,17 @@ export const SCOPES = [
 ];
 const SCOPE = SCOPES.join(' ');
 
-const DEFAULT_CREDENTIALS_PATH = `${homedir()}/.config/pappcorn-gsheets-mcp/credentials.json`;
-const TOKEN_CACHE_DIR = `${homedir()}/.cache/pappcorn-gsheets-mcp`;
+// Everything this connector stores lives under a single `pappcorn/` parent in
+// each XDG directory, one subdirectory per connector — rather than scattering
+// sibling `pappcorn-<name>-mcp` folders across the user's config.
+//
+// The reason is revocation, not tidiness: a person who wants to know what an
+// assistant can reach, or to cut it off entirely, should have ONE place to look
+// and one thing to delete. That matters most in an offboarding, where "delete
+// this folder" has to be an instruction a non-technical person can follow
+// without wondering whether they missed a directory.
+const DEFAULT_CREDENTIALS_PATH = `${homedir()}/.config/pappcorn/gsheets-mcp/credentials.json`;
+const TOKEN_CACHE_DIR = `${homedir()}/.cache/pappcorn/gsheets-mcp`;
 const TOKEN_CACHE_PATH = `${TOKEN_CACHE_DIR}/token.json`;
 
 export interface SheetsCredentials {
@@ -92,7 +101,7 @@ function noAccessMessage(path: string): string {
     'No Google Sheets credential found. Either set GSHEETS_CLIENT_ID + ' +
     `GSHEETS_CLIENT_SECRET + GSHEETS_REFRESH_TOKEN in the environment, or create ${pretty} ` +
     'by running the one-time setup: `npx -p @pappcorn/gsheets-mcp pappcorn-gsheets-setup ' +
-    '--client <your-oauth-client.json>`. Full walkthrough: README.md.'
+    '--client <your-oauth-client.json>`. Full walkthrough: docs/setup-google-sheets.md.'
   );
 }
 

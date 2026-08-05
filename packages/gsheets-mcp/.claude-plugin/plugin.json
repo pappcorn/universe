@@ -13,7 +13,7 @@
     "client_id": {
       "type": "string",
       "title": "OAuth client ID",
-      "description": "From the OAuth client you created in your own Google Cloud project. See the README. Leave all three fields empty to use a credentials file instead ($GSHEETS_MCP_CREDENTIALS, default ~/.config/pappcorn-gsheets-mcp/credentials.json).",
+      "description": "From the OAuth client you created in your own Google Cloud project. See the README. Leave all three fields empty to use a credentials file instead ($GSHEETS_MCP_CREDENTIALS, default ~/.config/pappcorn/gsheets-mcp/credentials.json).",
       "required": false
     },
     "client_secret": {
