@@ -104,7 +104,8 @@ jobs:
       - name: Say why it was left alone
         if: >-
           steps.scope.outputs.in_scope == 'false' ||
-          steps.meta.outputs.update-type == 'version-update:semver-major'
+          steps.meta.outputs.update-type == 'version-update:semver-major' ||
+          env.HAS_PAT != 'true'
         env:
           GH_TOKEN: ${{ secrets.CRIS_APPROVE_PAT || github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
@@ -124,6 +125,10 @@ jobs:
           if [ "$UPDATE_TYPE" = "version-update:semver-major" ]; then
             reasons="$reasons
           - it is a **major** bump (\`$UPDATE_TYPE\`). Someone should read the changelog."
+          fi
+          if [ "$HAS_PAT" != "true" ]; then
+            reasons="$reasons
+          - \`CRIS_APPROVE_PAT\` is not configured, so I could not approve it even though it qualifies. Add the secret, or merge this one by hand."
           fi
           # Built with printf into a file, not passed as an indented literal:
           # Markdown renders four-space-indented lines as a code block, and the
