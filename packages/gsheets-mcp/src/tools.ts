@@ -641,7 +641,7 @@ export function registerTools(server: McpServer): void {
         const befores = await batchRead(
           id,
           edits.map((e) => e.range),
-          { render: 'FORMULA' }
+          { render: 'FORMULA', cap: Infinity }
         );
         const beforeGrids = edits.map((e, i) => befores[i]?.values ?? []);
         const token = editToken(

@@ -21384,10 +21384,11 @@ async function batchRead(spreadsheetId, ranges, opts = {}) {
     (n, vr) => n + vr.values.reduce((m, row) => m + row.length, 0),
     0
   );
-  if (cells > MAX_READ_CELLS) {
+  const cap = opts.cap ?? MAX_READ_CELLS;
+  if (cells > cap) {
     throw new SheetsApiError(
       400,
-      `Those ranges hold ${cells} cells in total, over the ${MAX_READ_CELLS}-cell read limit. Narrow them, or locate the rows with sheet_find first.`
+      `Those ranges hold ${cells} cells in total, over the ${cap}-cell read limit. Narrow them, or locate the rows with sheet_find first.`
     );
   }
   return out;
@@ -21992,7 +21993,7 @@ function registerTools(server) {
         const befores = await batchRead(
           id,
           edits.map((e) => e.range),
-          { render: "FORMULA" }
+          { render: "FORMULA", cap: Infinity }
         );
         const beforeGrids = edits.map((e, i) => befores[i]?.values ?? []);
         const token = editToken(

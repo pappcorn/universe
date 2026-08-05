@@ -256,7 +256,7 @@ export async function readRange(
 export async function batchRead(
   spreadsheetId: string,
   ranges: string[],
-  opts: { render?: ValueRender } = {}
+  opts: { render?: ValueRender; cap?: number } = {}
 ): Promise<RangeValues[]> {
   const render = opts.render ?? 'FORMATTED_VALUE';
   const qs = ranges.map((r) => `ranges=${encodeURIComponent(r)}`).join('&');
@@ -276,10 +276,11 @@ export async function batchRead(
     (n, vr) => n + vr.values.reduce((m, row) => m + row.length, 0),
     0
   );
-  if (cells > MAX_READ_CELLS) {
+  const cap = opts.cap ?? MAX_READ_CELLS;
+  if (cells > cap) {
     throw new SheetsApiError(
       400,
-      `Those ranges hold ${cells} cells in total, over the ${MAX_READ_CELLS}-cell read limit. ` +
+      `Those ranges hold ${cells} cells in total, over the ${cap}-cell read limit. ` +
         'Narrow them, or locate the rows with sheet_find first.'
     );
   }
