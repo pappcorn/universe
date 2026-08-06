@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-mcp",
   "displayName": "WhatsApp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Send WhatsApp messages and approved templates from your own business number, via Meta's official Cloud API.",
   "author": { "name": "PappCorn" },
   "homepage": "https://github.com/pappcorn/universe/tree/main/packages/whatsapp-mcp",

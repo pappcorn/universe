@@ -1,6 +1,6 @@
 {
   "name": "@pappcorn/gmail-mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "MCP server for Gmail — read, search, triage, draft and send from your own account, using your own Google OAuth app.",
   "license": "MIT",
   "repository": {
@@ -26,14 +26,14 @@
   },
   "files": [
     "dist",
-    "bin",
+    "server",
     "scripts",
     "README.md",
     "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json && npm run bundle",
-    "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=bin/mcp.cjs",
+    "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=server/mcp.cjs",
     "gmail": "node -r @swc-node/register src/cli.ts",
     "mint-token": "node scripts/mint-token.mjs",
     "test": "node --test -r @swc-node/register test/*.test.ts test/*.test.mjs",

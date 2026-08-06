@@ -1,6 +1,6 @@
 {
   "name": "@pappcorn/gsheets-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server for Google Sheets — inspect, search and EDIT spreadsheets shared with you, in place, without loading them into the context. Uses your own Google OAuth app.",
   "license": "MIT",
   "repository": {
@@ -25,13 +25,13 @@
   },
   "files": [
     "dist",
-    "bin",
+    "server",
     "scripts",
     "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json && npm run bundle",
-    "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=bin/mcp.cjs",
+    "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=server/mcp.cjs",
     "mint-token": "node scripts/mint-token.mjs",
     "test": "node --test -r @swc-node/register test/*.test.ts",
     "prepublishOnly": "npm run build"

@@ -2,7 +2,7 @@
   "mcpServers": {
     "gsheets": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/mcp.cjs"],
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/mcp.cjs"],
       "env": {
         "GSHEETS_CLIENT_ID": "${user_config.client_id}",
         "GSHEETS_CLIENT_SECRET": "${user_config.client_secret}",

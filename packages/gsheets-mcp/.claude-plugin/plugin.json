@@ -1,7 +1,7 @@
 {
   "name": "gsheets-mcp",
   "displayName": "Google Sheets",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Inspect, search and EDIT Google Sheets that were shared with you — in place, cell by cell, without pulling the file into the context. Every write is previewed and confirmed. Your credentials stay on your machine.",
   "author": { "name": "PappCorn" },
   "homepage": "https://github.com/pappcorn/universe/tree/main/packages/gsheets-mcp",
