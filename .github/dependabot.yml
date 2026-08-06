@@ -6,8 +6,17 @@
 #
 # Grouping is the whole point of this file. Ungrouped, a weekly npm run on a repo
 # this size opens a dozen PRs that each need a review and a green CI. Grouped,
-# it opens two: one for the routine patch/minor bumps, one for the majors that
-# actually deserve a human reading the changelog.
+# the routine patch/minor bumps collapse into a single PR — which is where nearly
+# all of that volume lives.
+#
+# Majors are deliberately NOT grouped, and that asymmetry is the design. A group
+# is one mergeable unit, so grouping the majors yields a PR that can only be
+# merged by accepting every breaking change in it at once. The first run under
+# this file proved the point: #24 arrived carrying TypeScript 5.7 → 7.0,
+# prettier 2 → 3, zod 3 → 4, nx 21 → 23 and @types/node 20 → 26 in one diff.
+# Each of those is its own migration; bundled they are unmergeable, and the PR
+# becomes a permanent resident. Alone, each major is judged on its own changelog
+# and can be merged, deferred, or explicitly ignored on its own terms.
 
 version: 2
 
@@ -19,7 +28,12 @@ updates:
       day: monday
       time: '06:00'
       timezone: America/Bogota
-    open-pull-requests-limit: 5
+    # One slot for the routine group, the rest for majors arriving one per PR.
+    # The limit is a silent truncation, not a queue: past it Dependabot simply
+    # opens nothing, so a limit of 5 against six pending majors hides one with no
+    # trace anywhere. Sized to hold a realistic major backlog; if it is routinely
+    # full, the answer is to decide on the majors, not to raise the number again.
+    open-pull-requests-limit: 8
     labels:
       - dependencies
     commit-message:
@@ -28,14 +42,11 @@ updates:
     groups:
       # The boring ones, together. These are what dependabot-auto-merge.yml is
       # allowed to merge on its own once CI is green.
+      #
+      # Nothing else is grouped — see the header for why the majors travel alone.
       routine:
         patterns: ['*']
         update-types: [minor, patch]
-      # Majors travel alone: a breaking change needs a human reading the
-      # changelog, and bundling it with ten safe bumps hides it.
-      majors:
-        patterns: ['*']
-        update-types: [major]
 
   - package-ecosystem: github-actions
     directory: /

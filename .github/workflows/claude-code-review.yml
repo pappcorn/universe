@@ -50,8 +50,26 @@ jobs:
           #
           # The right move is to review those pushes, not skip them: if no
           # human touched the merge, someone should look at the result all the
-          # more. Allow the Actions bot, and ONLY that one — never `*`.
-          allowed_bots: 'github-actions'
+          # more. Allow the named bots, and ONLY those — never `*`.
+          #
+          # `dependabot` is here for the same reason and a sharper one. Its PRs
+          # were failing this check with that identical error, which meant the
+          # one class of PR the repo is set up to merge with no human reading the
+          # diff was also the one class getting no review at all. A dependency
+          # bump is a supply-chain change to published npm packages; it is the
+          # last thing that should sail through unread. Note the names are the
+          # login with `[bot]` stripped, matching what the action reports.
+          #
+          # ⚠️ Allowing the bot is necessary but not sufficient. A run triggered
+          # by Dependabot reads from the repository's DEPENDABOT secret store,
+          # not the Actions one — same names, different drawer — so
+          # CLAUDE_CODE_OAUTH_TOKEN must also exist under
+          # Settings → Secrets and variables → Dependabot, or the token arrives
+          # empty and the review fails a step later than it used to.
+          # Deliberately not solved by moving this workflow to
+          # `pull_request_target`: that trigger would hand repository secrets to
+          # a job that checks out the PR's own code.
+          allowed_bots: 'github-actions,dependabot'
 
           # Pin an explicit, current model. The action's old default
           # (claude-sonnet-4-20250514) was retired and now 404s on the first
