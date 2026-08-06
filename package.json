@@ -11,9 +11,9 @@
   "private": true,
   "devDependencies": {
     "@nx/js": "21.1.1",
-    "@swc-node/register": "~1.9.1",
-    "@swc/core": "~1.5.7",
-    "@swc/helpers": "~0.5.11",
+    "@swc-node/register": "~1.12.1",
+    "@swc/core": "~1.15.47",
+    "@swc/helpers": "~0.5.23",
     "@types/node": "^20.19.43",
     "esbuild": "^0.28.1",
     "nx": "21.1.1",
