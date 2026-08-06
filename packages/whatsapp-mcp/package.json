@@ -1,6 +1,6 @@
 {
   "name": "@pappcorn/whatsapp-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MCP server for WhatsApp — send messages and approved templates from your own number via Meta's official WhatsApp Cloud API.",
   "license": "MIT",
   "repository": {
@@ -25,12 +25,12 @@
   },
   "files": [
     "dist",
-    "bin",
+    "server",
     "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json && npm run bundle",
-    "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=bin/mcp.cjs",
+    "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=server/mcp.cjs",
     "whatsapp": "node -r @swc-node/register src/cli.ts",
     "prepublishOnly": "npm run build"
   },

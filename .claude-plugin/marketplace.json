@@ -9,19 +9,19 @@
     {
       "name": "gmail-mcp",
       "source": "./packages/gmail-mcp",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "description": "Read, search, triage, draft and SEND email from your own Gmail account. Uses your own Google OAuth app — your credentials never leave your machine."
     },
     {
       "name": "gsheets-mcp",
       "source": "./packages/gsheets-mcp",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Inspect, search and EDIT Google Sheets that were shared with you — in place, without loading the file into the context. Every write is previewed and confirmed. Uses your own Google OAuth app."
     },
     {
       "name": "whatsapp-mcp",
       "source": "./packages/whatsapp-mcp",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "description": "Send WhatsApp messages from your own number via Meta's official WhatsApp Cloud API. Outbound v1: templates and free-form replies inside the 24-hour window."
     },
     {

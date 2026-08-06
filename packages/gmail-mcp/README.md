@@ -129,7 +129,7 @@ assert which mailbox it is, so a copy-paste slip is denied instead of acted on.
   "mcpServers": {
     "gmail-work": {
       "command": "node",
-      "args": ["/path/to/gmail-mcp/bin/mcp.cjs"],
+      "args": ["/path/to/gmail-mcp/server/mcp.cjs"],
       "env": {
         "GMAIL_CLIENT_ID": "<same client>",
         "GMAIL_CLIENT_SECRET": "<same secret>",
@@ -139,7 +139,7 @@ assert which mailbox it is, so a copy-paste slip is denied instead of acted on.
     },
     "gmail-personal": {
       "command": "node",
-      "args": ["/path/to/gmail-mcp/bin/mcp.cjs"],
+      "args": ["/path/to/gmail-mcp/server/mcp.cjs"],
       "env": {
         "GMAIL_CLIENT_ID": "<same client>",
         "GMAIL_CLIENT_SECRET": "<same secret>",

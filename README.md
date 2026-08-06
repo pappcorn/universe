@@ -85,7 +85,7 @@ See [install.md](docs/install.md).
 The connectors are standard [MCP](https://modelcontextprotocol.io) servers over
 stdio — nothing in them is Claude-specific. Codex CLI, Gemini CLI, Cursor, or
 any other MCP-capable agent can run them: clone the repo and point your client
-at the self-contained bundle (`node packages/gmail-mcp/bin/mcp.cjs` — no build
+at the self-contained bundle (`node packages/gmail-mcp/server/mcp.cjs` — no build
 step, no dependencies). See
 [install.md → any MCP client](docs/install.md#path-c--any-mcp-client).
 

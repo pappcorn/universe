@@ -112,7 +112,7 @@ args = ["-y", "@pappcorn/gmail-mcp"]
 
 For contributors, or if you want to read and run exactly what's on disk:
 `git clone https://github.com/pappcorn/universe.git` and point any of the
-configs above at `node /absolute/path/to/universe/packages/<connector>/bin/mcp.cjs` —
+configs above at `node /absolute/path/to/universe/packages/<connector>/server/mcp.cjs` —
 each package commits that self-contained bundle, so there is nothing to
 install or build just to _run_ it. (Contributors changing source:
 `npm install` + `npm run build` inside the package rebuilds `dist/` and the

@@ -2,7 +2,7 @@
   "mcpServers": {
     "gmail": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/mcp.cjs"],
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/mcp.cjs"],
       "env": {
         "GMAIL_CLIENT_ID": "${user_config.client_id}",
         "GMAIL_CLIENT_SECRET": "${user_config.client_secret}",
