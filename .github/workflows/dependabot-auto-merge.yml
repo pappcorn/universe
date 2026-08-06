@@ -98,8 +98,36 @@ jobs:
           UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
         run: |
           gh pr review "$PR_URL" --approve --body \
-            "✅ Routine dependency bump (\`$UPDATE_TYPE\`), nothing under \`.github/\`. Approved and queued for auto-merge — GitHub will merge it once CI and \`claude-review\` are green."
-          gh pr merge "$PR_URL" --auto --squash
+            "✅ Routine dependency bump (\`$UPDATE_TYPE\`), nothing under \`.github/\`. Approved and queued for auto-merge — GitHub merges it once every branch protection on \`main\` is satisfied."
+
+          # Arming is best-effort, for the same reason #27 made it best-effort in
+          # cris-approve.yml: by this point the decision this workflow exists to
+          # make has already been made and the approval is on the PR. Arming is
+          # the convenience on top, and it fails for reasons that live in
+          # settings and are invisible from the PR — `allow_auto_merge` off at the
+          # repo level, or a PAT without `Contents: RW`. A red X on a healthy bump
+          # for a plumbing problem is how a reader learns to stop reading the
+          # checks. Warn, say it on the PR, exit 0. Nothing is bypassed: the merge
+          # that still has to happen by hand faces every protection.
+          if err=$(gh pr merge "$PR_URL" --auto --squash 2>&1); then
+            echo "$err"
+            exit 0
+          fi
+
+          echo "$err"
+          echo "::warning::Could not arm auto-merge: $err"
+          gh pr comment "$PR_URL" --body "⚠️ **Approved, but auto-merge could not be armed.**
+
+          This bump qualified and I approved it. Arming GitHub's native auto-merge failed on the automation's own plumbing — a repository setting or a token permission — not on anything in this diff:
+
+          \`\`\`
+          $err
+          \`\`\`
+
+          Merge it by hand when you are ready; every branch protection still applies.
+
+          ---
+          🤖 _Cris · PappCorn's AI agent_" >/dev/null || echo "::warning::Could not post the comment either."
 
       - name: Say why it was left alone
         if: >-
