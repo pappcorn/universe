@@ -1,8 +1,23 @@
 # Dependabot — keep the dependency surface current without drowning the repo.
 #
 # Two ecosystems: npm (one root manifest, this is an Nx monorepo with a single
-# lockfile) and github-actions (the workflows in .github/workflows, which pin
-# actions by SHA and would otherwise silently rot).
+# lockfile) and github-actions (the workflows in .github/workflows, which would
+# otherwise silently rot).
+#
+# ── The two run on different schedules, on purpose ──
+# npm is weekly because that lane drives itself: dependabot-auto-merge.yml
+# approves the routine group and arms auto-merge, so a patch bump costs a human
+# nothing. Slowing it down would only make the weekly PR arrive fatter.
+#
+# github-actions is monthly because that lane always costs a human. Its PRs edit
+# `.github/`, which CODEOWNERS anchors to a person by design, so every one waits
+# for an approval no automation can give. `github/codeql-action` is pinned by SHA
+# and ships every few weeks, which at a weekly cadence means a standing queue of
+# PRs whose only reviewer is a human who did not ask for them. A CI action that is
+# a month behind carries no real risk; a review queue nobody drains does.
+#
+# Note this is about *version* updates only. Security updates ignore this file's
+# schedule entirely — they open when an advisory lands, on either ecosystem.
 #
 # Grouping is the whole point of this file. Ungrouped, a weekly npm run on a repo
 # this size opens a dozen PRs that each need a review and a green CI. Grouped,
@@ -51,8 +66,9 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      # Monthly, so `day:` is dropped — it only means anything on a weekly
+      # interval. Dependabot runs this on the first of the month.
+      interval: monthly
       time: '06:00'
       timezone: America/Bogota
     open-pull-requests-limit: 3
