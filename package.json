@@ -14,7 +14,7 @@
     "@swc-node/register": "~1.12.1",
     "@swc/core": "~1.15.47",
     "@swc/helpers": "~0.5.23",
-    "@types/node": "^20.19.43",
+    "@types/node": "^26.1.2",
     "esbuild": "^0.28.1",
     "nx": "23.1.1",
     "prettier": "^2.6.2",
