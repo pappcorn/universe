@@ -14,14 +14,16 @@
 #      The human is in the loop: they WROTE it. GitHub just won't let them
 #      approve themselves. This is the one deadlock Cris exists to break.
 #
-#   2. author is NOT a code owner of everything, and Cris owns some changed path
-#      → DO NOT APPROVE. Comment + tag the owners.
-#      Cris's approval would BE the code-owner approval — it would merge someone
-#      else's code with no human review. This is the case every outside
-#      contribution lands in, and it is why a drive-by PR can never be merged by
-#      the agent.
+#   2. author is NOT a code owner of everything they touched
+#      → DO NOT APPROVE. Comment + tag the owners. Whether or not Cris owns
+#      any of the changed paths: where Cris owns some, its approval would BE
+#      the code-owner approval — it would merge someone else's code with no
+#      human review — and where Cris owns none, an "Approved" from the agent
+#      on code no human owner has read is a signal it refuses to send. This is
+#      the case every outside contribution lands in, and it is why a drive-by
+#      PR can never be approved, let alone merged, by the agent.
 #
-#   3. Cris owns NOTHING in the changed set
+#   3. author owns everything, and Cris owns NOTHING in the changed set
 #      → APPROVE + comment + tag the owners.
 #      Safe by construction: the approval is non-binding, since
 #      `require_code_owner_reviews` still waits for the real owner.
@@ -35,17 +37,18 @@
 #      unlock the paths Cris does not own. Withholding it is the only honest
 #      option when you cannot approve a part without approving the whole.
 #
-#      In this repo case (4) means the PR touched `/.github/`, the one path
-#      deliberately anchored to humans (see .github/CODEOWNERS). That is exactly
-#      when a human should look: it is the directory that defines who approves.
+#      In this repo, cases (3) and (4) mean the PR touched a governance
+#      carve-out — `.github/workflows/cris-approve.yml` or `.github/CODEOWNERS`,
+#      the two files deliberately anchored to humans (see .github/CODEOWNERS).
+#      That is exactly when a human should look: they define who approves.
 #
 # ── Structural-deadlock diagnostic (cases 3 and 4) ──
 # Where Cris does NOT unblock, the comment tags the human owners. If the ONLY
 # human owner of the touched paths IS the author, that cc is a dead end: GitHub
 # forbids self-approval, so nobody can satisfy require_code_owner_reviews. Cris
-# names the deadlock and gives the way out, which differs per case — case 3 can
-# suggest co-ownership (it turns future PRs into case 1); case 4 must not, since
-# the paths holding it are anchored to a human on purpose.
+# names the deadlock and gives the way out — and never suggests co-ownership as
+# the exit: the only paths Cris does not co-own are the governance carve-outs,
+# anchored to humans on purpose.
 #
 # Cris NEVER approves its own PR (its work needs human eyes), and only acts when
 # the `ready-to-merge` label was applied by a human code owner — the label
@@ -302,25 +305,21 @@ jobs:
             // satisfy `require_code_owner_reviews`.
             //
             // This changes NO decision — it only adds the diagnosis and the way
-            // out, because both ways out are human configuration, not something
-            // Cris can or should resolve by signing. The suggested exit differs
-            // per case, and the difference is not cosmetic: in case (4) what holds
-            // the PR is a path anchored to a human ON PURPOSE (`/.github/` is the
-            // governance lock — a Cris that can approve changes to its own
-            // approver has no guard rail). There, "add me as co-owner" is exactly
-            // the advice not to follow.
+            // out, because the way out is human configuration, not something
+            // Cris can or should resolve by signing. The exit deliberately never
+            // suggests co-ownership: the only paths Cris does not co-own are the
+            // governance carve-outs, anchored to humans ON PURPOSE (a Cris that
+            // can approve changes to its own approver has no guard rail).
+            // "Add me as co-owner" is exactly the advice not to follow.
             const onlyAuthorIsOwner =
               humanOwners.length > 0 && humanOwners.every(o => o === author);
-            const deadlockNote = (maySuggestCoOwnership) => {
+            const deadlockNote = () => {
               if (!onlyAuthorIsOwner) return '';
-              const exit = maySuggestCoOwnership
-                ? `(a) add me as a co-owner of those paths in \`.github/CODEOWNERS\` — that turns this into case 1 and ` +
-                  `I arm the merge myself — or (b) give them a second human owner. ` +
-                  `Note: I read CODEOWNERS from the BASE branch (\`${pr.base.ref}\`), so the change has to have ` +
-                  `landed there, not just on your branch.`
-                : `the way out is NOT to add me as an owner of those paths: they are anchored to a human on purpose ` +
-                  `(\`/.github/\` defines who approves and what runs in CI — that lock does not open). ` +
-                  `You need a second human owner, or split the PR so the governance change goes separately.`;
+              const exit =
+                `the way out is NOT to add me as an owner of those paths: they are anchored to humans on purpose ` +
+                `(\`.github/workflows/cris-approve.yml\` and \`.github/CODEOWNERS\` define who approves — ` +
+                `that lock does not open). ` +
+                `You need a second human owner, or split the PR so the governance change goes separately.`;
               return `\n\n⚠️ **Structural deadlock**: the only human code owner of what this touches is the author ` +
                      `themselves (@${pr.user.login}), and GitHub does not allow self-approval — with the current ` +
                      `configuration nobody can satisfy \`require_code_owner_reviews\`. This is fixed in configuration, ` +
@@ -349,18 +348,28 @@ jobs:
               note = `The author (@${pr.user.login}) is a code owner of everything this touches and cannot approve ` +
                      `themselves. Gate is green. I approve and arm GitHub's native auto-merge: it will merge once every ` +
                      `protection is satisfied.`;
-            } else if (!authorOwnsAll && crisOwnsAny) {
-              // (2) The dangerous one — Cris's approval WOULD be the code-owner approval.
+            } else if (!authorOwnsAll) {
+              // (2) The author is not an owner of everything they touched —
+              // Cris NEVER approves, binding or not. Where Cris owns part, its
+              // approval WOULD be the code-owner approval; where Cris owns
+              // nothing, the stamp would still put the agent's "Approved" on
+              // code no human owner has read.
               decision = 'comment_only';
-              note = `The author (@${pr.user.login}) is **not** a code owner of everything this touches, and I **am** an ` +
-                     `owner of part of it. If I approved, my approval *would be* the code-owner approval and this would ` +
-                     `merge with no human review. I am not approving. This needs ${tag}.`;
+              note = `The author (@${pr.user.login}) is **not** a code owner of everything this touches. ` +
+                     (crisOwnsAny
+                       ? `I **am** an owner of part of it — if I approved, my approval *would be* the code-owner ` +
+                         `approval and this would merge with no human review. `
+                       : `I own none of it, so my approval would not be binding — but I do not put my "Approved" on ` +
+                         `code from a non-owner that no human owner has reviewed. `) +
+                     `I am not approving. This needs ${tag}.`;
             } else if (!crisOwnsAny) {
-              // (3) Non-binding approval — CODEOWNERS still waits for the real owner.
+              // (3) Author owns everything; Cris owns nothing (with the current
+              // CODEOWNERS: the PR touches only the governance carve-outs).
+              // Non-binding approval — CODEOWNERS still waits for the real owner.
               decision = 'approve';
               note = `I am not a code owner of anything this touches, so my approval is **not binding**: ` +
                      `\`require_code_owner_reviews\` still waits for ${tag}. I leave it as a signal that the machine ` +
-                     `gate passed.` + deadlockNote(true);
+                     `gate passed.` + deadlockNote();
             } else {
               // (4) Author owns everything, Cris owns only part.
               //
@@ -374,7 +383,7 @@ jobs:
                      `it (outside my scope: ${outOfScope.map(f => '`' + f + '`').join(', ')}). ` +
                      `If I approved, my signature would unblock the whole PR — \`require_code_owner_reviews\` is ` +
                      `satisfied by a single owner approval, not file by file. I am not approving. This needs ${tag}.` +
-                     deadlockNote(false);
+                     deadlockNote();
             }
 
             // ── Labeler gate ──

@@ -23,8 +23,13 @@
 /packages/whatsapp-mcp/  @ni500 @lcaloguerea @cris-pappcorn
 
 # ── The governance lock ──
-# Humans only, on purpose. `/.github/` decides WHO approves and WHAT runs in CI,
-# including cris-approve.yml itself. An agent that can approve changes to its own
-# approver has no guard rail at all, so Cris is deliberately not an owner here.
-# A PR touching this directory always waits for a human.
-/.github/                @ni500 @lcaloguerea
+# `/.github/` decides WHAT runs in CI, and Cris co-owns it like the rest of the
+# repo: a human maintainer's change to a workflow does not need to wait on a
+# second human. But two files inside it decide WHO approves — and an agent must
+# never be able to sign changes to its own approver. Those two stay humans-only,
+# no matter who authored the change. CODEOWNERS resolves by LAST matching
+# pattern, so the two entries below override `/.github/` for exactly those
+# files: a PR touching either always waits for a human who did not write it.
+/.github/                            @ni500 @lcaloguerea @cris-pappcorn
+/.github/workflows/cris-approve.yml  @ni500 @lcaloguerea
+/.github/CODEOWNERS                  @ni500 @lcaloguerea
