@@ -1,8 +1,30 @@
 # Dependabot — keep the dependency surface current without drowning the repo.
 #
 # Two ecosystems: npm (one root manifest, this is an Nx monorepo with a single
-# lockfile) and github-actions (the workflows in .github/workflows, which pin
-# actions by SHA and would otherwise silently rot).
+# lockfile) and github-actions (the workflows in .github/workflows, which would
+# otherwise silently rot).
+#
+# ── The two run on different schedules, on purpose ──
+# npm is weekly because the bulk of its volume drives itself: the `routine` group
+# is minor/patch only, which is exactly what dependabot-auto-merge.yml is allowed
+# to approve and arm, so that PR reaches `main` without anyone reading it.
+# Slowing that down would only make the weekly PR arrive fatter.
+#
+# Be precise about the rest of the lane, though: majors are ungrouped and are NOT
+# auto-merged — the workflow's condition is patch-or-minor — so each one does cost
+# a human. They are just rare per package, and worth seeing promptly when they do
+# land, which is why the whole ecosystem stays weekly rather than being split
+# further.
+#
+# github-actions is monthly because EVERY PR in that lane costs a human. They edit
+# `.github/`, which CODEOWNERS anchors to a person by design, so each one waits for
+# an approval no automation is allowed to give. Several of those actions are pinned
+# by SHA, so any release at all — patch included — opens a PR. At a weekly cadence
+# that is a standing queue whose only reviewer is a human who did not ask for it.
+# A CI action a month behind carries little risk; a review queue nobody drains does.
+#
+# Note this is about *version* updates only. Security updates ignore this file's
+# schedule entirely — they open when an advisory lands, on either ecosystem.
 #
 # Grouping is the whole point of this file. Ungrouped, a weekly npm run on a repo
 # this size opens a dozen PRs that each need a review and a green CI. Grouped,
@@ -51,8 +73,9 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      # Monthly, so `day:` is dropped — it only means anything on a weekly
+      # interval. Dependabot runs this on the first of the month.
+      interval: monthly
       time: '06:00'
       timezone: America/Bogota
     open-pull-requests-limit: 3
