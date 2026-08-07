@@ -201,10 +201,10 @@ whole security story.
 
 ```bash
 npm install
-npm run build          # tsc + esbuild bundle → bin/mcp.cjs
+npm run build          # tsc + esbuild bundle → server/mcp.cjs
 ```
 
-The plugin runs the bundled `bin/mcp.cjs`, so **rebuild after changing `src/`** or the plugin
+The plugin runs the bundled `server/mcp.cjs`, so **rebuild after changing `src/`** or the plugin
 keeps running the old code.
 
 MIT. Issues and PRs: [pappcorn/universe](https://github.com/pappcorn/universe).

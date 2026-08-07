@@ -3,6 +3,21 @@
 All notable changes to `@pappcorn/gmail-mcp`. This project follows
 [semantic versioning](https://semver.org/).
 
+## 0.3.1
+
+### Changed
+
+- **The bundled server moved from `bin/mcp.cjs` to `server/mcp.cjs`.**
+  claude.ai's hosted-plugin validation rejects plugins that ship a top-level
+  `bin/` directory (CLI installs add it to `PATH`, but the admin approval
+  surface does not show it), so the marketplace could not be added from
+  claude.ai. The plugin's `.mcp.json` already launches the server explicitly
+  via `mcpServers`, which is the sanctioned mechanism — only the path changed.
+  If you point an MCP client at the bundle by absolute path (a clone, or the
+  npm tarball), update it to `server/mcp.cjs`. The npm `bin` entry points
+  (`gmail-mcp`, `pappcorn-gmail-mcp`, `pappcorn-gmail`, `pappcorn-gmail-setup`)
+  are untouched.
+
 ## 0.3.0
 
 One machine can now serve more than one mailbox safely.
