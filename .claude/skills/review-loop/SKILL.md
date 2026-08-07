@@ -182,11 +182,14 @@ When `claude-review` and CI both pass:
 gh pr edit <PR> --add-label ready-to-merge
 ```
 
-In this repo the `ready-to-merge` label is a **signal to humans**: it triggers
-`.github/workflows/ready-to-merge.yml`, which comments on the PR asking the
-code owners (@ni500, @lcaloguerea) to review and approve. It does not approve
-or merge anything — a human code-owner approval is always required by branch
-protection.
+In this repo the `ready-to-merge` label is an **authorization**: it triggers
+`.github/workflows/cris-approve.yml`, which re-checks the objective gate and —
+when the PR's author is a human code owner of everything it touches — approves
+as Cris and arms GitHub's native auto-merge. When the author is Cris or an
+outside contributor, or the PR touches a governance carve-out
+(`cris-approve.yml`, `CODEOWNERS`), a human code owner (@ni500, @lcaloguerea)
+must approve — branch protection enforces it. The full decision table lives in
+CONTRIBUTING.md ("Who can approve").
 
 ### Escalate
 
