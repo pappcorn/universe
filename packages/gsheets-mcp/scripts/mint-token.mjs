@@ -67,7 +67,7 @@ function parseFlags(argv) {
 
 const USAGE = `Usage: node scripts/mint-token.mjs --client <oauth-client.json> [--account you@example.com] [--out ${DEFAULT_OUT.replace(
   homedir(),
-  '~'
+  '~',
 )}]
 
 Mints an OAuth refresh token for your own Google account: opens a loopback
@@ -112,7 +112,7 @@ const client = clientRaw.installed || clientRaw.web;
 if (!client?.client_id || !client?.client_secret) {
   fail(
     1,
-    `${flags.client} does not look like a Google OAuth client JSON (expected an "installed" block with client_id + client_secret).`
+    `${flags.client} does not look like a Google OAuth client JSON (expected an "installed" block with client_id + client_secret).`,
   );
 }
 
@@ -142,14 +142,14 @@ server.listen(0, '127.0.0.1', () => {
       '   Your own app is unverified, so Google will show a warning. That is expected:\n' +
       '   choose "Advanced" and continue — you are trusting an app you created yourself.\n\n' +
       `2. Approve the permissions. You'll be redirected to 127.0.0.1:${port} — this script catches it.\n\n` +
-      `Waiting for the redirect (timeout ${TIMEOUT_MS / 60000} min)...\n`
+      `Waiting for the redirect (timeout ${TIMEOUT_MS / 60000} min)...\n`,
   );
 
   const timer = setTimeout(() => {
     server.close();
     fail(
       1,
-      'timed out waiting for the OAuth redirect. Re-run and complete the consent flow.'
+      'timed out waiting for the OAuth redirect. Re-run and complete the consent flow.',
     );
   }, TIMEOUT_MS);
 
@@ -162,7 +162,7 @@ server.listen(0, '127.0.0.1', () => {
     const finish = (html) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(
-        `<html><body style="font-family:sans-serif">${html}</body></html>`
+        `<html><body style="font-family:sans-serif">${html}</body></html>`,
       );
     };
     // Query params are attacker-influenced (anything can hit the loopback
@@ -170,12 +170,12 @@ server.listen(0, '127.0.0.1', () => {
     const escapeHtml = (s) =>
       s.replace(
         /[<>&"]/g,
-        (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])
+        (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c],
       );
 
     if (url.searchParams.get('state') !== state) {
       finish(
-        '<h3>State mismatch — ignore this window and re-run the script.</h3>'
+        '<h3>State mismatch — ignore this window and re-run the script.</h3>',
       );
       return; // keep waiting; could be a stray request
     }
@@ -183,8 +183,8 @@ server.listen(0, '127.0.0.1', () => {
     if (oauthError) {
       finish(
         `<h3>OAuth error: ${escapeHtml(
-          oauthError
-        )}. You can close this tab.</h3>`
+          oauthError,
+        )}. You can close this tab.</h3>`,
       );
       clearTimeout(timer);
       server.close();
@@ -196,7 +196,7 @@ server.listen(0, '127.0.0.1', () => {
       return;
     }
     finish(
-      '<h3>Grant captured — you can close this tab and return to the terminal.</h3>'
+      '<h3>Grant captured — you can close this tab and return to the terminal.</h3>',
     );
     clearTimeout(timer);
     server.close();
@@ -224,28 +224,28 @@ async function exchangeAndWrite(code, redirectUri) {
   });
   if (!res.ok) {
     throw new Error(
-      `token exchange failed (HTTP ${res.status}): ${await res.text()}`
+      `token exchange failed (HTTP ${res.status}): ${await res.text()}`,
     );
   }
   const tokens = await res.json();
   if (!tokens.refresh_token) {
     throw new Error(
       'Google returned no refresh_token. Re-run — prompt=consent should force one; if it ' +
-        "persists, revoke the app under your Google account's Security → third-party access and retry."
+        "persists, revoke the app under your Google account's Security → third-party access and retry.",
     );
   }
 
   // Verify which account actually granted the token BEFORE writing anything.
   const aboutRes = await fetch(
     'https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)',
-    { headers: { Authorization: `Bearer ${tokens.access_token}` } }
+    { headers: { Authorization: `Bearer ${tokens.access_token}` } },
   );
   if (!aboutRes.ok) {
     throw new Error(
       `grant verification failed (HTTP ${
         aboutRes.status
       }): ${await aboutRes.text()}\n` +
-        'Are the Google Sheets API AND the Google Drive API enabled on your Google Cloud project?'
+        'Are the Google Sheets API AND the Google Drive API enabled on your Google Cloud project?',
     );
   }
   const about = await aboutRes.json();
@@ -260,7 +260,7 @@ async function exchangeAndWrite(code, redirectUri) {
       '\n*** WRONG ACCOUNT ***\n' +
         `You logged in as ${email}, but --account asked for ${expectedAccount}.\n` +
         'NOTHING WAS WRITTEN. Re-run and pick the right account at the Google login screen\n' +
-        '(use an incognito window if your browser keeps auto-selecting another session).\n'
+        '(use an incognito window if your browser keeps auto-selecting another session).\n',
     );
     process.exit(1);
   }
@@ -276,9 +276,9 @@ async function exchangeAndWrite(code, redirectUri) {
         account: email,
       },
       null,
-      2
+      2,
     ) + '\n',
-    { mode: 0o600 }
+    { mode: 0o600 },
   );
   try {
     chmodSync(outPath, 0o600);
@@ -297,7 +297,7 @@ async function exchangeAndWrite(code, redirectUri) {
       '  3. Keep the credential file private. Anyone holding it can read AND EDIT every\n' +
       '     spreadsheet this account can open.\n\n' +
       'If it stops working after about a week, your OAuth app is still in "Testing" status.\n' +
-      'Publish it to Production — see README.md.\n'
+      'Publish it to Production — see README.md.\n',
   );
   process.exit(0);
 }

@@ -47,7 +47,7 @@ export interface EnvFile {
  */
 export function findEnvFile(
   startDir: string,
-  home: string = homedir()
+  home: string = homedir(),
 ): string | null {
   let dir = resolve(startDir);
   const stopAt = home ? resolve(home) : null;
@@ -145,7 +145,7 @@ function unescapeDoubleQuoted(value: string): string {
 /** Find and read the nearest in-scope `.env`. Unreadable files resolve to null. */
 export function loadEnvFile(
   startDir: string,
-  home: string = homedir()
+  home: string = homedir(),
 ): EnvFile | null {
   const path = findEnvFile(startDir, home);
   if (!path) return null;
@@ -167,7 +167,7 @@ export function loadEnvFile(
 export function expandPath(
   value: string,
   baseDir: string,
-  home: string = homedir()
+  home: string = homedir(),
 ): string {
   let path = value.trim();
   if (path === '~') path = home;

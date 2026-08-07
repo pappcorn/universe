@@ -106,7 +106,7 @@ export class GmailApiError extends Error {
   constructor(
     public op: string,
     public status: number,
-    public googleMessage: string
+    public googleMessage: string,
   ) {
     super(`Gmail API ${op} failed (HTTP ${status}): ${googleMessage}`);
     this.name = 'GmailApiError';
@@ -156,7 +156,7 @@ async function verifyAssertedAccount(expected: string): Promise<void> {
     throw new GmailApiError(
       'GET profile (account assertion)',
       res.status,
-      message
+      message,
     );
   }
   const profile = (await res.json()) as { emailAddress?: string };
@@ -179,7 +179,7 @@ async function verifyAssertedAccount(expected: string): Promise<void> {
  */
 export function createAssertionGate(
   asserted: () => string | undefined,
-  verify: (expected: string) => Promise<void>
+  verify: (expected: string) => Promise<void>,
 ): () => Promise<void> {
   let verdict: Promise<void> | null = null;
 
@@ -205,7 +205,7 @@ export function createAssertionGate(
 
 const ensureAssertedAccount = createAssertionGate(
   assertedAccount,
-  verifyAssertedAccount
+  verifyAssertedAccount,
 );
 
 // GET for reads (params in the query string; repeated params — e.g.
@@ -217,7 +217,7 @@ async function callGmail(
     method?: string;
     params?: Record<string, ParamVal>;
     body?: Record<string, unknown>;
-  } = {}
+  } = {},
 ): Promise<Record<string, unknown>> {
   await ensureAssertedAccount();
 
@@ -237,7 +237,7 @@ async function callGmail(
     headers: await authHeaders(
       opts.body !== undefined
         ? { 'Content-Type': 'application/json; charset=utf-8' }
-        : {}
+        : {},
     ),
     ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
   });
@@ -283,7 +283,7 @@ interface RawMessage {
 
 function headerOf(
   headers: RawHeader[] | undefined,
-  name: string
+  name: string,
 ): string | undefined {
   const lower = name.toLowerCase();
   return headers?.find((h) => (h.name ?? '').toLowerCase() === lower)?.value;
@@ -321,7 +321,7 @@ export function decodeEncodedWords(value: string): string {
         } catch {
           return match;
         }
-      }
+      },
     );
 }
 
@@ -459,10 +459,10 @@ function mimeParam(attr: string, value: string): string {
   if (/^[\x20-\x7e]*$/.test(value)) return quoted(value);
   const pct = encodeURIComponent(value).replace(
     /['()*]/g,
-    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
   );
   return `${quoted(
-    value.replace(/[^\x20-\x7e]/g, '_')
+    value.replace(/[^\x20-\x7e]/g, '_'),
   )}; ${attr}*=UTF-8''${pct}`;
 }
 
@@ -492,7 +492,7 @@ function toAttachmentList(v: string | string[] | undefined): string[] {
 // sides go through realpath so a symlink inside the fence can't point out.
 function resolveAttachmentPath(path: string): string {
   const base = realpathSync(
-    resolve(process.env.GMAIL_ATTACHMENT_DIR ?? process.cwd())
+    resolve(process.env.GMAIL_ATTACHMENT_DIR ?? process.cwd()),
   );
   let real: string;
   try {
@@ -503,7 +503,7 @@ function resolveAttachmentPath(path: string): string {
   if (real !== base && !real.startsWith(base + sep)) {
     throw new Error(
       `Attachment is outside the allowed directory (${base}): ${path}. ` +
-        'Move the file there, or point GMAIL_ATTACHMENT_DIR at the folder you attach from.'
+        'Move the file there, or point GMAIL_ATTACHMENT_DIR at the folder you attach from.',
     );
   }
   return real;
@@ -527,8 +527,8 @@ function buildAttachmentParts(paths: string[]): string[][] {
     if (total > MAX_ATTACHMENT_BYTES) {
       throw new Error(
         `Attachments exceed Gmail's 25MB message limit (${Math.round(
-          total / 1024 / 1024
-        )}MB encoded so far at ${path}).`
+          total / 1024 / 1024,
+        )}MB encoded so far at ${path}).`,
       );
     }
     const name = basename(real);
@@ -570,7 +570,7 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
   if (!account) {
     throw new Error(
       'Could not determine the sending address for this mailbox. Re-run scripts/mint-token.mjs ' +
-        'so the credential records its account, or set GMAIL_ACCOUNT.'
+        'so the credential records its account, or set GMAIL_ACCOUNT.',
     );
   }
   const to = toList(args.to);
@@ -628,7 +628,7 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
     // then the HTML the caller supplied.
     const boundary = `=_pappcorn_${randomBytes(12).toString('hex')}`;
     contentHeaders.push(
-      `Content-Type: multipart/alternative; boundary="${boundary}"`
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
     );
     contentBody = [
       `--${boundary}`,
@@ -711,7 +711,7 @@ export async function search(opts: {
         },
       })) as RawMessage;
       return toRow(msg);
-    })
+    }),
   );
   return {
     items: rows,
@@ -742,7 +742,7 @@ export async function readThread(opts: {
         labelIds: msg.labelIds,
         body: extractBody(msg.payload),
       };
-    }
+    },
   );
   return { id: (data.id as string | undefined) ?? opts.thread_id, messages };
 }
@@ -775,8 +775,7 @@ export async function draft(args: ComposeArgs): Promise<DraftResult> {
     },
   });
   const message = data.message as
-    | { id?: string; threadId?: string }
-    | undefined;
+    { id?: string; threadId?: string } | undefined;
   return {
     draft_id: data.id as string | undefined,
     message_id: message?.id,
@@ -822,13 +821,13 @@ export async function ensureLabel(name: string): Promise<GmailLabel> {
 // mailbox doesn't have — that's a caller error worth surfacing).
 async function resolveLabelIds(
   names: string[],
-  createMissing: boolean
+  createMissing: boolean,
 ): Promise<string[]> {
   const ids: string[] = [];
   let labels = await listLabels();
   for (const name of names) {
     const found = labels.find(
-      (l) => l.name.toLowerCase() === name.toLowerCase() || l.id === name
+      (l) => l.name.toLowerCase() === name.toLowerCase() || l.id === name,
     );
     if (found) {
       ids.push(found.id);
@@ -838,7 +837,7 @@ async function resolveLabelIds(
       labels = [...labels, created];
     } else {
       throw new Error(
-        `Label "${name}" not found in the mailbox (run listLabels to see what exists).`
+        `Label "${name}" not found in the mailbox (run listLabels to see what exists).`,
       );
     }
   }
@@ -856,14 +855,14 @@ export async function modifyLabels(opts: {
   const hasThread = Boolean(opts.thread_id);
   if (hasMessage === hasThread) {
     throw new Error(
-      'modifyLabels requires exactly one of message_id or thread_id.'
+      'modifyLabels requires exactly one of message_id or thread_id.',
     );
   }
   const add = opts.add ?? [];
   const remove = opts.remove ?? [];
   if (!add.length && !remove.length) {
     throw new Error(
-      'modifyLabels requires at least one label in add or remove.'
+      'modifyLabels requires at least one label in add or remove.',
     );
   }
   const addLabelIds = add.length ? await resolveLabelIds(add, true) : [];

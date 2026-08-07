@@ -46,7 +46,7 @@ function credential(path, account) {
       client_secret: 'secret',
       refresh_token: 'refresh',
       account,
-    })
+    }),
   );
   return path;
 }
@@ -55,14 +55,14 @@ describe('perMailboxPath', () => {
   it('derives a readable, path-safe filename from the mailbox', () => {
     assert.equal(
       perMailboxPath('You@Example.com', '/c'),
-      '/c/you_at_example.com.json'
+      '/c/you_at_example.com.json',
     );
   });
 
   it('never lets an address escape the credential directory', () => {
     assert.equal(
       perMailboxPath('../../etc/passwd@x.com', '/c'),
-      '/c/etc-passwd_at_x.com.json'
+      '/c/etc-passwd_at_x.com.json',
     );
   });
 
@@ -143,7 +143,7 @@ describe('chooseDestination', () => {
     const dflt = credential(join(dir, 'credentials.json'), 'first@example.com');
     assert.equal(
       chooseDestination('second@example.com', dflt, dir),
-      join(dir, 'second_at_example.com.json')
+      join(dir, 'second_at_example.com.json'),
     );
   });
 
@@ -157,7 +157,7 @@ describe('chooseDestination', () => {
 
     assert.equal(
       chooseDestination('second@example.com', dflt, dir),
-      join(dir, 'second_at_example.com.json')
+      join(dir, 'second_at_example.com.json'),
     );
   });
 
@@ -167,7 +167,7 @@ describe('chooseDestination', () => {
     writeFileSync(dflt, '{"client_id":"id"}'); // no account field
     assert.equal(
       chooseDestination('a@example.com', dflt, dir),
-      join(dir, 'a_at_example.com.json')
+      join(dir, 'a_at_example.com.json'),
     );
   });
 });

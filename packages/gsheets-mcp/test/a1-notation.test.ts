@@ -44,36 +44,36 @@ describe('resolveSpreadsheetId', () => {
   it('accepts the URL a human copies out of the address bar', () => {
     assert.equal(
       resolveSpreadsheetId(
-        `https://docs.google.com/spreadsheets/d/${ID}/edit#gid=0`
+        `https://docs.google.com/spreadsheets/d/${ID}/edit#gid=0`,
       ),
-      ID
+      ID,
     );
     assert.equal(
       resolveSpreadsheetId(
-        `https://docs.google.com/spreadsheets/d/${ID}/edit?usp=sharing`
+        `https://docs.google.com/spreadsheets/d/${ID}/edit?usp=sharing`,
       ),
-      ID
+      ID,
     );
   });
 
   it('accepts a Drive file URL (how a shared .xlsx arrives)', () => {
     assert.equal(
       resolveSpreadsheetId(`https://drive.google.com/file/d/${ID}/view`),
-      ID
+      ID,
     );
   });
 
   it('accepts the legacy ?id= form', () => {
     assert.equal(
       resolveSpreadsheetId(`https://drive.google.com/open?id=${ID}`),
-      ID
+      ID,
     );
   });
 
   it('rejects anything else instead of guessing', () => {
     assert.throws(
       () => resolveSpreadsheetId('the finance sheet'),
-      /not a spreadsheet id/
+      /not a spreadsheet id/,
     );
     assert.throws(() => resolveSpreadsheetId('abc123'), /not a spreadsheet id/);
   });
@@ -122,7 +122,7 @@ describe('editToken', () => {
   it('is stable for the same edit against the same prior state', () => {
     assert.equal(
       editToken('X', 'A1', [['a']], [['b']]),
-      editToken('X', 'A1', [['a']], [['b']])
+      editToken('X', 'A1', [['a']], [['b']]),
     );
   });
 
@@ -132,7 +132,7 @@ describe('editToken', () => {
       'X',
       'A1',
       [['someone else']],
-      [['b']]
+      [['b']],
     );
     assert.notEqual(issued, afterSomeoneElseEdited);
   });
@@ -140,18 +140,18 @@ describe('editToken', () => {
   it('changes when the proposed values changed', () => {
     assert.notEqual(
       editToken('X', 'A1', [['a']], [['b']]),
-      editToken('X', 'A1', [['a']], [['c']])
+      editToken('X', 'A1', [['a']], [['c']]),
     );
   });
 
   it('is scoped to the file and the range', () => {
     assert.notEqual(
       editToken('X', 'A1', [['a']], [['b']]),
-      editToken('Y', 'A1', [['a']], [['b']])
+      editToken('Y', 'A1', [['a']], [['b']]),
     );
     assert.notEqual(
       editToken('X', 'A1', [['a']], [['b']]),
-      editToken('X', 'A2', [['a']], [['b']])
+      editToken('X', 'A2', [['a']], [['b']]),
     );
   });
 });
@@ -182,7 +182,7 @@ describe('escapeDriveQuery', () => {
       assert.equal(
         slashes % 2,
         1,
-        `quote at ${i} escapes out of the literal: ${escaped}`
+        `quote at ${i} escapes out of the literal: ${escaped}`,
       );
     }
   });
@@ -190,7 +190,7 @@ describe('escapeDriveQuery', () => {
   it('leaves an ordinary name untouched', () => {
     assert.equal(
       escapeDriveQuery('Conciliación agosto'),
-      'Conciliación agosto'
+      'Conciliación agosto',
     );
   });
 });

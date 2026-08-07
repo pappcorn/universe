@@ -76,7 +76,7 @@ function fail(err: unknown): TextResult {
 function formatGrid(
   values: string[][],
   startRow: number,
-  startCol: number
+  startCol: number,
 ): string {
   if (values.length === 0) return '(empty range)';
   const width = Math.max(...values.map((r) => r.length));
@@ -95,7 +95,7 @@ function formatMatches(m: Match[]): string {
   return m
     .map(
       (x) =>
-        `${x.a1}  (row ${x.row}, col ${columnLetter(x.column)})  ${x.value}`
+        `${x.a1}  (row ${x.row}, col ${columnLetter(x.column)})  ${x.value}`,
     )
     .join('\n');
 }
@@ -109,7 +109,7 @@ function cellCount(grid: string[][]): number {
 function formatDiff(
   range: string,
   before: string[][],
-  after: string[][]
+  after: string[][],
 ): string {
   const anchor = rangeAnchor(range);
   const cap = 12;
@@ -143,7 +143,7 @@ const CONFIRM_INSTRUCTIONS =
 const spreadsheetArg = z
   .string()
   .describe(
-    'Spreadsheet id, or any Google Sheets URL (https://docs.google.com/spreadsheets/d/<id>/...).'
+    'Spreadsheet id, or any Google Sheets URL (https://docs.google.com/spreadsheets/d/<id>/...).',
   );
 
 export function registerTools(server: McpServer): void {
@@ -168,12 +168,12 @@ export function registerTools(server: McpServer): void {
             '',
             "Edits made through this connector are attributed to that account in Google's " +
               'revision history.',
-          ].join('\n')
+          ].join('\n'),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   // ── locate ────────────────────────────────────────────────────────────────
@@ -195,7 +195,7 @@ export function registerTools(server: McpServer): void {
           .optional()
           .describe(
             'Also list .xlsx files. They CANNOT be read or edited directly — convert one first ' +
-              'with sheet_import_xlsx. Default: false (native Google Sheets only).'
+              'with sheet_import_xlsx. Default: false (native Google Sheets only).',
           ),
         limit: z
           .number()
@@ -224,12 +224,12 @@ export function registerTools(server: McpServer): void {
                 }`,
               ].join('\n');
             })
-            .join('\n')
+            .join('\n'),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   // ── info ──────────────────────────────────────────────────────────────────
@@ -261,17 +261,17 @@ export function registerTools(server: McpServer): void {
                 } cols` +
                 (t.frozenRowCount
                   ? `  (${t.frozenRowCount} frozen header row(s))`
-                  : '')
+                  : ''),
             ),
             '',
             `Read limit: ${MAX_READ_CELLS} cells per call. To work a big tab, use sheet_find to ` +
               'locate the rows, then sheet_read just those.',
-          ].join('\n')
+          ].join('\n'),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   // ── read ──────────────────────────────────────────────────────────────────
@@ -288,14 +288,14 @@ export function registerTools(server: McpServer): void {
           .union([z.string(), z.array(z.string())])
           .describe(
             'A1 range(s), e.g. "Movimientos!A1:H1" or ["Datos!A1:F1","Datos!A2043:F2043"]. ' +
-              'Include the tab name when the file has more than one.'
+              'Include the tab name when the file has more than one.',
           ),
         render: z
           .enum(['FORMATTED_VALUE', 'UNFORMATTED_VALUE', 'FORMULA'])
           .optional()
           .describe(
             'FORMATTED_VALUE (default) = what a human sees. UNFORMATTED_VALUE = raw numbers/dates, ' +
-              'best for arithmetic. FORMULA = the formula text, best before editing a computed cell.'
+              'best for arithmetic. FORMULA = the formula text, best before editing a computed cell.',
           ),
       },
     },
@@ -316,12 +316,12 @@ export function registerTools(server: McpServer): void {
                 formatGrid(r.values, anchor.row, anchor.col),
               ].join('\n');
             })
-            .join('\n\n')
+            .join('\n\n'),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   // ── find ──────────────────────────────────────────────────────────────────
@@ -339,14 +339,14 @@ export function registerTools(server: McpServer): void {
           .string()
           .describe(
             'Where to search, A1. A whole tab ("Movimientos") or a column ("Movimientos!C:C") are ' +
-              'both fine and both cheap — narrowing to the column you expect the value in is faster.'
+              'both fine and both cheap — narrowing to the column you expect the value in is faster.',
           ),
         query: z.string().min(1).describe('The text to look for.'),
         exact: z
           .boolean()
           .optional()
           .describe(
-            'Match the whole cell instead of a substring. Default: false (substring).'
+            'Match the whole cell instead of a substring. Default: false (substring).',
           ),
         case_sensitive: z.boolean().optional().describe('Default: false.'),
         max_matches: z
@@ -356,7 +356,7 @@ export function registerTools(server: McpServer): void {
           .max(500)
           .optional()
           .describe(
-            `Stop after this many hits. Default ${DEFAULT_MAX_MATCHES}.`
+            `Stop after this many hits. Default ${DEFAULT_MAX_MATCHES}.`,
           ),
       },
     },
@@ -377,7 +377,7 @@ export function registerTools(server: McpServer): void {
         });
         if (res.matches.length === 0) {
           return ok(
-            `No match for "${query}" in ${range} (scanned ${res.scannedRows} rows).`
+            `No match for "${query}" in ${range} (scanned ${res.scannedRows} rows).`,
           );
         }
         return ok(
@@ -390,12 +390,12 @@ export function registerTools(server: McpServer): void {
             formatMatches(res.matches),
             '',
             'Next: sheet_read the specific rows you need, then sheet_update them.',
-          ].join('\n')
+          ].join('\n'),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   // ── update (two-phase) ────────────────────────────────────────────────────
@@ -415,14 +415,14 @@ export function registerTools(server: McpServer): void {
           .string()
           .describe(
             'The A1 range to overwrite, e.g. "Movimientos!D2043" or "Datos!B5:E5". Its shape must ' +
-              'match the values grid.'
+              'match the values grid.',
           ),
         values: z
           .array(z.array(z.string()))
           .describe(
             'Rows of cells, outer array = rows. A single cell is [["nuevo valor"]]. Values are ' +
               'interpreted as if typed by a user, so "=SUMA(A1:A9)" becomes a formula and "1.234,5" ' +
-              'is parsed per the sheet locale — pass raw:true to store text verbatim instead.'
+              'is parsed per the sheet locale — pass raw:true to store text verbatim instead.',
           ),
         confirm_token: z
           .string()
@@ -432,7 +432,7 @@ export function registerTools(server: McpServer): void {
           .boolean()
           .optional()
           .describe(
-            'Store values verbatim, without formula/number parsing. Default: false.'
+            'Store values verbatim, without formula/number parsing. Default: false.',
           ),
       },
     },
@@ -456,7 +456,7 @@ export function registerTools(server: McpServer): void {
               `confirm_token: ${token}`,
               '',
               CONFIRM_INSTRUCTIONS,
-            ].join('\n')
+            ].join('\n'),
           );
         }
         if (confirm_token !== token) {
@@ -472,7 +472,7 @@ export function registerTools(server: McpServer): void {
               `new confirm_token: ${token}`,
               '',
               'Show this fresh before/after to the human and get their yes again.',
-            ].join('\n')
+            ].join('\n'),
           );
         }
 
@@ -493,12 +493,12 @@ export function registerTools(server: McpServer): void {
             audit.logged
               ? `logged to ${audit.path}`
               : `WARNING: could not write the audit log (${audit.error})`,
-          ].join('\n')
+          ].join('\n'),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   // ── append (two-phase) ────────────────────────────────────────────────────
@@ -517,7 +517,7 @@ export function registerTools(server: McpServer): void {
           .string()
           .describe(
             'The tab (or a range inside it) whose table to extend, e.g. "Movimientos" or ' +
-              '"Movimientos!A:H". Google appends below the last row it finds there.'
+              '"Movimientos!A:H". Google appends below the last row it finds there.',
           ),
         values: z
           .array(z.array(z.string()))
@@ -530,7 +530,7 @@ export function registerTools(server: McpServer): void {
           .boolean()
           .optional()
           .describe(
-            'Store values verbatim, without formula/number parsing. Default: false.'
+            'Store values verbatim, without formula/number parsing. Default: false.',
           ),
       },
     },
@@ -559,7 +559,7 @@ export function registerTools(server: McpServer): void {
               `confirm_token: ${token}`,
               '',
               CONFIRM_INSTRUCTIONS,
-            ].join('\n')
+            ].join('\n'),
           );
         }
         if (confirm_token !== token) {
@@ -574,7 +574,7 @@ export function registerTools(server: McpServer): void {
               `new confirm_token: ${token}`,
               '',
               'Re-run the preview, show the human what would land now, and get their yes again.',
-            ].join('\n')
+            ].join('\n'),
           );
         }
 
@@ -595,12 +595,12 @@ export function registerTools(server: McpServer): void {
             audit.logged
               ? `logged to ${audit.path}`
               : `WARNING: could not write the audit log (${audit.error})`,
-          ].join('\n')
+          ].join('\n'),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   // ── batch update (two-phase) ──────────────────────────────────────────────
@@ -621,7 +621,7 @@ export function registerTools(server: McpServer): void {
               values: z
                 .array(z.array(z.string()))
                 .describe('Rows of cells for this range.'),
-            })
+            }),
           )
           .min(1)
           .describe('The edits to apply together.'),
@@ -641,14 +641,14 @@ export function registerTools(server: McpServer): void {
         const befores = await batchRead(
           id,
           edits.map((e) => e.range),
-          { render: 'FORMULA', cap: Infinity }
+          { render: 'FORMULA', cap: Infinity },
         );
         const beforeGrids = edits.map((e, i) => befores[i]?.values ?? []);
         const token = editToken(
           id,
           edits.map((e) => e.range).join('|'),
           beforeGrids,
-          edits.map((e) => e.values)
+          edits.map((e) => e.values),
         );
 
         if (!confirm_token) {
@@ -661,16 +661,16 @@ export function registerTools(server: McpServer): void {
                   `── ${e.range} ──`,
                   formatDiff(e.range, beforeGrids[i], e.values),
                   '',
-                ].join('\n')
+                ].join('\n'),
               ),
               `cells affected: ${edits.reduce(
                 (n, e) => n + cellCount(e.values),
-                0
+                0,
               )}`,
               `confirm_token: ${token}`,
               '',
               CONFIRM_INSTRUCTIONS,
-            ].join('\n')
+            ].join('\n'),
           );
         }
         if (confirm_token !== token) {
@@ -684,10 +684,10 @@ export function registerTools(server: McpServer): void {
                   `── ${e.range} ──`,
                   formatDiff(e.range, beforeGrids[i], e.values),
                   '',
-                ].join('\n')
+                ].join('\n'),
               ),
               `new confirm_token: ${token}`,
-            ].join('\n')
+            ].join('\n'),
           );
         }
 
@@ -705,24 +705,24 @@ export function registerTools(server: McpServer): void {
             before: beforeGrids[i],
             after: edits[i].values,
             cells: r.updatedCells,
-          })
+          }),
         );
         const failedLogs = audits.filter((a) => !a.logged).length;
         return ok(
           [
             `WRITTEN — ${results.length} range(s)`,
             ...results.map(
-              (r) => `  ${r.updatedRange}: ${r.updatedCells} cell(s)`
+              (r) => `  ${r.updatedRange}: ${r.updatedCells} cell(s)`,
             ),
             failedLogs
               ? `WARNING: ${failedLogs} audit-log entr(ies) could not be written`
               : `logged to ${audits[0]?.path ?? '(no entries)'}`,
-          ].join('\n')
+          ].join('\n'),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   // ── xlsx on-ramp ──────────────────────────────────────────────────────────
@@ -740,13 +740,13 @@ export function registerTools(server: McpServer): void {
           .string()
           .optional()
           .describe(
-            'Name for the converted Sheet. Default: the original name.'
+            'Name for the converted Sheet. Default: the original name.',
           ),
         folder: z
           .string()
           .optional()
           .describe(
-            "Drive folder id to put it in. Default: the account's My Drive root."
+            "Drive folder id to put it in. Default: the account's My Drive root.",
           ),
       },
     },
@@ -766,11 +766,11 @@ export function registerTools(server: McpServer): void {
             'The original .xlsx was not modified. From here on, edit this Sheet id — and if the ' +
               'file is one the team refreshes regularly, agree with them that the Sheet is now ' +
               'the live copy, so edits do not get lost on the next .xlsx upload.',
-          ].join('\n')
+          ].join('\n'),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 }

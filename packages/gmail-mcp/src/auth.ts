@@ -135,7 +135,7 @@ function pick(
   name: string,
   env: NodeJS.ProcessEnv,
   file: EnvFile | null,
-  cwd: string
+  cwd: string,
 ): Resolved | undefined {
   const direct = clean(env[name]);
   if (direct) return { value: direct, origin: 'environment', baseDir: cwd };
@@ -153,7 +153,7 @@ export function resolveCredentialPlan(
   env: NodeJS.ProcessEnv,
   file: EnvFile | null,
   cwd: string,
-  defaultPath: string = DEFAULT_CREDENTIALS_PATH
+  defaultPath: string = DEFAULT_CREDENTIALS_PATH,
 ): CredentialPlan {
   const id = pick('GMAIL_CLIENT_ID', env, file, cwd);
   const secret = pick('GMAIL_CLIENT_SECRET', env, file, cwd);
@@ -252,10 +252,10 @@ function noAccessMessage(path: string): string {
     'Claude plugin does; (2) a `.env` in this folder or its repo root setting GMAIL_MCP_CREDENTIALS ' +
     'to your credential file (keep the credential outside the repo, and `.env` in .gitignore); ' +
     `(3) $GMAIL_MCP_CREDENTIALS; (4) the global default ${pretty(
-      DEFAULT_CREDENTIALS_PATH
+      DEFAULT_CREDENTIALS_PATH,
     )}. ` +
     `This folder currently resolves to ${pretty(
-      path
+      path,
     )} — create it with the one-time setup: ` +
     '`npx -y -p @pappcorn/gmail-mcp pappcorn-gmail-setup --client <your-oauth-client.json>`. ' +
     'Full walkthrough: docs/setup-google-cloud.md.'
@@ -287,15 +287,15 @@ export function loadCredentials(): MailCredentials {
   } catch {
     throw new MailAccessError(
       `${noAccessMessage(
-        p.path
-      )} (that file exists but is not valid JSON — re-run the setup script)`
+        p.path,
+      )} (that file exists but is not valid JSON — re-run the setup script)`,
     );
   }
   if (!creds.client_id || !creds.client_secret || !creds.refresh_token) {
     throw new MailAccessError(
       `${noAccessMessage(
-        p.path
-      )} (that file exists but is missing fields — re-run the setup script)`
+        p.path,
+      )} (that file exists but is missing fields — re-run the setup script)`,
     );
   }
   cachedCredentials = creds;
@@ -357,7 +357,7 @@ function readCachedToken(id: string): string | null {
 function writeCachedToken(
   id: string,
   access_token: string,
-  expires_at: number
+  expires_at: number,
 ): void {
   mkdirSync(TOKEN_CACHE_DIR, { recursive: true });
   const path = cachePath(id);
@@ -371,7 +371,7 @@ function writeCachedToken(
     } satisfies CachedToken),
     {
       mode: 0o600,
-    }
+    },
   );
   try {
     chmodSync(path, 0o600);
@@ -413,14 +413,14 @@ export async function getAccessToken(): Promise<string> {
           'still in "Testing" publishing status, which expires refresh tokens after 7 days — ' +
           'publish it to Production (see docs/setup-google-cloud.md); (2) the Google account ' +
           'password changed, which revokes Gmail-scoped tokens; (3) access was revoked from the ' +
-          "Google account's third-party access settings. Re-run scripts/mint-token.mjs to fix."
+          "Google account's third-party access settings. Re-run scripts/mint-token.mjs to fix.",
       );
     }
     // The request is never echoed; the body carries only Google's error.
     throw new Error(
       `Gmail token exchange failed (HTTP ${res.status}): ${body}\n` +
         'Common causes: the Gmail API is not enabled on your Google Cloud project, the client ' +
-        'secret was rotated, or the system clock is skewed.'
+        'secret was rotated, or the system clock is skewed.',
     );
   }
   const data = (await res.json()) as {
@@ -433,7 +433,7 @@ export async function getAccessToken(): Promise<string> {
 
 // Google access tokens go in a standard Bearer header.
 export async function authHeaders(
-  extra: Record<string, string> = {}
+  extra: Record<string, string> = {},
 ): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${await getAccessToken()}`, ...extra };
 }

@@ -75,12 +75,15 @@ export function normalizeRecipient(to: string): string {
 // The cheapest config probe, and the token's real validity check. Also surfaces
 // quality_rating, which is operationally load-bearing: a dropping rating is the
 // early warning before Meta throttles or bans the number.
-export async function whoami(phoneNumberId?: string): Promise<WhatsAppIdentity> {
+export async function whoami(
+  phoneNumberId?: string,
+): Promise<WhatsAppIdentity> {
   const id = resolvePhoneNumberId(phoneNumberId);
   return callGraph<WhatsAppIdentity>({
     path: `/${id}`,
     query: {
-      fields: 'id,display_phone_number,verified_name,quality_rating,throughput,platform_type',
+      fields:
+        'id,display_phone_number,verified_name,quality_rating,throughput,platform_type',
     },
   });
 }

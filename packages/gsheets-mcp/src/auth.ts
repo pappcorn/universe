@@ -136,15 +136,15 @@ export function loadCredentials(): SheetsCredentials {
   } catch {
     throw new SheetsAccessError(
       `${noAccessMessage(
-        path
-      )} (that file exists but is not valid JSON — re-run the setup script)`
+        path,
+      )} (that file exists but is not valid JSON — re-run the setup script)`,
     );
   }
   if (!creds.client_id || !creds.client_secret || !creds.refresh_token) {
     throw new SheetsAccessError(
       `${noAccessMessage(
-        path
-      )} (that file exists but is missing fields — re-run the setup script)`
+        path,
+      )} (that file exists but is missing fields — re-run the setup script)`,
     );
   }
   cachedCredentials = creds;
@@ -155,7 +155,7 @@ function readCachedToken(account: string): string | null {
   if (!existsSync(TOKEN_CACHE_PATH)) return null;
   try {
     const cached = JSON.parse(
-      readFileSync(TOKEN_CACHE_PATH, 'utf8')
+      readFileSync(TOKEN_CACHE_PATH, 'utf8'),
     ) as CachedToken;
     if (cached.account !== account) return null;
     if (cached.scope !== SCOPE) return null;
@@ -173,7 +173,7 @@ function readCachedToken(account: string): string | null {
 function writeCachedToken(
   account: string,
   access_token: string,
-  expires_at: number
+  expires_at: number,
 ): void {
   mkdirSync(TOKEN_CACHE_DIR, { recursive: true });
   writeFileSync(
@@ -184,7 +184,7 @@ function writeCachedToken(
       access_token,
       expires_at,
     } satisfies CachedToken),
-    { mode: 0o600 }
+    { mode: 0o600 },
   );
   try {
     chmodSync(TOKEN_CACHE_PATH, 0o600);
@@ -226,14 +226,14 @@ export async function getAccessToken(): Promise<string> {
           'still in "Testing" publishing status, which expires refresh tokens after 7 days — ' +
           'publish it to Production; (2) the Google account password changed, which revokes ' +
           "tokens; (3) access was revoked from the Google account's third-party access " +
-          'settings. Re-run the setup script to fix.'
+          'settings. Re-run the setup script to fix.',
       );
     }
     // The request is never echoed; the body carries only Google's error.
     throw new Error(
       `Google token exchange failed (HTTP ${res.status}): ${body}\n` +
         'Common causes: the Google Sheets API (or Drive API) is not enabled on your Google ' +
-        'Cloud project, the client secret was rotated, or the system clock is skewed.'
+        'Cloud project, the client secret was rotated, or the system clock is skewed.',
     );
   }
   const data = (await res.json()) as {
@@ -246,7 +246,7 @@ export async function getAccessToken(): Promise<string> {
 
 // Google access tokens go in a standard Bearer header.
 export async function authHeaders(
-  extra: Record<string, string> = {}
+  extra: Record<string, string> = {},
 ): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${await getAccessToken()}`, ...extra };
 }

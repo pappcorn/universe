@@ -73,7 +73,8 @@ export function loadConfig(): WhatsAppConfig {
     // Optional: only list_templates needs it, so don't fail whoami/send over it.
     wabaId: readVar('WHATSAPP_WABA_ID'),
     apiUrl: readVar('WHATSAPP_API_URL') || DEFAULT_API_URL,
-    graphVersion: readVar('WHATSAPP_GRAPH_API_VERSION') || DEFAULT_GRAPH_VERSION,
+    graphVersion:
+      readVar('WHATSAPP_GRAPH_API_VERSION') || DEFAULT_GRAPH_VERSION,
   };
   return cached;
 }

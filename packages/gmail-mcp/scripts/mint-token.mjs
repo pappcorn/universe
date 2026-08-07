@@ -160,7 +160,7 @@ function main(argv) {
   if (!client?.client_id || !client?.client_secret) {
     fail(
       1,
-      `${flags.client} does not look like a Google OAuth client JSON (expected an "installed" block with client_id + client_secret).`
+      `${flags.client} does not look like a Google OAuth client JSON (expected an "installed" block with client_id + client_secret).`,
     );
   }
 
@@ -194,14 +194,14 @@ function listenForGrant() {
         '   Your own app is unverified, so Google will show a warning. That is expected:\n' +
         '   choose "Advanced" and continue — you are trusting an app you created yourself.\n\n' +
         `2. Approve the Gmail permissions. You'll be redirected to 127.0.0.1:${port} — this script catches it.\n\n` +
-        `Waiting for the redirect (timeout ${TIMEOUT_MS / 60000} min)...\n`
+        `Waiting for the redirect (timeout ${TIMEOUT_MS / 60000} min)...\n`,
     );
 
     const timer = setTimeout(() => {
       server.close();
       fail(
         1,
-        'timed out waiting for the OAuth redirect. Re-run and complete the consent flow.'
+        'timed out waiting for the OAuth redirect. Re-run and complete the consent flow.',
       );
     }, TIMEOUT_MS);
 
@@ -214,7 +214,7 @@ function listenForGrant() {
       const finish = (html) => {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(
-          `<html><body style="font-family:sans-serif">${html}</body></html>`
+          `<html><body style="font-family:sans-serif">${html}</body></html>`,
         );
       };
       // Query params are attacker-influenced (anything can hit the loopback
@@ -232,12 +232,12 @@ function listenForGrant() {
               '&': '&amp;',
               '"': '&quot;',
               "'": '&#39;',
-            }[c])
+            })[c],
         );
 
       if (url.searchParams.get('state') !== state) {
         finish(
-          '<h3>State mismatch — ignore this window and re-run the script.</h3>'
+          '<h3>State mismatch — ignore this window and re-run the script.</h3>',
         );
         return; // keep waiting; could be a stray request
       }
@@ -245,8 +245,8 @@ function listenForGrant() {
       if (oauthError) {
         finish(
           `<h3>OAuth error: ${escapeHtml(
-            oauthError
-          )}. You can close this tab.</h3>`
+            oauthError,
+          )}. You can close this tab.</h3>`,
         );
         clearTimeout(timer);
         server.close();
@@ -258,7 +258,7 @@ function listenForGrant() {
         return;
       }
       finish(
-        '<h3>Grant captured — you can close this tab and return to the terminal.</h3>'
+        '<h3>Grant captured — you can close this tab and return to the terminal.</h3>',
       );
       clearTimeout(timer);
       server.close();
@@ -353,7 +353,7 @@ function askYesNo(question) {
 export function chooseDestination(
   account,
   defaultOut = DEFAULT_OUT,
-  credentialDir = CREDENTIAL_DIR
+  credentialDir = CREDENTIAL_DIR,
 ) {
   const current = inspect(defaultOut);
   if (!current.exists) return defaultOut; // first mailbox on this machine
@@ -373,7 +373,7 @@ async function confirmDestination(path, account) {
     process.stdout.write(
       `\nRefreshing the existing credential for ${account} at ${pretty(path)}` +
         (at.symlink ? ` (a symlink → ${pretty(at.target ?? '?')})` : '') +
-        '.\n'
+        '.\n',
     );
     return;
   }
@@ -389,7 +389,7 @@ async function confirmDestination(path, account) {
       }\n` +
       `  you just authenticated as: ${account}\n\n` +
       'Overwriting replaces the refresh token above, and a refresh token cannot be recovered:\n' +
-      'the only way back is another consent flow for that mailbox.\n'
+      'the only way back is another consent flow for that mailbox.\n',
   );
 
   if (force) {
@@ -401,14 +401,14 @@ async function confirmDestination(path, account) {
     if (yes) return;
     process.stderr.write(
       `\nNothing was written. Re-run with --out <path> to write elsewhere; ${pretty(
-        perMailboxPath(account)
-      )} is free.\n`
+        perMailboxPath(account),
+      )} is free.\n`,
     );
     process.exit(1);
   }
   process.stderr.write(
     '\nNothing was written (no terminal to ask at). Re-run with --force to overwrite, or\n' +
-      `--out ${pretty(perMailboxPath(account))} to keep both.\n`
+      `--out ${pretty(perMailboxPath(account))} to keep both.\n`,
   );
   process.exit(1);
 }
@@ -428,14 +428,14 @@ async function exchangeAndWrite(code, redirectUri) {
   });
   if (!res.ok) {
     throw new Error(
-      `token exchange failed (HTTP ${res.status}): ${await res.text()}`
+      `token exchange failed (HTTP ${res.status}): ${await res.text()}`,
     );
   }
   const tokens = await res.json();
   if (!tokens.refresh_token) {
     throw new Error(
       'Google returned no refresh_token. Re-run — prompt=consent should force one; if it ' +
-        "persists, revoke the app under your Google account's Security → third-party access and retry."
+        "persists, revoke the app under your Google account's Security → third-party access and retry.",
     );
   }
 
@@ -444,14 +444,14 @@ async function exchangeAndWrite(code, redirectUri) {
     'https://gmail.googleapis.com/gmail/v1/users/me/profile',
     {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
-    }
+    },
   );
   if (!profileRes.ok) {
     throw new Error(
       `grant verification failed (HTTP ${
         profileRes.status
       }): ${await profileRes.text()}\n` +
-        'Is the Gmail API enabled on your Google Cloud project?'
+        'Is the Gmail API enabled on your Google Cloud project?',
     );
   }
   const profile = await profileRes.json();
@@ -463,7 +463,7 @@ async function exchangeAndWrite(code, redirectUri) {
       '\n*** WRONG ACCOUNT ***\n' +
         `You logged in as ${account}, but --account asked for ${expectedAccount}.\n` +
         'NOTHING WAS WRITTEN. Re-run and pick the right account at the Google login screen\n' +
-        '(use an incognito window if your browser keeps auto-selecting another session).\n'
+        '(use an incognito window if your browser keeps auto-selecting another session).\n',
     );
     process.exit(1);
   }
@@ -491,9 +491,9 @@ async function exchangeAndWrite(code, redirectUri) {
         account,
       },
       null,
-      2
+      2,
     ) + '\n',
-    { mode: 0o600 }
+    { mode: 0o600 },
   );
   try {
     chmodSync(outPath, 0o600);
@@ -513,7 +513,7 @@ async function exchangeAndWrite(code, redirectUri) {
   // belongs to someone else, but because we could not tell whose it is.
   const unlabelledNote = divertedBecauseUnlabelled
     ? `\nWHY NOT THE USUAL PATH: ${pretty(
-        DEFAULT_OUT
+        DEFAULT_OUT,
       )} already exists but carries no\n` +
       'readable `account` field — most likely minted by a version of this script older than\n' +
       '0.3.0, which did not record one. There is no way to tell which mailbox it holds, and a\n' +
@@ -521,11 +521,11 @@ async function exchangeAndWrite(code, redirectUri) {
       'untouched instead of refreshed in place.\n\n' +
       '  • See what it actually is:\n' +
       `        GMAIL_MCP_CREDENTIALS=${pretty(
-        DEFAULT_OUT
+        DEFAULT_OUT,
       )} npx -y -p @pappcorn/gmail-mcp pappcorn-gmail whoami\n` +
       `  • If it is this same mailbox and you want one file again, replace it deliberately:\n` +
       `        ...pappcorn-gmail-setup --client <client.json> --out ${pretty(
-        DEFAULT_OUT
+        DEFAULT_OUT,
       )} --force\n` +
       `    then delete ${pretty(outPath)}.\n` +
       '  • If it is a different mailbox, you are already done — keep both.\n'
@@ -533,7 +533,7 @@ async function exchangeAndWrite(code, redirectUri) {
 
   process.stdout.write(
     `\nWrote ${pretty(
-      outPath
+      outPath,
     )} (chmod 600). The refresh token was NOT printed — it lives only in that file.\n` +
       unlabelledNote +
       '\n' +
@@ -551,7 +551,7 @@ async function exchangeAndWrite(code, redirectUri) {
       '     in the credential file.\n' +
       '  3. Keep the credential file private. Anyone holding it can read and send your mail.\n\n' +
       'If mail stops working after about a week, your OAuth app is still in "Testing" status.\n' +
-      'Publish it to Production — see docs/setup-google-cloud.md.\n'
+      'Publish it to Production — see docs/setup-google-cloud.md.\n',
   );
   process.exit(0);
 }

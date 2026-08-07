@@ -3,3 +3,8 @@
 /coverage
 /.nx/cache
 /.nx/workspace-data
+
+# esbuild-generated plugin bundles: committed build artifacts that must match
+# `npm run bundle` output byte-for-byte. Prettier 3 is also non-idempotent on
+# them (it oscillates on inline JSDoc casts), so a format gate would flap.
+packages/*/server/mcp.cjs

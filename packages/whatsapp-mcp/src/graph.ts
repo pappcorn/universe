@@ -15,7 +15,6 @@
 // "the 24h window is closed, use whatsapp_send_template" tells it exactly what
 // to do next.
 
-
 import { loadConfig } from './config';
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -107,7 +106,12 @@ export interface GraphRequest {
   body?: unknown;
 }
 
-export async function callGraph<T>({ method = 'GET', path, query, body }: GraphRequest): Promise<T> {
+export async function callGraph<T>({
+  method = 'GET',
+  path,
+  query,
+  body,
+}: GraphRequest): Promise<T> {
   const { accessToken, apiUrl, graphVersion } = loadConfig();
 
   const url = new URL(`${apiUrl}/${graphVersion}${path}`);
@@ -146,11 +150,13 @@ export async function callGraph<T>({ method = 'GET', path, query, body }: GraphR
 
     const hint = explain(err.code, err.error_subcode);
     if (hint) parts.push(hint);
-    if (err.error_data?.details) parts.push(`Details: ${err.error_data.details}`);
+    if (err.error_data?.details)
+      parts.push(`Details: ${err.error_data.details}`);
 
     // Always include fbtrace_id: it's free, and it's the first thing Meta
     // support asks for.
-    if (err.fbtrace_id) parts.push(`(code ${err.code ?? '?'}, fbtrace_id ${err.fbtrace_id})`);
+    if (err.fbtrace_id)
+      parts.push(`(code ${err.code ?? '?'}, fbtrace_id ${err.fbtrace_id})`);
 
     throw new WhatsAppApiError(
       parts.join(' — '),
