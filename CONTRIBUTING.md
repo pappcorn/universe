@@ -54,24 +54,25 @@ enforced in code, not in a promise, by
 [`.github/workflows/cris-approve.yml`](.github/workflows/cris-approve.yml):
 
 **Cris only signs where its signature cannot be the thing that lets unreviewed
-code through.** Concretely:
+code through.** Who approves depends on who wrote the PR:
 
-- It **never** approves its own PRs.
-- It **never** approves code from an author who is not already a code owner of
-  everything they touched. That covers every outside contribution — if you are
-  new here, a human reads your PR. Full stop.
-- It **never** approves anything under `.github/`, which
-  [`CODEOWNERS`](.github/CODEOWNERS) anchors to the two humans. That directory
-  decides who approves and what runs in CI, including Cris's own approver. An
-  agent that can approve changes to its own guard rail does not have one.
-- Where it does approve but is not a code owner of the paths involved, the
-  approval is explicitly **non-binding** — GitHub still waits for the real owner.
+| PR author          | Who approves                                                                                                                                                                                                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A human code owner | **Cris can approve and arm the merge.** The author is the human in the loop — they wrote it — and GitHub will not let them approve themselves. This is the one deadlock the agent exists to break, and it includes changes under `.github/`, except the two carve-out files below. |
+| Cris               | **A human code owner.** Cris never approves its own PRs, and GitHub blocks self-approval outright.                                                                                                                                                                                 |
+| Anyone else        | **A human code owner.** Cris may review and comment, but it never approves code from an author who is not already a code owner of everything they touched. If you are new here, a human reads your PR. Full stop.                                                                  |
 
-What is left is the one case the agent exists to unblock: a maintainer wrote the
-PR, owns every path in it, the gate is green — and GitHub will not let them
-approve themselves. There, Cris approves and arms GitHub's **native auto-merge**,
-which waits for every branch protection rather than overriding any. Cris never
-merges directly and never uses an admin bypass.
+Two files are carved out and stay owned by humans only, no matter who authored
+the change: [`cris-approve.yml`](.github/workflows/cris-approve.yml) and
+[`CODEOWNERS`](.github/CODEOWNERS) itself. They define **who approves** — an
+agent must never be able to sign changes to its own approver. A PR touching
+either always waits for a human who did not write it. On those paths Cris may
+still leave a review, but it is explicitly **non-binding**: GitHub keeps
+waiting for the real owner.
+
+Where Cris does approve, it arms GitHub's **native auto-merge**, which waits
+for every branch protection rather than overriding any. Cris never merges
+directly and never uses an admin bypass.
 
 Dependency bumps follow the same logic in
 [`dependabot-auto-merge.yml`](.github/workflows/dependabot-auto-merge.yml):

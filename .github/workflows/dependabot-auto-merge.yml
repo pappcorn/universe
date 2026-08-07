@@ -12,10 +12,12 @@
 #   • the author must be dependabot[bot] (checked twice, see below);
 #   • the bump must be patch or minor — never a major;
 #   • the diff must not touch `.github/`. A github-actions bump edits the
-#     workflow files, and `.github/` is anchored to humans in CODEOWNERS on
-#     purpose: it is the directory that decides who approves. An agent that can
-#     merge changes to its own approver has no guard rail. Those bumps are still
-#     opened, they just wait for Nic or Leo.
+#     workflow files, and Dependabot is not a code owner of anything — while
+#     CODEOWNERS gives Cris ownership of most of `.github/`, so an approval
+#     here would be BINDING: it would merge bot-authored changes to CI (or to
+#     Cris's own approver) with zero humans in the loop. An agent that can
+#     merge changes to its own approver has no guard rail. Those bumps are
+#     still opened, they just wait for Nic or Leo.
 #
 # Auto-merge itself never bypasses anything: GitHub performs the merge only once
 # every branch protection is satisfied — CI green, claude-review green, approval
@@ -69,7 +71,8 @@ jobs:
             }
 
       # Third guard: the governance lock. A github-actions bump edits
-      # .github/workflows/*, which CODEOWNERS anchors to humans on purpose.
+      # .github/workflows/*, where a Cris approval would be binding — and the
+      # author is a bot, not a code owner. Workflow bumps wait for a human.
       - name: Refuse if the diff touches .github/
         id: scope
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
