@@ -52,6 +52,10 @@ To request access, write to [cris@pappcorn.com](mailto:cris@pappcorn.com).
 
 ## Quick start
 
+> **New here from the masterclass?** The guided front door — the
+> "Tu Ventaja con IA" kit plus this catalog, in Spanish — lives at
+> <https://pappcorn.github.io/universe/>.
+
 ```bash
 # 1. Add the marketplace (once)
 /plugin marketplace add pappcorn/universe
@@ -128,6 +132,7 @@ before you trust it.
 ```
 packages/    connectors and libraries (each publishable on its own)
 apps/        deployable applications
+site/        the public front door — GitHub Pages, in Spanish (see site/README.md)
 tools/       operator scripts
 docs/        setup guides
 ```
