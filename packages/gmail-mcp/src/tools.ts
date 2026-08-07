@@ -73,7 +73,7 @@ const composeShape = {
   to: z
     .union([z.string(), z.array(z.string())])
     .describe(
-      'Recipient(s): email or "Name <email>"; array or comma-separated string.'
+      'Recipient(s): email or "Name <email>"; array or comma-separated string.',
     ),
   subject: z
     .string()
@@ -81,7 +81,7 @@ const composeShape = {
   body: z
     .string()
     .describe(
-      'Message body. Plain text by default; when html=true this IS the HTML.'
+      'Message body. Plain text by default; when html=true this IS the HTML.',
     ),
   cc: z
     .union([z.string(), z.array(z.string())])
@@ -95,25 +95,25 @@ const composeShape = {
     .string()
     .optional()
     .describe(
-      'Message id being replied to (from mail_search / mail_read_thread). Sets In-Reply-To/References and inherits the thread.'
+      'Message id being replied to (from mail_search / mail_read_thread). Sets In-Reply-To/References and inherits the thread.',
     ),
   thread_id: z
     .string()
     .optional()
     .describe(
-      'Thread id to attach to (inferred from reply_to_message_id when replying).'
+      'Thread id to attach to (inferred from reply_to_message_id when replying).',
     ),
   html: z
     .boolean()
     .optional()
     .describe(
-      'Send as HTML (multipart/alternative with an auto-derived text part). Default: plain text.'
+      'Send as HTML (multipart/alternative with an auto-derived text part). Default: plain text.',
     ),
   attachments: z
     .union([z.string(), z.array(z.string())])
     .optional()
     .describe(
-      'Local file path(s) to attach (multipart/mixed; filename = basename, Content-Type by extension). Files must live inside the allowed directory (GMAIL_ATTACHMENT_DIR, default: the working directory) — paths outside it are rejected. Paths are NOT comma-split — pass an array for several files. Total ≤ 25MB (Gmail limit).'
+      'Local file path(s) to attach (multipart/mixed; filename = basename, Content-Type by extension). Files must live inside the allowed directory (GMAIL_ATTACHMENT_DIR, default: the working directory) — paths outside it are rejected. Paths are NOT comma-split — pass an array for several files. Total ≤ 25MB (Gmail limit).',
     ),
 };
 
@@ -138,12 +138,12 @@ export function registerTools(server: McpServer): void {
             `messages:   ${p.messagesTotal ?? '?'}`,
             `threads:    ${p.threadsTotal ?? '?'}`,
             `credential: ${credentialSource()}`,
-          ].join('\n')
+          ].join('\n'),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -156,13 +156,13 @@ export function registerTools(server: McpServer): void {
           .string()
           .optional()
           .describe(
-            'Gmail search query (e.g. "from:noreply@vercel.com is:unread newer_than:7d").'
+            'Gmail search query (e.g. "from:noreply@vercel.com is:unread newer_than:7d").',
           ),
         label_ids: z
           .array(z.string())
           .optional()
           .describe(
-            'Restrict to these label IDS (e.g. ["INBOX","UNREAD"]). Names must be resolved via mail_label / labels first.'
+            'Restrict to these label IDS (e.g. ["INBOX","UNREAD"]). Names must be resolved via mail_label / labels first.',
           ),
         max: z
           .number()
@@ -188,12 +188,12 @@ export function registerTools(server: McpServer): void {
         const rows = page.items.map(formatRow);
         return ok(
           (rows.length ? rows.join('\n\n') : '(0 messages)') +
-            pageTail(page.next_page_token)
+            pageTail(page.next_page_token),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -211,12 +211,12 @@ export function registerTools(server: McpServer): void {
         return ok(
           `thread:${t.id}  (${t.messages.length} message${
             t.messages.length === 1 ? '' : 's'
-          })\n\n` + t.messages.map(formatThreadMessage).join('\n\n')
+          })\n\n` + t.messages.map(formatThreadMessage).join('\n\n'),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -230,12 +230,12 @@ export function registerTools(server: McpServer): void {
       try {
         const res = await send(args);
         return ok(
-          `Sent. message id:${res.id ?? '?'}  thread:${res.threadId ?? '?'}`
+          `Sent. message id:${res.id ?? '?'}  thread:${res.threadId ?? '?'}`,
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -251,12 +251,12 @@ export function registerTools(server: McpServer): void {
         return ok(
           `Draft created. draft id:${res.draft_id ?? '?'}  message id:${
             res.message_id ?? '?'
-          }  thread:${res.threadId ?? '?'}`
+          }  thread:${res.threadId ?? '?'}`,
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -289,7 +289,7 @@ export function registerTools(server: McpServer): void {
           const labels = await listLabels();
           const rows = labels.map(
             (l) =>
-              `${l.id}  ${l.name}${l.type === 'system' ? '  (system)' : ''}`
+              `${l.id}  ${l.name}${l.type === 'system' ? '  (system)' : ''}`,
           );
           return ok(rows.length ? rows.join('\n') : '(0 labels)');
         }
@@ -303,12 +303,12 @@ export function registerTools(server: McpServer): void {
           `Labeled ${res.target} id:${res.id}.` +
             (res.added.length ? `  added: ${res.added.join(', ')}` : '') +
             (res.removed.length ? `  removed: ${res.removed.join(', ')}` : '') +
-            (res.labelIds ? `\nlabels now: ${res.labelIds.join(', ')}` : '')
+            (res.labelIds ? `\nlabels now: ${res.labelIds.join(', ')}` : ''),
         );
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -321,13 +321,13 @@ export function registerTools(server: McpServer): void {
           .string()
           .optional()
           .describe(
-            'Message id to archive (mutually exclusive with thread_id).'
+            'Message id to archive (mutually exclusive with thread_id).',
           ),
         thread_id: z
           .string()
           .optional()
           .describe(
-            'Thread id to archive (mutually exclusive with message_id).'
+            'Thread id to archive (mutually exclusive with message_id).',
           ),
       },
     },
@@ -341,6 +341,6 @@ export function registerTools(server: McpServer): void {
       } catch (err) {
         return fail(err);
       }
-    }
+    },
   );
 }

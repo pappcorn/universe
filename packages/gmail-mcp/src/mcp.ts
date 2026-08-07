@@ -24,7 +24,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  const msg = err instanceof Error ? err.stack ?? err.message : String(err);
+  const msg = err instanceof Error ? (err.stack ?? err.message) : String(err);
   process.stderr.write(`gmail-mcp: fatal: ${msg}\n`);
   process.exit(1);
 });

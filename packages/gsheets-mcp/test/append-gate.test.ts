@@ -43,7 +43,7 @@ after(() => {
 
 globalThis.fetch = (async (
   url: string | URL,
-  init: { method?: string; body?: string } = {}
+  init: { method?: string; body?: string } = {},
 ) => {
   const u = String(url);
   const json = (o: unknown) => ({
@@ -87,7 +87,7 @@ globalThis.fetch = (async (
 }) as unknown as typeof fetch;
 
 type Handler = (
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
 ) => Promise<{ content: Array<{ text: string }> }>;
 const handlers: Record<string, Handler> = {};
 registerTools({
@@ -98,7 +98,7 @@ registerTools({
 
 const call = async (
   tool: string,
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
 ): Promise<string> => (await handlers[tool](args)).content[0].text;
 
 const tokenIn = (text: string): string => {
@@ -208,7 +208,7 @@ describe('sheet_append — concurrency', () => {
     assert.match(
       out,
       /103 row\(s\) tall now/,
-      'the refusal must report the CURRENT height'
+      'the refusal must report the CURRENT height',
     );
     assert.match(out, /new confirm_token: [a-f0-9]+/);
   });
@@ -227,7 +227,7 @@ describe('sheet_append — concurrency', () => {
       confirm_token: 'staleauthorization',
     });
     const fresh = tokenIn(
-      refusal.replace('new confirm_token', 'confirm_token')
+      refusal.replace('new confirm_token', 'confirm_token'),
     );
 
     const out = await call('sheet_append', {

@@ -79,7 +79,7 @@ describe('createAssertionGate', () => {
 
     await assert.rejects(
       gate(),
-      (err: unknown) => err instanceof GmailApiError
+      (err: unknown) => err instanceof GmailApiError,
     );
     await gate(); // Google recovered; the mailbox was never in question.
     await gate(); // and the success is now memoised
@@ -94,7 +94,7 @@ describe('createAssertionGate', () => {
 
     await assert.rejects(
       gate(),
-      (err: unknown) => err instanceof GmailApiError
+      (err: unknown) => err instanceof GmailApiError,
     );
     await assert.rejects(gate(), denial);
     await assert.rejects(gate(), denial);
@@ -111,7 +111,7 @@ describe('createAssertionGate', () => {
 
     await assert.rejects(
       gate(),
-      (err: unknown) => err instanceof GmailApiError
+      (err: unknown) => err instanceof GmailApiError,
     );
   });
 });

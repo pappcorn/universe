@@ -47,7 +47,8 @@ function formatIdentity(id: WhatsAppIdentity): string {
     `verified_name:   ${id.verified_name ?? '(none)'}`,
     `quality_rating:  ${id.quality_rating ?? '(unknown)'}`,
   ];
-  if (id.throughput?.level) lines.push(`throughput:      ${id.throughput.level}`);
+  if (id.throughput?.level)
+    lines.push(`throughput:      ${id.throughput.level}`);
   if (id.platform_type) lines.push(`platform:        ${id.platform_type}`);
   return lines.join('\n');
 }
@@ -105,13 +106,22 @@ export function registerTools(server: McpServer): void {
         'takes. Call this before whatsapp_send_template — template names are case-sensitive and ' +
         'only APPROVED templates can be sent. Requires WHATSAPP_WABA_ID.',
       inputSchema: {
-        limit: z.number().int().min(1).max(200).optional().describe('Max templates to return (default 50).'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe('Max templates to return (default 50).'),
       },
     },
     async ({ limit }) => {
       try {
         const templates = await listTemplates(limit);
-        if (!templates.length) return ok('No message templates found on this WhatsApp Business Account.');
+        if (!templates.length)
+          return ok(
+            'No message templates found on this WhatsApp Business Account.',
+          );
         return ok(templates.map(formatTemplateRow).join('\n'));
       } catch (err) {
         return fail(err);
@@ -131,21 +141,44 @@ export function registerTools(server: McpServer): void {
       inputSchema: {
         to: z
           .string()
-          .describe('Recipient in international format, e.g. 573001234567. "+" and separators are stripped.'),
-        template_name: z.string().describe('Exact template name (case-sensitive).'),
+          .describe(
+            'Recipient in international format, e.g. 573001234567. "+" and separators are stripped.',
+          ),
+        template_name: z
+          .string()
+          .describe('Exact template name (case-sensitive).'),
         language: z
           .string()
-          .describe('Language code exactly as registered, e.g. "es" or "es_ES" — they are different templates.'),
+          .describe(
+            'Language code exactly as registered, e.g. "es" or "es_ES" — they are different templates.',
+          ),
         components: z
           .array(z.unknown())
           .optional()
-          .describe('Template components array per the Cloud API schema, supplying the {{n}} parameter values.'),
-        from_phone_number_id: z.string().optional().describe('Override the configured sending number.'),
+          .describe(
+            'Template components array per the Cloud API schema, supplying the {{n}} parameter values.',
+          ),
+        from_phone_number_id: z
+          .string()
+          .optional()
+          .describe('Override the configured sending number.'),
       },
     },
-    async ({ to, template_name, language, components, from_phone_number_id }) => {
+    async ({
+      to,
+      template_name,
+      language,
+      components,
+      from_phone_number_id,
+    }) => {
       try {
-        const res = await sendTemplate(to, template_name, language, components, from_phone_number_id);
+        const res = await sendTemplate(
+          to,
+          template_name,
+          language,
+          components,
+          from_phone_number_id,
+        );
         return ok(formatSendResult(res));
       } catch (err) {
         return fail(err);
@@ -167,9 +200,18 @@ export function registerTools(server: McpServer): void {
       inputSchema: {
         to: z
           .string()
-          .describe('Recipient in international format, e.g. 573001234567. "+" and separators are stripped.'),
-        text: z.string().min(1).max(4096).describe('Message body. WhatsApp caps text at 4096 characters.'),
-        from_phone_number_id: z.string().optional().describe('Override the configured sending number.'),
+          .describe(
+            'Recipient in international format, e.g. 573001234567. "+" and separators are stripped.',
+          ),
+        text: z
+          .string()
+          .min(1)
+          .max(4096)
+          .describe('Message body. WhatsApp caps text at 4096 characters.'),
+        from_phone_number_id: z
+          .string()
+          .optional()
+          .describe('Override the configured sending number.'),
       },
     },
     async ({ to, text, from_phone_number_id }) => {

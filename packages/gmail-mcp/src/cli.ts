@@ -104,10 +104,10 @@ function printRows(rows: MessageRow[]): void {
   for (const r of rows) {
     const labels = r.labelIds?.length ? `  [${r.labelIds.join(',')}]` : '';
     process.stdout.write(
-      `id:${r.id}  thread:${r.threadId ?? ''}  ${r.date ?? ''}${labels}\n`
+      `id:${r.id}  thread:${r.threadId ?? ''}  ${r.date ?? ''}${labels}\n`,
     );
     process.stdout.write(
-      `  from: ${r.from ?? ''}  —  ${r.subject ?? '(no subject)'}\n`
+      `  from: ${r.from ?? ''}  —  ${r.subject ?? '(no subject)'}\n`,
     );
     if (r.snippet) process.stdout.write(`  ${r.snippet}\n`);
     process.stdout.write('\n');
@@ -157,7 +157,7 @@ async function cmdWhoami(argv: string[]): Promise<void> {
       `messages:   ${p.messagesTotal ?? '?'}`,
       `threads:    ${p.threadsTotal ?? '?'}`,
       `credential: ${credentialSource()}`,
-    ].join('\n') + '\n'
+    ].join('\n') + '\n',
   );
 }
 
@@ -168,7 +168,7 @@ async function cmdSearch(argv: string[]): Promise<void> {
   if (!q)
     fail(
       2,
-      'Usage: search <query> [--max N] [--page P] [--json]   (Gmail query syntax, e.g. "from:x is:unread")'
+      'Usage: search <query> [--max N] [--page P] [--json]   (Gmail query syntax, e.g. "from:x is:unread")',
     );
   const page = await search({
     q,
@@ -197,7 +197,7 @@ async function cmdRead(argv: string[]): Promise<void> {
   process.stdout.write(
     `thread:${t.id}  (${t.messages.length} message${
       t.messages.length === 1 ? '' : 's'
-    })\n\n`
+    })\n\n`,
   );
   for (const m of t.messages) printThreadMessage(m);
 }
@@ -207,14 +207,14 @@ async function cmdRead(argv: string[]): Promise<void> {
 function attachFlag(v: FlagVal | FlagVal[] | undefined): string[] | undefined {
   if (v === undefined) return undefined;
   const out = (Array.isArray(v) ? v : [v]).filter(
-    (x): x is string => typeof x === 'string'
+    (x): x is string => typeof x === 'string',
   );
   return out.length ? out : undefined;
 }
 
 async function composeFromFlags(
   argv: string[],
-  cmd: 'send' | 'draft'
+  cmd: 'send' | 'draft',
 ): Promise<ComposeArgs> {
   const { flags } = parseFlags(argv);
   const usage = `Usage: ${cmd} --to <addr> --subject <s> --body <text|-> [--cc <addr>] [--bcc <addr>] [--attach <file>]... [--reply-to-message <id>] [--thread <id>] [--html] [--json]   (--body - reads stdin)`;
@@ -225,7 +225,7 @@ async function composeFromFlags(
   if (typeof flags.body !== 'string')
     fail(
       2,
-      `${cmd} requires --body <text> (or --body - to read stdin).\n${usage}`
+      `${cmd} requires --body <text> (or --body - to read stdin).\n${usage}`,
     );
   const body = flags.body === '-' ? await readStdin() : flags.body;
   if (!body.trim()) fail(2, `${cmd}: the body is empty.`);
@@ -254,7 +254,7 @@ async function cmdSend(argv: string[]): Promise<void> {
     return;
   }
   process.stdout.write(
-    `Sent. message id:${res.id ?? '?'}  thread:${res.threadId ?? '?'}\n`
+    `Sent. message id:${res.id ?? '?'}  thread:${res.threadId ?? '?'}\n`,
   );
 }
 
@@ -269,7 +269,7 @@ async function cmdDraft(argv: string[]): Promise<void> {
   process.stdout.write(
     `Draft created. draft id:${res.draft_id ?? '?'}  message id:${
       res.message_id ?? '?'
-    }  thread:${res.threadId ?? '?'}\n`
+    }  thread:${res.threadId ?? '?'}\n`,
   );
 }
 
@@ -286,7 +286,7 @@ async function cmdLabels(argv: string[]): Promise<void> {
   }
   for (const l of labels) {
     process.stdout.write(
-      `${l.id}  ${l.name}${l.type === 'system' ? '  (system)' : ''}\n`
+      `${l.id}  ${l.name}${l.type === 'system' ? '  (system)' : ''}\n`,
     );
   }
 }
@@ -299,7 +299,7 @@ async function cmdLabel(argv: string[]): Promise<void> {
   if (!id || (!add && !remove)) {
     fail(
       2,
-      'Usage: label <id> --add a,b [--remove c,d] [--thread] [--json]   (--thread targets a thread id; default is a message id)'
+      'Usage: label <id> --add a,b [--remove c,d] [--thread] [--json]   (--thread targets a thread id; default is a message id)',
     );
   }
   const res = await modifyLabels({
@@ -316,7 +316,7 @@ async function cmdLabel(argv: string[]): Promise<void> {
       (res.added.length ? `  added: ${res.added.join(', ')}` : '') +
       (res.removed.length ? `  removed: ${res.removed.join(', ')}` : '') +
       (res.labelIds ? `\nlabels now: ${res.labelIds.join(', ')}` : '') +
-      '\n'
+      '\n',
   );
 }
 
@@ -326,17 +326,17 @@ async function cmdArchive(argv: string[]): Promise<void> {
   if (!id)
     fail(
       2,
-      'Usage: archive <id> [--thread] [--json]   (--thread targets a thread id; default is a message id)'
+      'Usage: archive <id> [--thread] [--json]   (--thread targets a thread id; default is a message id)',
     );
   const res = await archive(
-    flags.thread ? { thread_id: id } : { message_id: id }
+    flags.thread ? { thread_id: id } : { message_id: id },
   );
   if (flags.json) {
     printJson(res);
     return;
   }
   process.stdout.write(
-    `Archived ${res.target} id:${res.id} (INBOX removed).\n`
+    `Archived ${res.target} id:${res.id} (INBOX removed).\n`,
   );
 }
 

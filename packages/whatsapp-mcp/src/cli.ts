@@ -98,7 +98,10 @@ function printTemplate(t: MessageTemplate): void {
 // MCP tool or the API directly rather than growing a flag DSL here.
 function buildBodyComponents(params?: string): unknown[] | undefined {
   if (!params) return undefined;
-  const values = params.split(',').map((s) => s.trim()).filter(Boolean);
+  const values = params
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (!values.length) return undefined;
   return [
     {
@@ -132,7 +135,9 @@ async function main(): Promise<number> {
           `number:          ${id.display_phone_number ?? '(unknown)'}`,
           `verified_name:   ${id.verified_name ?? '(none)'}`,
           `quality_rating:  ${id.quality_rating ?? '(unknown)'}`,
-          id.throughput?.level ? `throughput:      ${id.throughput.level}` : null,
+          id.throughput?.level
+            ? `throughput:      ${id.throughput.level}`
+            : null,
         ]
           .filter(Boolean)
           .join('\n') + '\n',
@@ -142,9 +147,13 @@ async function main(): Promise<number> {
 
     case 'templates': {
       const limitRaw = str(flags.limit);
-      const templates = await listTemplates(limitRaw ? Number(limitRaw) : undefined);
+      const templates = await listTemplates(
+        limitRaw ? Number(limitRaw) : undefined,
+      );
       if (!templates.length) {
-        process.stdout.write('No message templates found on this WhatsApp Business Account.\n');
+        process.stdout.write(
+          'No message templates found on this WhatsApp Business Account.\n',
+        );
         return 0;
       }
       templates.forEach(printTemplate);
@@ -159,7 +168,9 @@ async function main(): Promise<number> {
         return 2;
       }
       const res = await sendText(to, text, from);
-      process.stdout.write(`Sent. message_id: ${res.messages?.[0]?.id ?? '(none)'}\n`);
+      process.stdout.write(
+        `Sent. message_id: ${res.messages?.[0]?.id ?? '(none)'}\n`,
+      );
       return 0;
     }
 
@@ -168,11 +179,21 @@ async function main(): Promise<number> {
       const name = str(flags.name);
       const language = str(flags.language);
       if (!to || !name || !language) {
-        process.stderr.write('send-template requires --to, --name and --language\n');
+        process.stderr.write(
+          'send-template requires --to, --name and --language\n',
+        );
         return 2;
       }
-      const res = await sendTemplate(to, name, language, buildBodyComponents(str(flags.params)), from);
-      process.stdout.write(`Sent. message_id: ${res.messages?.[0]?.id ?? '(none)'}\n`);
+      const res = await sendTemplate(
+        to,
+        name,
+        language,
+        buildBodyComponents(str(flags.params)),
+        from,
+      );
+      process.stdout.write(
+        `Sent. message_id: ${res.messages?.[0]?.id ?? '(none)'}\n`,
+      );
       return 0;
     }
 

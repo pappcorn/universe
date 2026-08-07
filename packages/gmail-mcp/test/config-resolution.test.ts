@@ -88,7 +88,7 @@ describe('parseEnvFile', () => {
         'ESCAPED="line1\\nline2"',
         'not a line',
         '1INVALID=nope',
-      ].join('\n')
+      ].join('\n'),
     );
 
     assert.deepEqual(values, {
@@ -111,21 +111,21 @@ describe('expandPath', () => {
   it('expands a leading ~', () => {
     assert.equal(
       expandPath('~/creds/work.json', '/base', home),
-      join(home, 'creds/work.json')
+      join(home, 'creds/work.json'),
     );
   });
 
   it('resolves a relative path against the file that declared it', () => {
     assert.equal(
       expandPath('.secrets/work.json', '/base', home),
-      '/base/.secrets/work.json'
+      '/base/.secrets/work.json',
     );
   });
 
   it('leaves an absolute path alone', () => {
     assert.equal(
       expandPath('/etc/creds.json', '/base', home),
-      '/etc/creds.json'
+      '/etc/creds.json',
     );
   });
 });
@@ -147,7 +147,7 @@ describe('resolveCredentialPlan', () => {
       { ...inline },
       envFileAt('/w/.env', { GMAIL_MCP_CREDENTIALS: '/w/other.json' }),
       '/w',
-      DEFAULT
+      DEFAULT,
     );
     assert.equal(plan.kind, 'inline');
     assert.equal(plan.kind === 'inline' && plan.origin, 'environment');
@@ -158,7 +158,7 @@ describe('resolveCredentialPlan', () => {
       {},
       envFileAt('/w/.env', inline),
       '/w',
-      DEFAULT
+      DEFAULT,
     );
     assert.equal(plan.kind, 'inline');
     assert.equal(plan.kind === 'inline' && plan.origin, 'env-file');
@@ -175,7 +175,7 @@ describe('resolveCredentialPlan', () => {
       },
       envFileAt('/w/.env', { GMAIL_MCP_CREDENTIALS: '/w/creds.json' }),
       '/w',
-      DEFAULT
+      DEFAULT,
     );
     assert.deepEqual(plan, {
       kind: 'file',
@@ -191,7 +191,7 @@ describe('resolveCredentialPlan', () => {
         GMAIL_MCP_CREDENTIALS: '.secrets/work.json',
       }),
       '/w/repo/apps/x',
-      DEFAULT
+      DEFAULT,
     );
     assert.deepEqual(plan, {
       kind: 'file',
@@ -205,7 +205,7 @@ describe('resolveCredentialPlan', () => {
       { GMAIL_MCP_CREDENTIALS: '/from/env.json' },
       envFileAt('/w/.env', { GMAIL_MCP_CREDENTIALS: '/from/file.json' }),
       '/w',
-      DEFAULT
+      DEFAULT,
     );
     assert.deepEqual(plan, {
       kind: 'file',
@@ -227,7 +227,7 @@ describe('resolveCredentialPlan', () => {
       { GMAIL_CLIENT_ID: 'id', GMAIL_CLIENT_SECRET: 'secret' },
       null,
       '/w',
-      DEFAULT
+      DEFAULT,
     );
     assert.equal(plan.kind, 'file');
   });

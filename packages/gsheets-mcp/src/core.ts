@@ -63,7 +63,7 @@ async function callGoogle<T>(
     method?: string;
     body?: unknown;
     headers?: Record<string, string>;
-  } = {}
+  } = {},
 ): Promise<T> {
   const headers = await authHeaders({
     ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
@@ -108,7 +108,7 @@ async function callGoogle<T>(
 export function resolveSpreadsheetId(input: string): string {
   const trimmed = input.trim();
   const fromUrl = /\/(?:spreadsheets|file)\/d\/([a-zA-Z0-9_-]{20,})/.exec(
-    trimmed
+    trimmed,
   );
   if (fromUrl) return fromUrl[1];
   const openById = /[?&]id=([a-zA-Z0-9_-]{20,})/.exec(trimmed);
@@ -117,7 +117,7 @@ export function resolveSpreadsheetId(input: string): string {
   throw new SheetsApiError(
     400,
     `"${input}" is not a spreadsheet id or a Google Sheets URL. Pass the id, or the full ` +
-      'https://docs.google.com/spreadsheets/d/<id>/... link.'
+      'https://docs.google.com/spreadsheets/d/<id>/... link.',
   );
 }
 
@@ -228,7 +228,7 @@ export interface RangeValues {
 export async function readRange(
   spreadsheetId: string,
   range: string,
-  opts: { render?: ValueRender; cap?: number } = {}
+  opts: { render?: ValueRender; cap?: number } = {},
 ): Promise<RangeValues> {
   const render = opts.render ?? 'FORMATTED_VALUE';
   const url =
@@ -236,7 +236,7 @@ export async function readRange(
     `?majorDimension=ROWS&valueRenderOption=${render}`;
   const data = await callGoogle<{ range?: string; values?: string[][] }>(url);
   const values = (data.values ?? []).map((row) =>
-    row.map((c) => (c === undefined ? '' : String(c)))
+    row.map((c) => (c === undefined ? '' : String(c))),
   );
 
   const cap = opts.cap ?? MAX_READ_CELLS;
@@ -246,7 +246,7 @@ export async function readRange(
       400,
       `That range holds ${cells} cells, over the ${cap}-cell read limit. This limit exists so a ` +
         'single read cannot flood the context. Narrow the range, or use sheet_find to locate the ' +
-        'rows you actually need and read only those.'
+        'rows you actually need and read only those.',
     );
   }
   return { range: data.range ?? range, values };
@@ -256,7 +256,7 @@ export async function readRange(
 export async function batchRead(
   spreadsheetId: string,
   ranges: string[],
-  opts: { render?: ValueRender; cap?: number } = {}
+  opts: { render?: ValueRender; cap?: number } = {},
 ): Promise<RangeValues[]> {
   const render = opts.render ?? 'FORMATTED_VALUE';
   const qs = ranges.map((r) => `ranges=${encodeURIComponent(r)}`).join('&');
@@ -269,19 +269,19 @@ export async function batchRead(
   const out = (data.valueRanges ?? []).map((vr, i) => ({
     range: vr.range ?? ranges[i],
     values: (vr.values ?? []).map((row) =>
-      row.map((c) => (c === undefined ? '' : String(c)))
+      row.map((c) => (c === undefined ? '' : String(c))),
     ),
   }));
   const cells = out.reduce(
     (n, vr) => n + vr.values.reduce((m, row) => m + row.length, 0),
-    0
+    0,
   );
   const cap = opts.cap ?? MAX_READ_CELLS;
   if (cells > cap) {
     throw new SheetsApiError(
       400,
       `Those ranges hold ${cells} cells in total, over the ${cap}-cell read limit. ` +
-        'Narrow them, or locate the rows with sheet_find first.'
+        'Narrow them, or locate the rows with sheet_find first.',
     );
   }
   return out;
@@ -304,7 +304,7 @@ export async function find(
   spreadsheetId: string,
   range: string,
   query: string,
-  opts: { exact?: boolean; caseSensitive?: boolean; maxMatches?: number } = {}
+  opts: { exact?: boolean; caseSensitive?: boolean; maxMatches?: number } = {},
 ): Promise<{ matches: Match[]; scannedRows: number; truncated: boolean }> {
   const maxMatches = opts.maxMatches ?? DEFAULT_MAX_MATCHES;
   const needle = opts.caseSensitive ? query : query.toLowerCase();
@@ -362,7 +362,7 @@ export function editToken(
   spreadsheetId: string,
   range: string,
   before: unknown,
-  after: unknown
+  after: unknown,
 ): string {
   const payload = JSON.stringify({ spreadsheetId, range, before, after });
   return createHash('sha256').update(payload).digest('hex').slice(0, 16);
@@ -384,7 +384,7 @@ export function editToken(
  *  append targets — tables with a populated first column — it is exact. */
 export async function usedRowCount(
   spreadsheetId: string,
-  range: string
+  range: string,
 ): Promise<number> {
   const tab = range.includes('!')
     ? range.slice(0, range.lastIndexOf('!'))
@@ -411,7 +411,7 @@ export async function updateRange(
   spreadsheetId: string,
   range: string,
   values: string[][],
-  opts: { raw?: boolean } = {}
+  opts: { raw?: boolean } = {},
 ): Promise<WriteResult> {
   const valueInputOption = opts.raw ? 'RAW' : 'USER_ENTERED';
   const url =
@@ -435,12 +435,12 @@ export async function appendRows(
   spreadsheetId: string,
   range: string,
   values: string[][],
-  opts: { raw?: boolean } = {}
+  opts: { raw?: boolean } = {},
 ): Promise<WriteResult> {
   const valueInputOption = opts.raw ? 'RAW' : 'USER_ENTERED';
   const url =
     `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(
-      range
+      range,
     )}:append` +
     `?valueInputOption=${valueInputOption}&insertDataOption=INSERT_ROWS`;
   const data = await callGoogle<{
@@ -468,7 +468,7 @@ export interface BatchEdit {
 export async function batchUpdate(
   spreadsheetId: string,
   edits: BatchEdit[],
-  opts: { raw?: boolean } = {}
+  opts: { raw?: boolean } = {},
 ): Promise<WriteResult[]> {
   const valueInputOption = opts.raw ? 'RAW' : 'USER_ENTERED';
   const data = await callGoogle<{
@@ -523,7 +523,7 @@ export function logWrite(entry: {
       .map((row) =>
         row
           .slice(0, 20)
-          .map((c) => (c.length > 200 ? `${c.slice(0, 197)}...` : c))
+          .map((c) => (c.length > 200 ? `${c.slice(0, 197)}...` : c)),
       );
   try {
     mkdirSync(LOG_DIR, { recursive: true });
@@ -538,7 +538,7 @@ export function logWrite(entry: {
         before: trim(entry.before),
         after: trim(entry.after),
       })}\n`,
-      { mode: 0o600 }
+      { mode: 0o600 },
     );
     return { logged: true, path: LOG_PATH };
   } catch (err) {
@@ -575,13 +575,13 @@ export function escapeDriveQuery(value: string): string {
 
 export async function locate(
   nameQuery: string,
-  opts: { includeXlsx?: boolean; limit?: number } = {}
+  opts: { includeXlsx?: boolean; limit?: number } = {},
 ): Promise<DriveFile[]> {
   const mimeClause = opts.includeXlsx
     ? `(mimeType='${SPREADSHEET_MIME}' or mimeType='${XLSX_MIME}')`
     : `mimeType='${SPREADSHEET_MIME}'`;
   const q = `${mimeClause} and name contains '${escapeDriveQuery(
-    nameQuery
+    nameQuery,
   )}' and trashed=false`;
   const params = new URLSearchParams({
     q,
@@ -647,19 +647,19 @@ export async function getFileMeta(fileId: string): Promise<DriveFile> {
  *  had. Everything else in this connector only works on native Sheets. */
 export async function importXlsx(
   fileId: string,
-  opts: { name?: string; parentFolderId?: string } = {}
+  opts: { name?: string; parentFolderId?: string } = {},
 ): Promise<DriveFile> {
   const source = await getFileMeta(fileId);
   if (source.mimeType === SPREADSHEET_MIME) {
     throw new SheetsApiError(
       400,
-      `"${source.name}" is already a native Google Sheet — no conversion needed. Use its id directly.`
+      `"${source.name}" is already a native Google Sheet — no conversion needed. Use its id directly.`,
     );
   }
   if (source.mimeType !== XLSX_MIME) {
     throw new SheetsApiError(
       400,
-      `"${source.name}" is ${source.mimeType}, not an .xlsx. Only .xlsx files can be converted here.`
+      `"${source.name}" is ${source.mimeType}, not an .xlsx. Only .xlsx files can be converted here.`,
     );
   }
   const params = new URLSearchParams({
@@ -699,7 +699,7 @@ export async function getAccountInfo(): Promise<{
   const data = await callGoogle<{
     user?: { emailAddress?: string; displayName?: string };
   }>(
-    'https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)'
+    'https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)',
   );
   return {
     email: data.user?.emailAddress ?? '(unknown)',
