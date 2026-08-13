@@ -96,10 +96,15 @@ the `protectedBranches` list from config. The set is deliberately generous: any
 branch a reasonable reader would call a trunk belongs in it. A false positive
 costs the user one rename; a false negative costs a shared branch.
 
-**If `CURRENT == BASE`:** stop. A branch cannot be a pull request into itself.
-There is no rescue here — the user picks a different base or moves.
+Then apply exactly two rules, **in this order** — `BASE` is itself in
+`PROTECTED`, so the two overlap and the order is what disambiguates them:
 
-**If `CURRENT` is protected (but is not `BASE`):** do not refuse. The user asked
+**1. If `CURRENT == BASE`:** stop. A branch cannot be a pull request into itself.
+There is no rescue here — the user picks a different base or moves. Check this
+first, before anything else, so standing on `main` with `main` as the base gives
+the accurate answer instead of an offer to branch that leads nowhere.
+
+**2. Otherwise, if `CURRENT` is protected:** do not refuse. The user asked
 to open a PR; they clearly meant to be on a branch. Move them:
 
 1. Take stock — `git status --short` and `git log --oneline @{u}..HEAD`. If both

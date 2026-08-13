@@ -38,6 +38,12 @@ function sh(cmd, args, opts = {}) {
   return execFileSync(cmd, args, { encoding: 'utf8', ...opts }).trim();
 }
 
+/**
+ * Contract, and it matters: `null` means the command FAILED. A command that
+ * succeeded and printed nothing returns `''`, which is falsy — so callers must
+ * test `=== null`, never `!result`. Commands like `git fetch` print nothing on
+ * success, and a truthiness check there reads success as failure.
+ */
 function shTry(cmd, args, opts = {}) {
   try {
     return sh(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], ...opts });
@@ -140,11 +146,16 @@ function loadConfig(root) {
   } catch (e) {
     die(`could not parse ${relative(root, path)}: ${e.message}`);
   }
-  return {
+  const cfg = {
     ...DEFAULTS,
     ...parsed,
     worktrees: { ...DEFAULTS.worktrees, ...(parsed.worktrees || {}) },
   };
+  // Validate here, not at the point of use: a bad install command discovered
+  // after `git worktree add` leaves a half-made worktree behind for the user
+  // to clean up. Refuse before anything exists.
+  assertRunnableInstall(cfg.worktrees.install);
+  return cfg;
 }
 
 function worktreesDir(root, cfg) {
@@ -227,55 +238,93 @@ function seedLocalFiles(root, target, patterns) {
   return copied;
 }
 
+// Shell metacharacters. A configured install command is read from a file that
+// travels with the repository, so `git clone && create a worktree` would be
+// enough to run whatever a stranger wrote there. Nothing here ever reaches a
+// shell (no `shell: true` anywhere in this file) and a command carrying any of
+// these is refused outright rather than quietly split into something else.
+const SHELL_METACHARS = /[;&|<>`$(){}[\]!*?~\n\r\\"']/;
+
+const isCustomInstall = (configured) =>
+  typeof configured === 'string' &&
+  configured !== 'auto' &&
+  configured !== 'off';
+
+function assertRunnableInstall(configured) {
+  if (!isCustomInstall(configured)) return;
+  if (SHELL_METACHARS.test(configured)) {
+    die(
+      `refusing worktrees.install: ${configured}\n` +
+        '  It contains shell metacharacters, and this script never invokes a shell.\n' +
+        '  Use a plain "program arg arg" command, or put the logic in a script and name that.',
+    );
+  }
+}
+
+/**
+ * The install command as an argv array — never as a string for a shell to
+ * re-parse. `null` means "install nothing".
+ */
 function installCommand(target, configured) {
   if (configured === 'off' || configured === false) return null;
-  if (typeof configured === 'string' && configured !== 'auto')
-    return configured;
+  if (isCustomInstall(configured)) {
+    assertRunnableInstall(configured);
+    const argv = configured.trim().split(/\s+/).filter(Boolean);
+    return argv.length ? argv : null;
+  }
   if (!existsSync(join(target, 'package.json'))) return null;
   if (existsSync(join(target, 'pnpm-lock.yaml')))
-    return 'pnpm install --frozen-lockfile';
-  if (existsSync(join(target, 'yarn.lock'))) return 'yarn install --immutable';
+    return ['pnpm', 'install', '--frozen-lockfile'];
+  if (existsSync(join(target, 'yarn.lock')))
+    return ['yarn', 'install', '--immutable'];
   if (
     existsSync(join(target, 'bun.lockb')) ||
     existsSync(join(target, 'bun.lock'))
   )
-    return 'bun install';
-  if (existsSync(join(target, 'package-lock.json'))) return 'npm ci';
-  return 'npm install';
+    return ['bun', 'install'];
+  if (existsSync(join(target, 'package-lock.json'))) return ['npm', 'ci'];
+  return ['npm', 'install'];
 }
 
-function runInstall(target, configured) {
-  const cmd = installCommand(target, configured);
-  if (!cmd) {
-    note('no dependency install (nothing to install, or disabled in config)');
-    return;
-  }
-  process.stdout.write(`  installing dependencies: ${cmd}\n`);
+function tryInstall(target, argv) {
   try {
-    execFileSync(cmd, {
+    execFileSync(argv[0], argv.slice(1), {
       cwd: target,
-      shell: true,
       stdio: ['ignore', 'ignore', 'pipe'],
       encoding: 'utf8',
     });
-    ok(`dependencies installed (${cmd})`);
+    return true;
   } catch {
-    if (cmd === 'npm ci') {
-      note('npm ci failed, falling back to npm install');
-      try {
-        execFileSync('npm install', {
-          cwd: target,
-          shell: true,
-          stdio: ['ignore', 'ignore', 'pipe'],
-        });
-        ok('dependencies installed (npm install)');
-        return;
-      } catch {
-        /* fall through to the warning */
-      }
-    }
-    note(`! install failed — the worktree exists, run "${cmd}" in it yourself`);
+    return false;
   }
+}
+
+function runInstall(target, configured) {
+  const argv = installCommand(target, configured);
+  if (!argv) {
+    note('no dependency install (nothing to install, or disabled in config)');
+    return;
+  }
+  const pretty = argv.join(' ');
+  process.stdout.write(`  installing dependencies: ${pretty}\n`);
+
+  if (tryInstall(target, argv)) {
+    ok(`dependencies installed (${pretty})`);
+    return;
+  }
+  // `npm ci` fails on a lockfile that is out of sync with package.json, which
+  // is common on a branch that changed dependencies. `npm install` is the
+  // documented recovery, so try it before giving up.
+  if (pretty === 'npm ci') {
+    note('npm ci failed, falling back to npm install');
+    if (tryInstall(target, ['npm', 'install'])) {
+      ok('dependencies installed (npm install)');
+      return;
+    }
+  }
+  note(
+    `! install failed — the worktree exists, run "${pretty}" in it yourself`,
+  );
 }
 
 // ── commands ───────────────────────────────────────────────────────────────

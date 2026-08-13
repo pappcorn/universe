@@ -126,6 +126,15 @@ Everything works with no configuration. To override a default, create
 `.env` is convenient and is also the plugin quietly making copies of your
 credentials on disk. Opt in when you want it.
 
+**The config file is trusted input, and it travels with the repository.** It is
+checked in, so cloning someone else's repo means inheriting their settings.
+`worktrees.install` is the key that could matter: it names a command that runs
+when you create a worktree. The script never invokes a shell and refuses any
+command containing shell metacharacters (`;`, `&&`, `|`, backticks, `$(…)` and
+friends), so a hostile config cannot chain something onto the end of an install
+— but it can still name a program. Read a repo's `.claude/best-practices-git.json`
+the same way you would read its `postinstall` script.
+
 ## The script
 
 `scripts/worktree.mjs` — zero dependencies, shells out to `git` and `gh`, runs on
