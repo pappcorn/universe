@@ -1,6 +1,6 @@
 {
   "name": "pappcorn-plugins",
-  "description": "PappCorn's plugin catalog for Claude — free open-source connectors plus licensed plugins.",
+  "description": "PappCorn's plugin catalog for Claude — free open-source connectors and skill packs, plus licensed plugins.",
   "owner": {
     "name": "PappCorn",
     "email": "hola@pappcorn.com"
@@ -23,6 +23,12 @@
       "source": "./packages/whatsapp-mcp",
       "version": "0.2.1",
       "description": "Send WhatsApp messages from your own number via Meta's official WhatsApp Cloud API. Outbound v1: templates and free-form replies inside the 24-hour window."
+    },
+    {
+      "name": "best-practices-git",
+      "source": "./packages/best-practices-git",
+      "version": "0.1.0",
+      "description": "How a team that works with agents commits and opens pull requests: /commit writes messages that explain why, /git-pr keeps PRs small and can never push to a protected branch, /worktree makes parallel branches the default. Adapts to your repo's existing conventions."
     },
     {
       "name": "product-team",

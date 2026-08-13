@@ -20,7 +20,7 @@ your credentials to anyone.
 ## The catalog
 
 This repo is PappCorn's plugin marketplace for Claude — `pappcorn-plugins`.
-It carries two kinds of plugins:
+It carries three kinds of plugins:
 
 ### Free connectors (bring your own credentials)
 
@@ -36,6 +36,18 @@ Claude's built-in Google connector reads and drafts but **deliberately cannot
 send**, and it cannot **edit** a spreadsheet — only read one, in full, which
 gets expensive fast on a file with tens of thousands of rows. Those gaps are the
 reason this repo exists.
+
+### Free skill packs
+
+No credentials and no server — just skills that encode a way of working, free
+and MIT-licensed like the connectors.
+
+|     | Plugin                                                | What it does                                                                                                                     |
+| :-: | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 🌿  | [**best-practices-git**](packages/best-practices-git) | How a team that works with agents commits (`/commit`), opens pull requests (`/git-pr`), and runs parallel branches (`/worktree`) |
+
+First of a `best-practices-*` family: one plugin per practice a team otherwise
+learns the hard way.
 
 ### Licensed plugins
 
@@ -64,6 +76,7 @@ To request access, write to [cris@pappcorn.com](mailto:cris@pappcorn.com).
 /plugin install gmail-mcp@pappcorn-plugins
 /plugin install gsheets-mcp@pappcorn-plugins
 /plugin install whatsapp-mcp@pappcorn-plugins
+/plugin install best-practices-git@pappcorn-plugins
 ```
 
 > **Marketplace renamed (July 2026):** this marketplace used to be called
@@ -80,6 +93,9 @@ Each connector needs a one-time account setup first:
 
 - ✉️ **Gmail** → [Connect your own Gmail account](docs/setup-google-cloud.md) · ~15 min · [screenshot walkthrough](docs/how-to-gmail.md)
 - 💬 **WhatsApp** → [Connect your own WhatsApp number](docs/setup-meta-whatsapp.md) · free test number, no line to buy
+
+The skill packs need none of that — `best-practices-git` has no credentials and
+no server; it drives the `git` and `gh` already on your machine.
 
 Prefer wiring it by hand, or not using plugins at all?
 See [install.md](docs/install.md).
@@ -130,7 +146,7 @@ before you trust it.
 ## Repository layout
 
 ```
-packages/    connectors and libraries (each publishable on its own)
+packages/    connectors, skill packs and libraries (each installable on its own)
 apps/        deployable applications
 site/        the public front door — GitHub Pages, in Spanish (see site/README.md)
 tools/       operator scripts
