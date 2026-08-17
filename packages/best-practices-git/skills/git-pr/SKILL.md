@@ -96,15 +96,15 @@ the `protectedBranches` list from config. The set is deliberately generous: any
 branch a reasonable reader would call a trunk belongs in it. A false positive
 costs the user one rename; a false negative costs a shared branch.
 
-Then apply exactly two rules, **in this order** — `BASE` is itself in
-`PROTECTED`, so the two overlap and the order is what disambiguates them:
+`CURRENT == BASE` is not a separate case, and must not be handled as one. `BASE`
+defaults to the repo's default branch, so "I'm on `main`, open a PR" _is_
+`CURRENT == BASE` — the single most common way this skill gets invoked. Refusing
+there on the grounds that a branch cannot be a pull request into itself would
+send the user away to do by hand the exact move the rescue below performs for
+them. `BASE` is a member of `PROTECTED` precisely so that standing on it takes
+the rescue path like any other trunk.
 
-**1. If `CURRENT == BASE`:** stop. A branch cannot be a pull request into itself.
-There is no rescue here — the user picks a different base or moves. Check this
-first, before anything else, so standing on `main` with `main` as the base gives
-the accurate answer instead of an offer to branch that leads nowhere.
-
-**2. Otherwise, if `CURRENT` is protected:** do not refuse. The user asked
+**If `CURRENT` is protected — `BASE` included:** do not refuse. The user asked
 to open a PR; they clearly meant to be on a branch. Move them:
 
 1. Take stock — `git status --short` and `git log --oneline @{u}..HEAD`. If both
@@ -119,7 +119,12 @@ to open a PR; they clearly meant to be on a branch. Move them:
    cleaning up, then `git branch -f <protected> origin/<protected>`. Those
    commits are safe: they live on the new branch. Never do this silently.
 
-From here `CURRENT` means the new branch.
+From here `CURRENT` means the new branch — which is what makes standing on the
+base survivable instead of fatal: after the switch `CURRENT != BASE`, and the
+pull request is `<new branch> → BASE`, which is what the user meant all along.
+The only branch that genuinely cannot be reviewed is one with nothing on it, and
+that is caught on evidence — by the take-stock step above, before a branch is
+cut, and again by Step 3 — never up front on a name comparison.
 
 ## Step 2 — Commit whatever is uncommitted
 
