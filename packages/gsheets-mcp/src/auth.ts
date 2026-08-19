@@ -91,8 +91,9 @@ function noAccessMessage(path: string): string {
   return (
     'No Google Sheets credential found. Either set GSHEETS_CLIENT_ID + ' +
     `GSHEETS_CLIENT_SECRET + GSHEETS_REFRESH_TOKEN in the environment, or create ${pretty} ` +
-    'by running the one-time setup: `npx -p @pappcorn/gsheets-mcp pappcorn-gsheets-setup ' +
-    '--client <your-oauth-client.json>`. Full walkthrough: README.md.'
+    'by running the one-time setup from a clone of github.com/pappcorn/universe: ' +
+    '`node packages/gsheets-mcp/scripts/mint-token.mjs --client <your-oauth-client.json>`. ' +
+    'Full walkthrough: README.md.'
   );
 }
 

@@ -124,21 +124,43 @@ You need a Google Cloud project of your own. About ten minutes, once.
 1. **Create a project** at [console.cloud.google.com](https://console.cloud.google.com).
 2. **Enable two APIs**: _Google Sheets API_ **and** _Google Drive API_. Missing the Drive one
    is the most common setup failure — `sheet_locate` and `sheet_import_xlsx` need it.
-3. **Configure the OAuth consent screen** — User type _External_. Add the three scopes listed
-   below.
-4. **Publish the app to Production.** If you leave it in _Testing_, Google expires your refresh
-   token after 7 days and the connector stops working with `invalid_grant`.
+3. **Configure the OAuth consent screen** — **Google Auth Platform** in newer consoles. Run its
+   wizard to the end (App Information → Audience _External_ → Contact → Finish) _before_ going
+   looking for the scopes: the **Data Access** page, where they live, only becomes usable once
+   the app exists. Then add the three scopes listed below.
+4. **Publish the app to Production** — **Audience** → **Publish app**. If you leave it in
+   _Testing_, Google expires your refresh token after 7 days and the connector stops working
+   with `invalid_grant`.
+
+   The console will push **verification** at you around this step. Publishing and verifying are
+   separate flows: `Audience → Publish app` is the one you need, and the _Verification Center_
+   can be left alone. An unverified production app works — it shows a **"Google hasn't verified
+   this app"** screen the first time you authorize it (**Advanced** → continue), and it caps the
+   project at **100 users for its lifetime**, a cap that never resets. You are one user.
+
+   Getting verified for real is the expensive path here: `drive.readonly` is one of Google's
+   _restricted_ scopes, the tier that also wants an annual third-party security assessment.
+   [Narrowing the scopes](#scopes) drops the app to _sensitive_ and avoids that tier entirely.
+
 5. **Create an OAuth client** of type _Desktop app_ and download its JSON.
-6. **Mint the token** — this logs you in and writes the credential file:
+6. **Mint the token** — this logs you in and writes the credential file. This connector is not
+   published to npm yet, so there is no `npx` shortcut: you run the script itself. It has no
+   dependencies, so a shallow clone is all it needs.
 
    ```bash
-   npx -p @pappcorn/gsheets-mcp pappcorn-gsheets-setup \
+   git clone --depth 1 https://github.com/pappcorn/universe.git
+   node universe/packages/gsheets-mcp/scripts/mint-token.mjs \
      --client ~/Downloads/client_secret_....json \
      --account you@yourcompany.com
    ```
 
    Pass `--account` and the script refuses to write if you log into the wrong Google account.
    Worth it: every edit this connector makes is attributed to whoever granted the token.
+
+   > Rather not clone? Install the plugin first (step 7), leaving its three credential fields
+   > blank, and run the copy that came with it — in Claude Code that is
+   > `~/.claude/plugins/marketplaces/pappcorn-plugins/packages/gsheets-mcp/scripts/mint-token.mjs`.
+   > With the fields blank the connector reads the credential file this script writes.
 
 7. **Install the plugin** and restart your assistant:
 
@@ -163,7 +185,7 @@ You need a Google Cloud project of your own. About ten minutes, once.
 **Narrowing them:** if you always paste explicit spreadsheet links and never convert `.xlsx`,
 drop `drive.readonly` and `drive.file` from both the consent screen and `SCOPES` in
 `src/auth.ts`, and re-mint. You lose `sheet_locate` and `sheet_import_xlsx`; everything else
-keeps working.
+keeps working — and the app no longer asks for a _restricted_ scope at all.
 
 ### Credentials
 
@@ -186,14 +208,16 @@ whole security story.
 
 ## Troubleshooting
 
-| Symptom                                     | Cause                                                                                    |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `invalid_grant` after ~7 days               | The OAuth app is still in _Testing_. Publish it to Production and re-mint.               |
-| `403` on a file you can see in Drive        | The account has **view** access, not **edit**. Sheets writes need edit.                  |
-| `404` on an id you copied                   | The file was never shared with the account that granted the token. Check `sheet_whoami`. |
-| `sheet_locate` fails, everything else works | The Drive API is not enabled on your Cloud project.                                      |
-| "over the 5000-cell read limit"             | Working as designed. Use `sheet_find` to locate rows, then read those.                   |
-| A write is REFUSED with a fresh preview     | Someone edited the range after the preview. Read the new before/after and confirm again. |
+| Symptom                                     | Cause                                                                                                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `invalid_grant` after ~7 days               | The OAuth app is still in _Testing_. Publish it to Production and re-mint.                                                                       |
+| `npx` says `404 Not Found` for this package | It isn't published to npm yet. Run the script from a clone — Setup step 6.                                                                       |
+| "Google hasn't verified this app"           | Expected for an app you built for yourself. **Advanced** → continue. Verification is optional; the step you needed was `Audience → Publish app`. |
+| `403` on a file you can see in Drive        | The account has **view** access, not **edit**. Sheets writes need edit.                                                                          |
+| `404` on an id you copied                   | The file was never shared with the account that granted the token. Check `sheet_whoami`.                                                         |
+| `sheet_locate` fails, everything else works | The Drive API is not enabled on your Cloud project.                                                                                              |
+| "over the 5000-cell read limit"             | Working as designed. Use `sheet_find` to locate rows, then read those.                                                                           |
+| A write is REFUSED with a fresh preview     | Someone edited the range after the preview. Read the new before/after and confirm again.                                                         |
 
 ---
 
