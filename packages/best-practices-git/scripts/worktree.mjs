@@ -585,8 +585,12 @@ function cmdRemove(root, cfg, args) {
 
 function cmdPrune() {
   const out = sh('git', ['worktree', 'prune', '-v']);
-  ok('pruned stale worktree records');
-  if (out) console.log(out);
+  if (out) {
+    ok('pruned stale worktree records');
+    console.log(out);
+  } else {
+    note('no stale worktree records to prune');
+  }
 }
 
 function cmdStatus(root, cfg) {
