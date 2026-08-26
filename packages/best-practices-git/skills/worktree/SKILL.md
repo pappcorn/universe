@@ -64,7 +64,7 @@ That is the trade, and it is usually a good one.
 Where you are and where worktrees land:
 
 ```!
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/worktree.mjs" status 2>/dev/null || echo "(run the script from inside a git repo)"
+node "$CLAUDE_PLUGIN_ROOT/scripts/worktree.mjs" status 2>/dev/null || echo "(no plugin root — see 'The script' below for where the helper lives)"
 ```
 
 Existing worktrees:
