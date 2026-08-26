@@ -143,13 +143,10 @@ You need a Google Cloud project of your own. About ten minutes, once.
    [Narrowing the scopes](#scopes) drops the app to _sensitive_ and avoids that tier entirely.
 
 5. **Create an OAuth client** of type _Desktop app_ and download its JSON.
-6. **Mint the token** — this logs you in and writes the credential file. This connector is not
-   published to npm yet, so there is no `npx` shortcut: you run the script itself. It has no
-   dependencies, so a shallow clone is all it needs.
+6. **Mint the token** — this logs you in and writes the credential file:
 
    ```bash
-   git clone --depth 1 https://github.com/pappcorn/universe.git
-   node universe/packages/gsheets-mcp/scripts/mint-token.mjs \
+   npx -p @pappcorn/gsheets-mcp pappcorn-gsheets-setup \
      --client ~/Downloads/client_secret_....json \
      --account you@yourcompany.com
    ```
@@ -157,17 +154,15 @@ You need a Google Cloud project of your own. About ten minutes, once.
    Pass `--account` and the script refuses to write if you log into the wrong Google account.
    Worth it: every edit this connector makes is attributed to whoever granted the token.
 
-   > Rather not clone? Install the plugin first (step 7), leaving its three credential fields
-   > blank, and run the copy that came with it — in Claude Code that is
-   > `~/.claude/plugins/marketplaces/pappcorn-plugins/packages/gsheets-mcp/scripts/mint-token.mjs`.
-   > With the fields blank the connector reads the credential file this script writes.
-
 7. **Install the plugin** and restart your assistant:
 
    ```
    /plugin marketplace add pappcorn/universe
    /plugin install gsheets-mcp@pappcorn-plugins
    ```
+
+   Leave the three credential fields **empty**. Step 6 already wrote the credential file, and
+   blank fields are exactly what makes the connector fall back to reading it.
 
    In Claude Desktop's `Code` tab there is no `/plugin` command — use the **`+`** button next
    to the prompt box and the plugin browser.
@@ -211,7 +206,6 @@ whole security story.
 | Symptom                                     | Cause                                                                                                                                            |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `invalid_grant` after ~7 days               | The OAuth app is still in _Testing_. Publish it to Production and re-mint.                                                                       |
-| `npx` says `404 Not Found` for this package | It isn't published to npm yet. Run the script from a clone — Setup step 6.                                                                       |
 | "Google hasn't verified this app"           | Expected for an app you built for yourself. **Advanced** → continue. Verification is optional; the step you needed was `Audience → Publish app`. |
 | `403` on a file you can see in Drive        | The account has **view** access, not **edit**. Sheets writes need edit.                                                                          |
 | `404` on an id you copied                   | The file was never shared with the account that granted the token. Check `sheet_whoami`.                                                         |
