@@ -3,9 +3,7 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "customConditions": null,
+    "types": ["node"],
     "composite": false,
     "declaration": true,
     "emitDeclarationOnly": false,
