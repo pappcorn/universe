@@ -10,13 +10,13 @@
   },
   "private": true,
   "devDependencies": {
-    "@nx/js": "23.1.1",
+    "@nx/js": "23.1.2",
     "@swc-node/register": "~1.12.1",
     "@swc/core": "~1.16.1",
     "@swc/helpers": "~0.5.23",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "esbuild": "^0.28.2",
-    "nx": "23.1.1",
+    "nx": "23.1.2",
     "prettier": "^3.9.6",
     "tslib": "^2.3.0",
     "typescript": "~6.0.3"

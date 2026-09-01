@@ -1,0 +1,18 @@
+{
+  "name": "best-practices-git",
+  "displayName": "Best Practices: Git",
+  "version": "0.1.0",
+  "description": "How a team that works with agents commits and opens pull requests: /commit writes messages that explain why, /git-pr keeps PRs small and can never push to a protected branch, /worktree makes parallel branches the default. Adapts to your repo's existing conventions.",
+  "author": { "name": "PappCorn" },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/best-practices-git",
+  "repository": "https://github.com/pappcorn/universe",
+  "license": "MIT",
+  "keywords": [
+    "git",
+    "github",
+    "pull-request",
+    "worktree",
+    "conventional-commits",
+    "best-practices"
+  ]
+}
