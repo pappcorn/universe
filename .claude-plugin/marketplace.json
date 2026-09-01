@@ -33,7 +33,7 @@
     {
       "name": "product-team",
       "source": { "source": "github", "repo": "pappcorn/plugin-product-team" },
-      "version": "0.2.0",
+      "version": "0.5.0",
       "description": "PappCorn's six-agent INSPIRED product team (product-manager, uiux-designer, coder, qa-tester, debugger, deployer) plus the dev-loop skills (triage, ship-issue, review-loop, issue-planner). Licensed plugin — installation requires granted read access to its repo. Request access: cris@pappcorn.com."
     }
   ]
