@@ -5,6 +5,7 @@ Do the account setup first — the connector is useless without a credential:
 - **Gmail** → [setup-google-cloud.md](setup-google-cloud.md)
   (visual version with screenshots: [how-to-gmail.md](how-to-gmail.md))
 - **WhatsApp** → [setup-meta-whatsapp.md](setup-meta-whatsapp.md)
+- **Obsidian** → [setup-obsidian.md](setup-obsidian.md) — no account setup; it only needs your vault folder
 
 Then pick one of the two paths below.
 
@@ -29,8 +30,13 @@ by the setup guide).
 **WhatsApp** asks for: access token, phone number ID, and optionally the
 WhatsApp Business Account ID.
 
+**Obsidian** asks for no credential at all — just your vault folder, and whether
+to stay read-only (leave that on).
+
 > This path runs a self-contained bundle committed to the repo — nothing is
-> fetched from npm and there is no build step.
+> fetched from npm and there is no build step. `obsidian-mcp` is the exception:
+> it is packaging for a third-party server and resolves
+> `@bitbonsai/mcpvault@0.16.0` from npm the first time it starts.
 
 ---
 

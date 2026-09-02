@@ -20,7 +20,7 @@ your credentials to anyone.
 ## The catalog
 
 This repo is PappCorn's plugin marketplace for Claude — `pappcorn-plugins`.
-It carries three kinds of plugins:
+It carries four kinds of plugins:
 
 ### Free connectors (bring your own credentials)
 
@@ -36,6 +36,16 @@ Claude's built-in Google connector reads and drafts but **deliberately cannot
 send**, and it cannot **edit** a spreadsheet — only read one, in full, which
 gets expensive fast on a file with tens of thousands of rows. Those gaps are the
 reason this repo exists.
+
+### Packaged third-party connectors
+
+Not our code — someone else's open-source MCP server, packaged so it installs
+like everything else here. We pin the version, ship a safe default, and credit
+the author; we do not maintain the server itself.
+
+|     | Connector                                 | What it does                                                                  | By                                                     |
+| :-: | ----------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------ |
+| 🗒️  | [**obsidian-mcp**](packages/obsidian-mcp) | Read and search your own Obsidian vault — read-only by default, no credential | [MCPVault](https://github.com/bitbonsai/mcpvault), MIT |
 
 ### Free skill packs
 
@@ -76,6 +86,7 @@ To request access, write to [cris@pappcorn.com](mailto:cris@pappcorn.com).
 /plugin install gmail-mcp@pappcorn-plugins
 /plugin install gsheets-mcp@pappcorn-plugins
 /plugin install whatsapp-mcp@pappcorn-plugins
+/plugin install obsidian-mcp@pappcorn-plugins
 /plugin install best-practices-git@pappcorn-plugins
 ```
 
@@ -93,6 +104,7 @@ Each connector needs a one-time account setup first:
 
 - ✉️ **Gmail** → [Connect your own Gmail account](docs/setup-google-cloud.md) · ~15 min · [screenshot walkthrough](docs/how-to-gmail.md)
 - 💬 **WhatsApp** → [Connect your own WhatsApp number](docs/setup-meta-whatsapp.md) · free test number, no line to buy
+- 🗒️ **Obsidian** → [Connect your Obsidian vault](docs/setup-obsidian.md) · ~3 min, no account at all
 
 The skill packs need none of that — `best-practices-git` has no credentials and
 no server; it drives the `git` and `gh` already on your machine.
@@ -134,12 +146,20 @@ prompt-injection surface. We build and maintain these ourselves so the tool
 surface stays small, auditable and deliberate — and so you can read every line
 before you trust it.
 
+**Where we make an exception**, we say so on the plugin and we do three things:
+pin an exact version so an install cannot change under you, ship the safest
+default the upstream server offers, and credit the author. `obsidian-mcp` is the
+only one today — a vault is a folder of your own files, with no account and no
+credential to hand over, which is the narrowest possible version of this trade.
+
 ### What they will not do
 
 - **Nothing autonomous.** They act when you ask. Nothing watches your inbox and
   replies on its own.
 - **Sending always confirms first** — recipient, subject, full body.
 - **Gmail never deletes mail.** It labels and archives; that is all.
+- **Obsidian is read-only by default.** It reads and searches your notes; it
+  cannot change or remove one unless you deliberately turn that off.
 
 ---
 

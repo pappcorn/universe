@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "obsidian": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@bitbonsai/mcpvault@0.16.0",
+        "${user_config.vault_path}",
+        "--read-only=${user_config.read_only}"
+      ]
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "obsidian-mcp",
+  "displayName": "Obsidian",
+  "version": "0.1.0",
+  "description": "Read and search your own Obsidian vault from Claude. Packaging of the third-party MIT-licensed MCPVault server by Mauricio Wolff — your notes stay on your machine.",
+  "author": { "name": "PappCorn" },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/obsidian-mcp",
+  "repository": "https://github.com/pappcorn/universe",
+  "license": "MIT",
+  "keywords": ["obsidian", "notes", "vault", "markdown", "mcp"],
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "vault_path": {
+      "type": "directory",
+      "title": "Vault folder",
+      "description": "The folder on this computer that holds your notes — the same folder you open in Obsidian. Nothing outside this folder is ever reachable.",
+      "required": true
+    },
+    "read_only": {
+      "type": "boolean",
+      "title": "Read-only",
+      "description": "Leave ON so Claude can read and search your notes but never change or remove a file. Turning it OFF also enables permanent deletion, which this catalog does not otherwise ship — see the README before changing it.",
+      "required": true,
+      "default": true
+    }
+  }
+}
