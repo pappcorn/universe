@@ -20,7 +20,7 @@
       "type": "boolean",
       "title": "Read-only",
       "description": "Leave ON so Claude can read and search your notes but never change or remove a file. Turning it OFF also enables permanent deletion, which this catalog does not otherwise ship — see the README before changing it.",
-      "required": true,
+      "required": false,
       "default": true
     }
   }
