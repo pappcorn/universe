@@ -14,10 +14,10 @@
     "@swc-node/register": "~1.12.1",
     "@swc/core": "~1.16.2",
     "@swc/helpers": "~0.5.23",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.1",
     "esbuild": "^0.28.2",
     "nx": "23.2.1",
-    "prettier": "^3.9.6",
+    "prettier": "^3.9.8",
     "tslib": "^2.3.0",
     "typescript": "~6.0.3"
   },
