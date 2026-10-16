@@ -151,7 +151,11 @@ differences cannot trip it.
    `NPM_TOKEN` repository secret or npm trusted publishing configured for this
    repo.
 4. Check the result: `npm view @pappcorn/<name> version` shows the new version,
-   and the npm page shows the provenance badge.
+   and the npm page shows the provenance badge. The registry can take a minute
+   or two to list a fresh version, so a stale answer right after a green run is
+   not a failed publish. Ask for the exact version instead:
+   `curl -s -o /dev/null -w '%{http_code}' https://registry.npmjs.org/@pappcorn%2f<name>/<version>`
+   returns `200` once it is live.
 
 Tag the same commit that carries the bump, so npm and the plugin ship the same
 code under the same number. Never retag a published version; bump and release
@@ -342,6 +346,14 @@ bundles and the patch bumps, and push. Once a human has pushed to it, the PR
 is no longer a pure Dependabot PR: it waits for a human approval, and
 Dependabot stops rebasing it. Dev-only bumps don't change the bundles and
 still merge on their own.
+An automated rebuild path for the bot lane is tracked in #89.
+
+**A version that already merged is spent.** #81 put gmail-mcp 0.3.2 on `main`
+with the old bundle, and #86 then rebuilt that bundle without bumping. Plugin
+updates are keyed on the version, so anyone already on 0.3.2 would never have
+received the rebuild. The fix was 0.3.3. Once a version reaches `main`, any
+later change to that plugin's shipped files needs a new one, even if npm never
+published the first.
 
 **The npx symlink guard (#79).** `pappcorn-gmail-setup` exited 0 without
 doing anything when run through `npx`. The script's "was I run directly?"
