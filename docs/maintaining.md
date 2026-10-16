@@ -116,7 +116,9 @@ they must stay byte-for-byte what esbuild emits.
 CI enforces the rule above (added in #86). After the affected build, the `CI`
 workflow rebuilds every connector bundle (`npx nx run-many -t bundle`),
 whether or not `affected` selected that connector, and fails if any
-`packages/*/server/mcp.cjs` differs from the committed one or is missing:
+`packages/*/server/mcp.cjs` differs from the committed one. It also fails if a
+package's `.mcp.json` launches `server/mcp.cjs` and that file is not committed,
+which is how a new connector would otherwise slip through:
 
 > The committed plugin bundle (packages/&lt;name&gt;/server/mcp.cjs) is out of
 > date. …
