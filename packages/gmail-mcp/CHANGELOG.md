@@ -3,6 +3,15 @@
 All notable changes to `@pappcorn/gmail-mcp`. This project follows
 [semantic versioning](https://semver.org/).
 
+## 0.3.3
+
+### Changed
+
+- **The plugin bundle is rebuilt from the current lockfile.** `server/mcp.cjs`,
+  the file a plugin install runs, had not been rebuilt since #33. It now ships
+  the dependency versions npm users already get (zod 4, MCP SDK 1.32). The tool
+  surface is unchanged. See #84.
+
 ## 0.3.2
 
 ### Fixed
