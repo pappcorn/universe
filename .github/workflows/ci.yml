@@ -55,6 +55,20 @@ jobs:
 
       - name: Check the committed plugin bundles are up to date
         run: |
+          # A plugin whose .mcp.json launches server/mcp.cjs must have that file
+          # committed. The diff below cannot see a bundle that was never built.
+          missing=""
+          for manifest in packages/*/.mcp.json; do
+            [ -f "$manifest" ] || continue
+            grep -q 'server/mcp.cjs' "$manifest" || continue
+            bundle="$(dirname "$manifest")/server/mcp.cjs"
+            git ls-files --error-unmatch "$bundle" >/dev/null 2>&1 || missing="$missing $bundle"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Plugin bundle not committed:$missing. Its .mcp.json launches it, so a plugin install would fail to start. Give the package a 'bundle' script (see packages/gmail-mcp/package.json), run 'npm ci && npx nx run-many -t build' from the repo root, and commit server/mcp.cjs."
+            exit 1
+          fi
+
           if [ -n "$(git status --porcelain -- 'packages/*/server/mcp.cjs')" ]; then
             git --no-pager diff --stat -- 'packages/*/server/mcp.cjs'
             git status --short -- 'packages/*/server/mcp.cjs'
