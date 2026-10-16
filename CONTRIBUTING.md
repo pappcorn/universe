@@ -28,6 +28,11 @@ standalone publishable npm package.
   account — these tools touch real inboxes and real people. If you can't, say so
   in the PR rather than implying you did.
 - **Format.** `npm run format`.
+- **Rebuild the bundle.** If you changed a connector's `src/` or one of its
+  runtime dependencies, commit the rebuilt `server/mcp.cjs` and bump the
+  plugin's version. Plugin installs run that file, and CI fails when it is out of
+  date. Releasing, versioning and verifying each product:
+  [docs/maintaining.md](docs/maintaining.md).
 
 ## How a PR gets merged
 
@@ -117,8 +122,8 @@ packages/<name>-mcp/
     └── cli.ts      # CLI entry point
 ```
 
-Then add it to `.claude-plugin/marketplace.json` and write a setup guide in
-`docs/`.
+Then add it to `.claude-plugin/marketplace.json`, write a setup guide in
+`docs/`, and give it a section in [docs/maintaining.md](docs/maintaining.md).
 
 **Bring your own app.** Any new connector must let each user supply their own
 application credentials for their own account. We do not ship a shared
