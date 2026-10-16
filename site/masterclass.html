@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tu Ventaja con IA · Kit de la masterclass</title>
+    <meta
+      name="description"
+      content="El kit de la masterclass Tu Ventaja con IA de PappCorn: dos prompts, el framework R-C-T-F, un skill de regalo y el mapa de la clase."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#contenido">Saltar al contenido</a>
+    <div class="topbar">
+      <div class="wrap">
+        <a class="brand" href="./">PappCorn <span>Universe</span></a>
+        <nav aria-label="Principal">
+          <ul>
+            <li><a href="./">Inicio</a></li>
+            <li><a href="./#catalogo">Catálogo</a></li>
+            <li><a href="https://pappcorn.ai/">pappcorn.ai</a></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+
+    <!-- The masterclass kit ("Tu Ventaja con IA"), moved here verbatim from
+         index.html when the front door became the catalog landing. -->
+    <header class="hero">
+      <div class="wrap">
+        <div class="kicker">PappCorn · Universe</div>
+        <h1>Comanda tu propia <span class="acc">IA</span>.</h1>
+        <p class="lede">
+          El kit completo de la masterclass <b>Tu Ventaja con IA</b> — prompts,
+          framework y un skill, <b>listos para copiar</b> — y el
+          <a href="./#catalogo">catálogo abierto</a> de conectores para darle
+          poderes reales a tu asistente. Es tuyo —
+          <b>compártelo con quien quieras.</b>
+        </p>
+      </div>
+    </header>
+
+    <main id="contenido">
+      <!-- 1 · Arma tu Claude -->
+      <section>
+        <div class="wrap">
+          <div class="eyebrow">Empieza aquí</div>
+          <h2>
+            Arma tu propio <span class="acc">equipo de IA</span> en 4 pasos.
+          </h2>
+          <ul class="steps">
+            <li>
+              <b>1 · Tu propio Claude</b> — que te conoce. Créalo gratis en
+              <a href="https://claude.ai" target="_blank" rel="noopener"
+                >claude.ai</a
+              >
+              y pega tus instrucciones (prompt 1, abajo) en
+              <b>Settings → Instructions for Claude</b>.
+            </li>
+            <li>
+              <b>2 · Tu primer especialista</b> — crea un <b>Project</b> y dale
+              su rol con el prompt 2 (abajo).
+            </li>
+            <li>
+              <b>3 · Sus poderes</b> — conéctale Gmail, Google Calendar y Google
+              Drive en <b>Customize → Connectors</b> (gratis), y súmale el skill
+              de abajo.
+            </li>
+            <li>
+              <b>4 · Úsalo</b> — pídele algo real: "revisa mi agenda", "procesa
+              la reunión de ayer", "escribe el post de la semana".
+            </li>
+          </ul>
+          <p class="p">
+            Cuando esos cuatro pasos se te queden cortos, sigue con
+            <a href="./#catalogo">el catálogo</a>: conectores abiertos para que
+            tu asistente mande correos, edite hojas de cálculo y escriba por
+            WhatsApp — desde tus propias cuentas.
+          </p>
+        </div>
+      </section>
+
+      <!-- 2 · Prompt 1 identidad -->
+      <section>
+        <div class="wrap">
+          <div class="eyebrow">Prompt 1 · Tus instrucciones</div>
+          <h2>
+            Que Claude escriba <span class="acc">tus</span> instrucciones.
+          </h2>
+          <p class="p">
+            Pégalo en un chat nuevo. Claude te hace 3 preguntas y te devuelve el
+            texto para pegar en <b>Settings → Instructions for Claude</b>.
+          </p>
+          <div class="block">
+            <div class="bar">
+              <div class="name">Meta-prompt de identidad</div>
+              <button class="copy" data-t="p1">Copiar</button>
+            </div>
+            <pre id="p1">
+Ayúdame a escribir mis «Instrucciones para Claude»: un texto corto que vas a
+recordar en todos mis chats para responderme mejor desde el primer mensaje.
+
+Primero hazme unas preguntas, de una en una y en lenguaje sencillo, para
+conocerme: quién soy y a qué me dedico, en qué quiero que me ayudes más
+seguido, y cómo prefiero que me hables (idioma, tono y qué tan largo).
+
+Cuando ya me conozcas, escríbeme el texto final en primera persona ("Soy…",
+"Prefiero…"), claro y corto (máximo 1000 caracteres), y muéstramelo en un
+bloque de código para copiarlo fácil.
+
+Empieza con la primera pregunta.</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 · Prompt 2 especialista -->
+      <section>
+        <div class="wrap">
+          <div class="eyebrow">Prompt 2 · Tu especialista</div>
+          <h2>Construye un <span class="acc">asistente</span> para lo tuyo.</h2>
+          <p class="p">
+            En claude.ai → <b>New Project</b> → nómbralo ("Mi asistente de
+            ___"). Pégale este prompt para que escriba sus instrucciones, y
+            ponlas en <b>Instructions</b> del Project.
+          </p>
+          <div class="block">
+            <div class="bar">
+              <div class="name">Meta-prompt de especialista</div>
+              <button class="copy" data-t="p2">Copiar</button>
+            </div>
+            <pre id="p2">
+Quiero crear un asistente especializado. Ayúdame a escribir sus «instrucciones»:
+el texto que define su rol y cómo trabaja, que voy a pegar en un Project de Claude.
+
+Primero hazme 3–4 preguntas para entender: qué tarea hace este asistente por mí,
+qué debe SIEMPRE hacer y qué NUNCA, y con qué tono/formato quiero sus entregas.
+
+Luego escríbeme las instrucciones finales en segunda persona ("Eres mi asistente
+de ___. Tu trabajo es…"), claras y cortas, en un bloque de código para copiar.
+
+Empieza con la primera pregunta.</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4 · RCTF -->
+      <section>
+        <div class="wrap">
+          <div class="eyebrow">El framework</div>
+          <h2>R-C-T-F: pide bien y <span class="acc">todo cambia</span>.</h2>
+          <p class="p">
+            El 80% de la mala IA es prompting flojo. Estas 4 letras arreglan
+            casi todo:
+          </p>
+          <div class="grid">
+            <div class="rctf">
+              <div class="l">R · Rol</div>
+              <div class="d">
+                Quién quieres que sea. "Eres mi consultor de marketing…"
+              </div>
+            </div>
+            <div class="rctf">
+              <div class="l">C · Contexto</div>
+              <div class="d">
+                Tu situación y tu meta. "Tengo una tienda online, quiero vender
+                más…"
+              </div>
+            </div>
+            <div class="rctf">
+              <div class="l">T · Tarea</div>
+              <div class="d">
+                Qué necesitas ahora, concreto. "Escríbeme 3 posts para
+                Instagram…"
+              </div>
+            </div>
+            <div class="rctf">
+              <div class="l">F · Formato</div>
+              <div class="d">
+                Idioma, tono, largo, estructura. "En español, cercano, 3
+                bullets…"
+              </div>
+            </div>
+          </div>
+          <div class="block">
+            <div class="bar">
+              <div class="name">
+                Plantilla <span>· llena los corchetes</span>
+              </div>
+              <button class="copy" data-t="rctf">Copiar</button>
+            </div>
+            <pre id="rctf">
+ROL: Eres mi [___].
+CONTEXTO: Soy [quién soy]. Mi situación: [X]. Mi meta: [Y].
+TAREA: [lo que necesito ahora, concreto].
+FORMATO: [idioma, tono, largo y estructura de la respuesta].</pre>
+          </div>
+          <p class="p">
+            ¿Lo quieres en una sola página para imprimir o compartir?
+            <a href="tu-ventaja-con-ia-rctf.pdf"
+              >Descarga el one-pager R-C-T-F (PDF)</a
+            >.
+          </p>
+        </div>
+      </section>
+
+      <!-- 5 · Skill -->
+      <section>
+        <div class="wrap">
+          <div class="eyebrow">Skill de regalo</div>
+          <h2>
+            <span class="acc">/meeting-gardening</span> — de reunión a tareas.
+          </h2>
+          <p class="p">
+            Un <b>skill</b> es un procedimiento escrito una vez que tu asistente
+            repite igual de bien cada vez. Este convierte la nota de una reunión
+            (en tu Drive) en un resumen + lista de tareas. Agrégalo en
+            <b>Customize → Skills → Add → Write skill instructions</b> (necesita
+            Google Drive conectado).
+          </p>
+          <div class="block">
+            <div class="bar">
+              <div class="name">
+                meeting-gardening <span>· instrucciones del skill</span>
+              </div>
+              <button class="copy" data-t="skill">Copiar</button>
+            </div>
+            <pre id="skill">
+Versión ligera para uso personal: solo necesita Google Drive conectado (y
+opcionalmente Google Calendar). El resultado se entrega listo para copiar.
+
+Cuando el usuario pida procesar una reunión, sigue estos pasos en orden:
+
+1. ENCUENTRA LA NOTA
+- Busca en Google Drive la nota o transcripción de reunión más reciente
+  (por ejemplo un "Notes by Gemini"), o la que el usuario nombre.
+- Si hay más de una candidata, muestra las opciones y pregunta cuál.
+
+2. EXTRAE LO IMPORTANTE
+- Resumen en máximo 5 líneas.
+- Decisiones tomadas (solo las explícitas).
+- Action items: qué + quién + para cuándo, según lo que se dijo.
+
+3. ENTREGA EL RESULTADO (listo para copiar)
+Reunión: &lt;nombre&gt; · &lt;fecha&gt;
+Resumen: &lt;5 líneas máx.&gt;
+Decisiones: &lt;lista, o "ninguna explícita"&gt;
+Tareas: una tabla con columnas Qué | Quién | Para cuándo.
+Marca lo que quedó sin responsable o sin fecha para que lo completes.
+
+REGLAS DURAS
+- Nunca inventes responsables, fechas ni decisiones que no estén en la nota.
+- Si la nota está incompleta, dilo y pide la información — no rellenes huecos.</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6 · Mapa -->
+      <section>
+        <div class="wrap">
+          <div class="eyebrow">El mapa que dibujamos</div>
+          <h2>Del token al <span class="acc">ejército</span>.</h2>
+          <p class="p">
+            El diagrama completo que construimos juntos: cómo funciona la IA por
+            dentro, y las tres formas de comandarla.
+          </p>
+          <img
+            class="mapimg"
+            src="mapa.png"
+            alt="Mapa: LLM, chat, proyecto, agente y las 3 formas de comandar a Claude"
+          />
+        </div>
+      </section>
+    </main>
+
+    <footer class="center">
+      <div class="wrap">
+        <p class="big">
+          Si esto te voló la cabeza, no me hagas publicidad:
+          <span class="acc"
+            >cuéntale a alguien que aprecies lo que aprendiste hoy.</span
+          >
+        </p>
+        <p class="meta">Nicolás Contreras · PappCorn · nicolas@pappcorn.com</p>
+        <p class="meta">
+          Las próximas ediciones las anunciamos en
+          <a
+            href="https://www.linkedin.com/company/pappcorn/"
+            target="_blank"
+            rel="noopener"
+            >LinkedIn</a
+          >
+          · el código vive en
+          <a
+            href="https://github.com/pappcorn/universe"
+            target="_blank"
+            rel="noopener"
+            >GitHub</a
+          >.
+        </p>
+        <p class="tag">No te enseñamos IA. Te ponemos a comandarla.</p>
+      </div>
+    </footer>
+
+    <script src="copy.js"></script>
+  </body>
+</html>
