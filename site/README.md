@@ -6,7 +6,7 @@ Pages (deployed by [`.github/workflows/pages.yml`](../.github/workflows/pages.ym
 It is the landing page for the PappCorn Universe catalog: what is in the
 `pappcorn-plugins` marketplace, how to install from it, the `cris-asiste`
 skills as downloadable kits, and a pointer to Cris at
-[pappcorn.ai](https://pappcorn.ai/).
+[pappcorn.ai](https://pappcorn.ai/?de=universe-portada).
 
 | File                | What it is                                                                                                               |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------ |

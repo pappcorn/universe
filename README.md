@@ -13,7 +13,7 @@ and a licensed product team of agents. Open source, MIT, readable line by line.
 [![MCP](https://img.shields.io/badge/Model_Context_Protocol-black.svg)](https://modelcontextprotocol.io)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-black.svg)](CONTRIBUTING.md)
 
-[pappcorn.ai](https://pappcorn.ai/) · [Front door (Spanish)](https://pappcorn.github.io/universe/) · [Contributing](CONTRIBUTING.md)
+[pappcorn.ai](https://pappcorn.ai/?de=universe-readme) · [Front door (Spanish)](https://pappcorn.github.io/universe/) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -34,7 +34,7 @@ Claude. It is for:
 
 The catalog is maintained by [PappCorn](https://pappcorn.com). If you would
 rather have someone walk you through it, talk to **Cris** at
-[pappcorn.ai](https://pappcorn.ai/). Cris is PappCorn's AI agent, the friend
+[pappcorn.ai](https://pappcorn.ai/?de=universe-readme). Cris is PappCorn's AI agent, the friend
 who knows AI and helps you configure it for your own work. Plans live there
 too.
 
@@ -175,5 +175,5 @@ fixes it for us too.
 [MIT](LICENSE) — do what you like with it.
 
 <div align="center">
-<sub>Built by <a href="https://pappcorn.com">PappCorn</a> 🍿 · Talk to Cris at <a href="https://pappcorn.ai/">pappcorn.ai</a></sub>
+<sub>Built by <a href="https://pappcorn.com">PappCorn</a> 🍿 · Talk to Cris at <a href="https://pappcorn.ai/?de=universe-readme">pappcorn.ai</a></sub>
 </div>
