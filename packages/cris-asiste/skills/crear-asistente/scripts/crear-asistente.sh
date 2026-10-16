@@ -39,7 +39,7 @@ cp -R "$BASE/vault" "$DEST/vault"
 tmp="$(mktemp)"
 sed "s/\"assistant_name\": \"asistente\"/\"assistant_name\": \"$NAME\"/" "$DEST/profile.json" > "$tmp"
 mv "$tmp" "$DEST/profile.json"
-grep -q "\"assistant_name\": \"$NAME\"" "$DEST/profile.json" || { echo "No pude poner el nombre en profile.json: la base cambió." >&2; exit 1; }
+grep -qF "\"assistant_name\": \"$NAME\"" "$DEST/profile.json" || { echo "No pude poner el nombre en profile.json: la base cambió." >&2; exit 1; }
 
 echo "Listo. Tu asistente '$NAME' quedó en: $DEST"
 echo "Siguiente paso: abre esa carpeta en Claude Code y escribe: empezar"

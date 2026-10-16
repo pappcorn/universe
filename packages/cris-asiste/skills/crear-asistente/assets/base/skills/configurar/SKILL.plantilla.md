@@ -52,6 +52,12 @@ conectarla, y que **nunca debe pegar claves en el chat**. Las conexiones se acti
 (`/mcp`) o desde su cuenta de Claude; guía a la persona un paso a la vez. Marca en `profile.json`
 solo las que quedaron funcionando.
 
+Cada especialista solo ve las herramientas que nombra en la línea `tools:` de su archivo. Cuando quede
+funcionando el correo o el calendario, agrega a la línea `tools:` de `.claude/agents/foco.md` los
+nombres de las herramientas de ese conector tal como aparecen en tu lista (empiezan por `mcp__`).
+Agrega solo las de leer y buscar, salvo que la persona pida más. Dile qué agregaste y por qué: sin
+eso, `foco` no puede ver su agenda ni su correo.
+
 ## Escribir todo
 
 En este orden:
