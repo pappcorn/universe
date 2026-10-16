@@ -1,10 +1,14 @@
 // "Copiar" buttons: copy the text of the element named by data-t.
 document.querySelectorAll('.copy').forEach((btn) => {
+  const el = document.getElementById(btn.dataset.t);
+  if (!el) return;
+  const label = btn.textContent;
+  let timer;
   btn.addEventListener('click', async () => {
-    const el = document.getElementById(btn.dataset.t);
     try {
       await navigator.clipboard.writeText(el.innerText);
     } catch (e) {
+      // Fallback for browsers without the async clipboard API.
       const r = document.createRange();
       r.selectNode(el);
       getSelection().removeAllRanges();
@@ -12,11 +16,11 @@ document.querySelectorAll('.copy').forEach((btn) => {
       document.execCommand('copy');
       getSelection().removeAllRanges();
     }
-    const old = btn.textContent;
     btn.textContent = '¡Copiado!';
     btn.classList.add('done');
-    setTimeout(() => {
-      btn.textContent = old;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      btn.textContent = label;
       btn.classList.remove('done');
     }, 1600);
   });

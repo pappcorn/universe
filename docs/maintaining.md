@@ -395,11 +395,13 @@ Actions:
       (Google Cloud, Meta for Developers) and click every link in `README.md`,
       `docs/` and the package READMEs. Fix anything that moved.
 - [ ] **Site link check.** Every link on the public site must resolve,
-      including the skill downloads. A quick pass:
+      including the skill downloads and the masterclass PDF and map, which
+      sent emails link to. A quick pass over both pages:
 
   ```bash
   base=https://pappcorn.github.io/universe/
-  curl -fsS "$base" | grep -oE 'href="[^"#]+' | cut -d'"' -f2 | sort -u |
+  for page in "" masterclass.html; do curl -fsS "$base$page"; done |
+    grep -oE '(href|src)="[^"#]+' | cut -d'"' -f2 | sort -u |
     while read -r u; do
       case "$u" in mailto:*) continue ;; http*) ;; *) u="$base$u" ;; esac
       code=$(curl -s -o /dev/null -L -w '%{http_code}' "$u")
