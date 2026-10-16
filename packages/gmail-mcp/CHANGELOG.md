@@ -3,6 +3,18 @@
 All notable changes to `@pappcorn/gmail-mcp`. This project follows
 [semantic versioning](https://semver.org/).
 
+## 0.3.2
+
+### Fixed
+
+- **`pappcorn-gmail-setup` now runs when installed.** Invoked through npx (or
+  any install), it exited 0 without printing anything: the script's
+  "am I the program?" check compared the `node_modules/.bin/` symlink path
+  with the resolved file path, never matched, and skipped setup entirely.
+  Running `node scripts/mint-token.mjs` from a clone was unaffected. The check
+  now compares real paths, with a regression test that runs the script through
+  a symlink.
+
 ## 0.3.1
 
 ### Changed
