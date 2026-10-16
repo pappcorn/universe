@@ -64,6 +64,9 @@ Di la verdad sobre la semana. Si un ítem lleva cuatro semanas rodando, nómbral
 Si hay correo conectado, busca **compromisos que la persona hizo o recibió**, no un resumen de la
 bandeja. Una respuesta que promete algo para el viernes es una tarea; un boletín no. Verifica qué
 puede hacer cada conexión antes de prometer: no asumas que puede enviar.
+Si `profile.json` marca el correo o el calendario como conectado pero no tienes sus herramientas,
+dilo y sugiere repetir el bloque de herramientas de `configurar`. No respondas como si lo hubieras
+revisado.
 Antes de borrar un evento del calendario, confirma.
 
 ## Límites

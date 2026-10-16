@@ -170,6 +170,9 @@ These connectors are also used in production at PappCorn, so improvements made
 here get pulled back into our own stack. Fixing something for yourself probably
 fixes it for us too.
 
+Maintainers: how each product in the catalog is versioned, released, verified
+and reviewed is in [docs/maintaining.md](docs/maintaining.md).
+
 ## License
 
 [MIT](LICENSE) — do what you like with it.

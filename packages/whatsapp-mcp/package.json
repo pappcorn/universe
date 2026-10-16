@@ -1,6 +1,6 @@
 {
   "name": "@pappcorn/whatsapp-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "MCP server for WhatsApp — send messages and approved templates from your own number via Meta's official WhatsApp Cloud API.",
   "license": "MIT",
   "repository": {

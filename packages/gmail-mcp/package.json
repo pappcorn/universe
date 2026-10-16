@@ -1,6 +1,6 @@
 {
   "name": "@pappcorn/gmail-mcp",
-  "version": "0.3.1",
+  "version": "0.3.3",
   "description": "MCP server for Gmail — read, search, triage, draft and send from your own account, using your own Google OAuth app.",
   "license": "MIT",
   "repository": {
