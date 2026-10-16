@@ -1,0 +1,16 @@
+{
+  "name": "cris-asiste",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/cris-asiste/skills",
+  "tags": ["type:skill-pack"],
+  "targets": {
+    "build": {
+      "command": "bash packages/cris-asiste/scripts/build-kits.sh",
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "test": {
+      "command": "node --test packages/cris-asiste/test/*.test.mjs"
+    }
+  }
+}
