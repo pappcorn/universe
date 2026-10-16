@@ -38,3 +38,27 @@ jobs:
       # - run: npx nx-cloud record -- echo Hello World
       # Nx Affected runs only tasks affected by the changes in this PR/commit. Learn more: https://nx.dev/ci/features/affected
       - run: npx nx affected -t lint test build
+
+      # ── Plugin bundle drift gate ──
+      # Plugin installs run the COMMITTED bundle (packages/*/server/mcp.cjs, launched
+      # by each connector's .mcp.json), not a fresh build. A dependency bump that
+      # reaches the lockfile but not the bundle leaves plugin users on old code
+      # (#50, #84). So rebuild every bundle here, whether or not `affected` picked
+      # the connector up, and fail if the result differs from what is committed.
+      #
+      # This compares only the bundles. `npm ci` never rewrites package-lock.json,
+      # and esbuild's output does not depend on the npm version, so lockfile or
+      # npm-version differences cannot trip it. The build is deterministic: two
+      # clean builds of the same tree are byte-identical.
+      - name: Rebuild the plugin bundles
+        run: npx nx run-many -t bundle --skip-nx-cache
+
+      - name: Check the committed plugin bundles are up to date
+        run: |
+          if [ -n "$(git status --porcelain -- 'packages/*/server/mcp.cjs')" ]; then
+            git --no-pager diff --stat -- 'packages/*/server/mcp.cjs'
+            git status --short -- 'packages/*/server/mcp.cjs'
+            echo "::error::The committed plugin bundle (packages/<name>/server/mcp.cjs) is out of date. Plugin installs run this file, not a fresh build. Run 'npm ci && npx nx run-many -t build' from the repo root, commit the rebuilt server/mcp.cjs, and bump the plugin's patch version in package.json, .claude-plugin/plugin.json and its line in .claude-plugin/marketplace.json."
+            exit 1
+          fi
+          echo "Committed plugin bundles match a clean build."
