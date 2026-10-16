@@ -92,6 +92,7 @@ operating system's keychain.
 Each connector needs a one-time account setup first:
 
 - ✉️ **Gmail** → [Connect your own Gmail account](docs/setup-google-cloud.md) · ~15 min · [screenshot walkthrough](docs/how-to-gmail.md)
+- 📊 **Google Sheets** → [Connect your own Google Sheets account](docs/setup-google-sheets.md) · ~10 min · its own APIs and token, separate from Gmail's
 - 💬 **WhatsApp** → [Connect your own WhatsApp number](docs/setup-meta-whatsapp.md) · free test number, no line to buy
 
 The skill packs need none of that — `best-practices-git` has no credentials and
