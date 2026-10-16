@@ -2,74 +2,75 @@
 
 # 🍿 PappCorn Universe
 
-**Open-source connectors, skills and agents. Claude-first, agent-agnostic —
-standard MCP servers that run anywhere MCP does.**
+**PappCorn's open catalog of Claude plugins and connectors.**
 
-Give your assistant real hands — your email, your WhatsApp — without handing
-your credentials to anyone.
+Connectors for your email, your spreadsheets and your WhatsApp that run on your
+own credentials, skill packs that help you configure your AI for your own work,
+and a licensed product team of agents. Open source, MIT, readable line by line.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-black.svg)](https://nodejs.org)
 [![MCP](https://img.shields.io/badge/Model_Context_Protocol-black.svg)](https://modelcontextprotocol.io)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-black.svg)](CONTRIBUTING.md)
 
+[pappcorn.ai](https://pappcorn.ai/?de=universe-readme) · [Front door (Spanish)](https://pappcorn.github.io/universe/) · [Contributing](CONTRIBUTING.md)
+
 </div>
 
 ---
 
+## What this is
+
+Universe is the home of `pappcorn-plugins`, PappCorn's plugin marketplace for
+Claude. It is for:
+
+- **People who use Claude** and want it to act on their own accounts (send the
+  email, edit the sheet, message the customer) without handing their
+  credentials to anyone.
+- **Teams that work with agents** and want shared, written-down ways of
+  working, packaged as skills.
+- **Developers on any MCP client.** The connectors are standard MCP servers;
+  nothing in them is Claude-specific.
+
+The catalog is maintained by [PappCorn](https://pappcorn.com). If you would
+rather have someone walk you through it, talk to **Cris** at
+[pappcorn.ai](https://pappcorn.ai/?de=universe-readme). Cris is PappCorn's AI agent, the friend
+who knows AI and helps you configure it for your own work. Plans live there
+too.
+
 ## The catalog
 
-This repo is PappCorn's plugin marketplace for Claude — `pappcorn-plugins`.
-It carries three kinds of plugins:
+| Plugin                                                   | Kind              | What it does                                                                                                                                                       |
+| -------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ✉️ [**gmail-mcp**](packages/gmail-mcp)                   | Connector · free  | Read, search, triage, draft and **send** email, with attachments, from your own account                                                                            |
+| 📊 [**gsheets-mcp**](packages/gsheets-mcp)               | Connector · free  | Inspect, search and **edit** Google Sheets shared with you, without loading them into the context                                                                  |
+| 💬 [**whatsapp-mcp**](packages/whatsapp-mcp)             | Connector · free  | Send messages and approved templates from your own business number                                                                                                 |
+| 🌿 [**best-practices-git**](packages/best-practices-git) | Skill pack · free | How a team that works with agents commits (`/commit`), opens pull requests (`/git-pr`), and runs parallel branches (`/worktree`)                                   |
+| 🧭 [**cris-asiste**](packages/cris-asiste)               | Skill pack · free | In Spanish: configure your own AI. Build a focused agent (`/crear-agente`), teach Claude a task (`/crear-skill`), set up a personal assistant (`/crear-asistente`) |
+| 🏭 **product-team**                                      | Agents · licensed | PappCorn's six-agent [INSPIRED](https://www.svpg.com/books/inspired-how-to-create-tech-products-customers-love-2nd-edition/) product team plus its dev-loop skills |
 
-### Free connectors (bring your own credentials)
+**Connectors** are open-source and bring-your-own-credentials; the source lives
+right here. Each one runs as a local process on your own machine, signs in with
+your own Google or Meta credentials, and talks straight to Google or Meta with
+no server in between. The Sheets connector edits cells by range, so a file with
+tens of thousands of rows never has to be loaded into the conversation. And
+because they are standard MCP servers, they work in any MCP client, not only
+Claude.
 
-Open-source, MIT-licensed, installable by anyone. The source lives right here.
+**Skill packs** need no credentials and no server: just skills that encode a
+way of working. `best-practices-git` is the first of a `best-practices-*`
+family, one plugin per practice a team otherwise learns the hard way.
+`cris-asiste` also ships each skill as an uploadable `.zip` for people who use
+Claude in the chat, where plugins don't run; see [its README](packages/cris-asiste)
+and the [front door](https://pappcorn.github.io/universe/#cris-asiste).
 
-|     | Connector                                 | What it does                                                                                      |
-| :-: | ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| ✉️  | [**gmail-mcp**](packages/gmail-mcp)       | Read, search, triage, draft and **send** email — with attachments — from your own account         |
-| 📊  | [**gsheets-mcp**](packages/gsheets-mcp)   | Inspect, search and **edit** Google Sheets shared with you, without loading them into the context |
-| 💬  | [**whatsapp-mcp**](packages/whatsapp-mcp) | Send messages and approved templates from your own business number                                |
-
-Claude's built-in Google connector reads and drafts but **deliberately cannot
-send**, and it cannot **edit** a spreadsheet — only read one, in full, which
-gets expensive fast on a file with tens of thousands of rows. Those gaps are the
-reason this repo exists.
-
-### Free skill packs
-
-No credentials and no server — just skills that encode a way of working, free
-and MIT-licensed like the connectors.
-
-|     | Plugin                                                | What it does                                                                                                                                                       |
-| :-: | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 🌿  | [**best-practices-git**](packages/best-practices-git) | How a team that works with agents commits (`/commit`), opens pull requests (`/git-pr`), and runs parallel branches (`/worktree`)                                   |
-| 🧭  | [**cris-asiste**](packages/cris-asiste)               | In Spanish: configure your own AI. Build a focused agent (`/crear-agente`), teach Claude a task (`/crear-skill`), set up a personal assistant (`/crear-asistente`) |
-
-`best-practices-git` is the first of a `best-practices-*` family: one plugin per
-practice a team otherwise learns the hard way. `cris-asiste` also ships each skill
-as an uploadable `.zip` for people who use Claude in the chat, where plugins don't
-run; see [its README](packages/cris-asiste).
-
-### Licensed plugins
-
-Commercial plugins whose source lives in a private repository. The marketplace
-entry points at that repo, and **read access to the repo is the license**:
-with access granted, installation just works; without it, the install fails —
-that's expected, not broken.
-
-|     | Plugin           | What it does                                                                                                                                                       |
-| :-: | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 🏭  | **product-team** | PappCorn's six-agent [INSPIRED](https://www.svpg.com/books/inspired-how-to-create-tech-products-customers-love-2nd-edition/) product team plus its dev-loop skills |
-
-To request access, write to [cris@pappcorn.com](mailto:cris@pappcorn.com).
+**Licensed plugins** keep their source in a private repository. The marketplace
+entry points at that repo, and **read access to the repo is the license**: with
+access granted, installation just works; without it, the install fails, which
+is expected, not broken. To request access to `product-team`, write to
+[cris@pappcorn.com](mailto:cris@pappcorn.com).
 
 ## Quick start
-
-> **New here from the masterclass?** The guided front door — the
-> "Tu Ventaja con IA" kit plus this catalog, in Spanish — lives at
-> <https://pappcorn.github.io/universe/>.
 
 ```bash
 # 1. Add the marketplace (once)
@@ -82,13 +83,6 @@ To request access, write to [cris@pappcorn.com](mailto:cris@pappcorn.com).
 /plugin install best-practices-git@pappcorn-plugins
 /plugin install cris-asiste@pappcorn-plugins
 ```
-
-> **Marketplace renamed (July 2026):** this marketplace used to be called
-> `pappcorn`; it is now `pappcorn-plugins`. If you installed a plugin as
-> `gmail-mcp@pappcorn` or `whatsapp-mcp@pappcorn`, your installed copy keeps
-> working — but it will no longer receive updates. To migrate, re-add the
-> marketplace (`/plugin marketplace add pappcorn/universe`) and reinstall
-> (`/plugin install gmail-mcp@pappcorn-plugins`).
 
 The plugin asks for your credentials at install time and keeps them in your
 operating system's keychain.
@@ -158,6 +152,9 @@ tools/       operator scripts
 docs/        setup guides
 ```
 
+The masterclass kit ("Tu Ventaja con IA", in Spanish) lives on its own page:
+[pappcorn.github.io/universe/masterclass.html](https://pappcorn.github.io/universe/masterclass.html).
+
 An Nx monorepo:
 
 ```bash
@@ -181,5 +178,5 @@ and reviewed is in [docs/maintaining.md](docs/maintaining.md).
 [MIT](LICENSE) — do what you like with it.
 
 <div align="center">
-<sub>Built by <a href="https://pappcorn.com">PappCorn</a> 🍿</sub>
+<sub>Built by <a href="https://pappcorn.com">PappCorn</a> 🍿 · Talk to Cris at <a href="https://pappcorn.ai/?de=universe-readme">pappcorn.ai</a></sub>
 </div>
