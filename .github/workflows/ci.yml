@@ -65,14 +65,14 @@ jobs:
             git ls-files --error-unmatch "$bundle" >/dev/null 2>&1 || missing="$missing $bundle"
           done
           if [ -n "$missing" ]; then
-            echo "::error::Plugin bundle not committed:$missing. Its .mcp.json launches it, so a plugin install would fail to start. Give the package a 'bundle' script (see packages/gmail-mcp/package.json), run 'npm ci && npx nx run-many -t build' from the repo root, and commit server/mcp.cjs."
+            echo "::error::Plugin bundle not committed:$missing. Its .mcp.json launches it, so a plugin install would fail to start. Give the package a 'bundle' script (see packages/gmail-mcp/package.json), run 'npm ci && npx nx run-many -t bundle' from the repo root, and commit server/mcp.cjs."
             exit 1
           fi
 
           if [ -n "$(git status --porcelain -- 'packages/*/server/mcp.cjs')" ]; then
             git --no-pager diff --stat -- 'packages/*/server/mcp.cjs'
             git status --short -- 'packages/*/server/mcp.cjs'
-            echo "::error::The committed plugin bundle (packages/<name>/server/mcp.cjs) is out of date. Plugin installs run this file, not a fresh build. Run 'npm ci && npx nx run-many -t build' from the repo root, commit the rebuilt server/mcp.cjs, and bump the plugin's patch version in package.json, .claude-plugin/plugin.json and its line in .claude-plugin/marketplace.json."
+            echo "::error::The committed plugin bundle (packages/<name>/server/mcp.cjs) is out of date. Plugin installs run this file, not a fresh build. Run 'npm ci && npx nx run-many -t bundle' from the repo root, commit the rebuilt server/mcp.cjs, and bump the plugin's patch version in package.json, .claude-plugin/plugin.json and its line in .claude-plugin/marketplace.json."
             exit 1
           fi
           echo "Committed plugin bundles match a clean build."
