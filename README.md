@@ -50,10 +50,12 @@ too.
 | 🏭 **product-team**                                      | Agents · licensed | PappCorn's six-agent [INSPIRED](https://www.svpg.com/books/inspired-how-to-create-tech-products-customers-love-2nd-edition/) product team plus its dev-loop skills |
 
 **Connectors** are open-source and bring-your-own-credentials; the source lives
-right here. Claude's built-in Google connector reads and drafts but
-**deliberately cannot send**, and it cannot **edit** a spreadsheet, only read
-one in full, which gets expensive fast on a file with tens of thousands of
-rows. Those gaps are the reason this repo exists.
+right here. Each one runs as a local process on your own machine, signs in with
+your own Google or Meta credentials, and talks straight to Google or Meta with
+no server in between. The Sheets connector edits cells by range, so a file with
+tens of thousands of rows never has to be loaded into the conversation. And
+because they are standard MCP servers, they work in any MCP client, not only
+Claude.
 
 **Skill packs** need no credentials and no server: just skills that encode a
 way of working. `best-practices-git` is the first of a `best-practices-*`
