@@ -13,14 +13,14 @@ below exists to keep what is committed equal to what we think we shipped.
 
 ## The catalog at a glance
 
-| Product              | Kind                     | Source                                                          | Plugin install runs        | npm                                                    |
-| -------------------- | ------------------------ | --------------------------------------------------------------- | -------------------------- | ------------------------------------------------------ |
-| `gmail-mcp`          | Connector (MCP server)   | [`packages/gmail-mcp`](../packages/gmail-mcp)                   | committed `server/mcp.cjs` | [`@pappcorn/gmail-mcp`][npm-gmail], built at tag       |
-| `gsheets-mcp`        | Connector (MCP server)   | [`packages/gsheets-mcp`](../packages/gsheets-mcp)               | committed `server/mcp.cjs` | [`@pappcorn/gsheets-mcp`][npm-gsheets], built at tag   |
-| `whatsapp-mcp`       | Connector (MCP server)   | [`packages/whatsapp-mcp`](../packages/whatsapp-mcp)             | committed `server/mcp.cjs` | [`@pappcorn/whatsapp-mcp`][npm-whatsapp], built at tag |
-| `best-practices-git` | Skill pack               | [`packages/best-practices-git`](../packages/best-practices-git) | the skills, as committed   | not published                                          |
-| `cris-asiste`        | Skill pack (pending #80) | `packages/cris-asiste`                                          | the skills, as committed   | not published                                          |
-| `product-team`       | Licensed plugin          | a private repository                                            | that repository            | not published                                          |
+| Product              | Kind                   | Source                                                          | Plugin install runs        | npm                                                    |
+| -------------------- | ---------------------- | --------------------------------------------------------------- | -------------------------- | ------------------------------------------------------ |
+| `gmail-mcp`          | Connector (MCP server) | [`packages/gmail-mcp`](../packages/gmail-mcp)                   | committed `server/mcp.cjs` | [`@pappcorn/gmail-mcp`][npm-gmail], built at tag       |
+| `gsheets-mcp`        | Connector (MCP server) | [`packages/gsheets-mcp`](../packages/gsheets-mcp)               | committed `server/mcp.cjs` | [`@pappcorn/gsheets-mcp`][npm-gsheets], built at tag   |
+| `whatsapp-mcp`       | Connector (MCP server) | [`packages/whatsapp-mcp`](../packages/whatsapp-mcp)             | committed `server/mcp.cjs` | [`@pappcorn/whatsapp-mcp`][npm-whatsapp], built at tag |
+| `best-practices-git` | Skill pack             | [`packages/best-practices-git`](../packages/best-practices-git) | the skills, as committed   | not published                                          |
+| `cris-asiste`        | Skill pack             | [`packages/cris-asiste`](../packages/cris-asiste)               | the skills, as committed   | not published                                          |
+| `product-team`       | Licensed plugin        | a private repository                                            | that repository            | not published                                          |
 
 [npm-gmail]: https://www.npmjs.com/package/@pappcorn/gmail-mcp
 [npm-gsheets]: https://www.npmjs.com/package/@pappcorn/gsheets-mcp
@@ -286,10 +286,7 @@ CODEOWNERS would request one anyway.
   push to a protected branch. It drives the `git` and `gh` already on the
   machine; there are no credentials to configure.
 
-### cris-asiste (pending #80)
-
-Not on `main` yet. This describes the package as it stands on #80's branch;
-revisit this section when #80 merges.
+### cris-asiste
 
 - **Source:** `packages/cris-asiste/skills/` (`crear-agente`, `crear-skill`,
   `crear-asistente`), written in Spanish for a LATAM audience. Each skill
@@ -303,8 +300,8 @@ revisit this section when #80 merges.
 - **Version lockstep:** `.claude-plugin/plugin.json` and its
   `marketplace.json` line.
 - **Release:** merge the bump to `main`. That also republishes the zips.
-- **Tests:** `npx nx run cris-asiste:test` checks frontmatter, that every file
-  under `references/` and `assets/` is named in its `SKILL.md`, privacy rules,
+- **Tests:** `npx nx run cris-asiste:test` checks frontmatter, that every
+  top-level file in `references/` and `assets/` is named in its `SKILL.md`, privacy rules,
   the zip shape, and the assistant setup script. `npx nx run cris-asiste:build`
   builds the zips locally into `packages/cris-asiste/dist/`.
 - **Guides:** each skill's `GUIA.md` and the package README. Update them when a

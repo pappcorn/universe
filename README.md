@@ -42,12 +42,15 @@ reason this repo exists.
 No credentials and no server — just skills that encode a way of working, free
 and MIT-licensed like the connectors.
 
-|     | Plugin                                                | What it does                                                                                                                     |
-| :-: | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 🌿  | [**best-practices-git**](packages/best-practices-git) | How a team that works with agents commits (`/commit`), opens pull requests (`/git-pr`), and runs parallel branches (`/worktree`) |
+|     | Plugin                                                | What it does                                                                                                                                                       |
+| :-: | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 🌿  | [**best-practices-git**](packages/best-practices-git) | How a team that works with agents commits (`/commit`), opens pull requests (`/git-pr`), and runs parallel branches (`/worktree`)                                   |
+| 🧭  | [**cris-asiste**](packages/cris-asiste)               | In Spanish: configure your own AI. Build a focused agent (`/crear-agente`), teach Claude a task (`/crear-skill`), set up a personal assistant (`/crear-asistente`) |
 
-First of a `best-practices-*` family: one plugin per practice a team otherwise
-learns the hard way.
+`best-practices-git` is the first of a `best-practices-*` family: one plugin per
+practice a team otherwise learns the hard way. `cris-asiste` also ships each skill
+as an uploadable `.zip` for people who use Claude in the chat, where plugins don't
+run; see [its README](packages/cris-asiste).
 
 ### Licensed plugins
 
@@ -77,6 +80,7 @@ To request access, write to [cris@pappcorn.com](mailto:cris@pappcorn.com).
 /plugin install gsheets-mcp@pappcorn-plugins
 /plugin install whatsapp-mcp@pappcorn-plugins
 /plugin install best-practices-git@pappcorn-plugins
+/plugin install cris-asiste@pappcorn-plugins
 ```
 
 > **Marketplace renamed (July 2026):** this marketplace used to be called
@@ -94,8 +98,9 @@ Each connector needs a one-time account setup first:
 - ✉️ **Gmail** → [Connect your own Gmail account](docs/setup-google-cloud.md) · ~15 min · [screenshot walkthrough](docs/how-to-gmail.md)
 - 💬 **WhatsApp** → [Connect your own WhatsApp number](docs/setup-meta-whatsapp.md) · free test number, no line to buy
 
-The skill packs need none of that — `best-practices-git` has no credentials and
-no server; it drives the `git` and `gh` already on your machine.
+The skill packs need none of that — no credentials and no server.
+`best-practices-git` drives the `git` and `gh` already on your machine, and
+`cris-asiste` only writes the files you agree to, where you agree to.
 
 Prefer wiring it by hand, or not using plugins at all?
 See [install.md](docs/install.md).

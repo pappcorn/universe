@@ -1,0 +1,30 @@
+{
+  "_comment": "Lo llena la entrevista de arranque. Pídele al asistente que cambie las cosas en vez de editarlo a mano.",
+  "configured": false,
+  "assistant_name": "asistente",
+  "tone": null,
+  "operator": {
+    "name": null,
+    "what_they_do": null,
+    "timezone": null
+  },
+  "language": {
+    "default": null
+  },
+  "goals": [],
+  "focus": {
+    "areas": [],
+    "projects": [],
+    "ignore": []
+  },
+  "never_without_asking": [],
+  "stack": {
+    "notes": null,
+    "gmail": false,
+    "google_calendar": false,
+    "google_drive": false,
+    "slack": false,
+    "whatsapp": false,
+    "notion": false
+  }
+}
