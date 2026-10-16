@@ -59,7 +59,7 @@ import { randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
 import { createInterface } from 'node:readline';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 // Must match SCOPES in src/auth.ts, and must match the scopes you added to the
 // consent screen. gmail.modify = read/search/label/archive; gmail.send = send.
@@ -556,11 +556,26 @@ async function exchangeAndWrite(code, redirectUri) {
   process.exit(0);
 }
 
+/**
+ * Whether this module is the program being run, as opposed to imported.
+ *
+ * Compares REAL paths on both sides. Installed bins (npx, global and local
+ * installs) are reached through a `node_modules/.bin/` symlink, so
+ * `process.argv[1]` is the link while `import.meta.url` is the resolved file:
+ * comparing them as written skips `main()` and the setup exits 0 having done
+ * nothing. Anything that cannot be resolved means "not the entry point".
+ */
+export function isEntryPoint(argv1, moduleUrl) {
+  if (!argv1) return false;
+  try {
+    return realpathSync(fileURLToPath(moduleUrl)) === realpathSync(argv1);
+  } catch {
+    return false;
+  }
+}
+
 // Run only when invoked as a program. Importing it (the tests do) must not open
 // a loopback server or read anyone's credentials.
-if (
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
-) {
+if (isEntryPoint(process.argv[1], import.meta.url)) {
   main(process.argv.slice(2));
 }

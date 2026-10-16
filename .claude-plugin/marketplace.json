@@ -9,7 +9,7 @@
     {
       "name": "gmail-mcp",
       "source": "./packages/gmail-mcp",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "description": "Read, search, triage, draft and SEND email from your own Gmail account. Uses your own Google OAuth app — your credentials never leave your machine."
     },
     {
