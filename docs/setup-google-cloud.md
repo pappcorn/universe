@@ -10,9 +10,9 @@ PappCorn or anyone else.
 
 ## Why this is not one click
 
-Claude's built-in Google connector can read, search and **draft** your mail, but
-it deliberately **cannot send**. If you want an assistant that actually sends,
-something has to hold a credential with permission to send as you.
+This connector runs as a local process on your machine, uses credentials you
+create, and talks directly to Google. It works in Claude Code and in any MCP
+client. To send as you, it needs a credential with permission to send as you.
 
 There are only two ways to get that credential:
 

@@ -33,7 +33,7 @@
     {
       "name": "cris-asiste",
       "source": "./packages/cris-asiste",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "description": "In Spanish: three skills that guide you to configure your own AI instead of just using it. /crear-agente interviews you and builds a small focused agent, /crear-skill teaches your Claude a repetitive task, /crear-asistente sets up your own personal assistant with a plain-text second brain. No credentials, no server."
     },
     {

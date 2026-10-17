@@ -53,9 +53,10 @@ Dos opciones, según qué tan técnica sea la persona.
 
 Añádelos como en el camino A (`claude.ai/customize/connectors`) y comprueba con `/mcp`. Antes de
 prometer algo, **verificar** qué puede hacer cada uno hoy (leer, redactar borradores, enviar,
-escribir en el calendario). Como referencia sin comprobar al escribir este kit: correo con
-lectura y borradores sin envío, Drive solo lectura, Calendar con lectura y escritura. No lo
-ofrezcas como cierto sin comprobarlo.
+escribir en el calendario). Como referencia, el conector oficial de Gmail lee, busca, redacta,
+envía, responde y reenvía, y por defecto pide aprobación antes de enviar
+(https://support.claude.com/en/articles/10166901). Para Drive y Calendar, comprueba qué permiten
+hoy antes de ofrecerlo.
 
 - **Acceso:** el que muestra la pantalla de autorización de Google al conectar. Léela con la persona.
 - **Cómo quitarlo:** desconecta en `claude.ai/customize/connectors`; y revisa en tu cuenta de Google,
