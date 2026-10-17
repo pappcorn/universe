@@ -227,10 +227,9 @@ CODEOWNERS would request one anyway.
   `marketplace.json` line, its `package-lock.json` entry. No CHANGELOG yet;
   start one at the next release.
 - **Release tag:** `gsheets-mcp@<version>`.
-- **Setup guide:** today the setup lives in the package
-  [README → Setup](../packages/gsheets-mcp/README.md#setup). A dedicated
-  `docs/setup-google-sheets.md` is pending #82; once it lands, it is the guide
-  to keep current. Update it when the setup script, the scopes, the
+- **Setup guide:** [setup-google-sheets.md](setup-google-sheets.md); the
+  package [README → Setup](../packages/gsheets-mcp/README.md#setup) stays the
+  canonical reference for the tool list. Update the guide when the setup script, the scopes, the
   `userConfig` prompts or the Google console change. The most common setup
   failure is a missing Drive API enablement (`sheet_locate` and
   `sheet_import_xlsx` need it); keep that called out.

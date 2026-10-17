@@ -68,8 +68,9 @@ compartidas contigo, con vista previa y confirmación en cada escritura). Usan *
 de Google** (creas un proyecto en Google Cloud y obtienes tus credenciales), así que tus llaves no pasan por nadie más.
 La contra: la configuración inicial es técnica. Úsala con personas cómodas con eso, o paso a paso con la guía.
 
-1. Sigue la guía de la cuenta de Google en el repositorio `pappcorn/universe`, archivo `docs/setup-google-cloud.md`
-   (guía visual: `docs/how-to-gmail.md`).
+1. Sigue la guía de la cuenta de Google en el repositorio `pappcorn/universe`: para correo, el archivo
+   `docs/setup-google-cloud.md` (guía visual: `docs/how-to-gmail.md`); para hojas, el archivo
+   `docs/setup-google-sheets.md`. Cada conector tiene su propia configuración.
 2. Instala el conector desde Claude Code:
    ```
    /plugin marketplace add pappcorn/universe
