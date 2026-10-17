@@ -135,6 +135,6 @@ del computador), no a la conversación.
   qué escribe y qué no, y dilo antes de que la persona cuente con ello.
 - Cualquier cosa que envíe algo al mundo (correo, mensaje, publicación) la propone el asistente y la
   aprueba la persona. Esa regla va en el `CLAUDE.md` de todos los asistentes.
-- Usa fechas absolutas (2026-10-16). No prometas resultados de negocio.
+- Usa fechas absolutas (formato AAAA-MM-DD). No prometas resultados de negocio.
 - Si la persona se frustra, baja el ritmo. Un asistente pequeño que funciona vale más que uno completo
   que no se usa.

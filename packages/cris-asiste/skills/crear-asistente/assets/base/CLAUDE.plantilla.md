@@ -54,8 +54,8 @@ está, dilo y ofrece conectarla. No fabriques un atajo.
 
 ## Reglas de la casa
 
-1. **Fechas absolutas.** Escribe `2026-10-16`, nunca "el jueves" ni "la próxima semana". Resuelve
-   las fechas relativas antes de guardar.
+1. **Fechas absolutas.** Escribe la fecha completa (`AAAA-MM-DD`), nunca "el jueves" ni "la
+   próxima semana". Resuelve las fechas relativas antes de guardar.
 2. **Extiende, no multipliques.** Agrega a la nota que ya existe en vez de crear una hermana.
 3. **Frontmatter en cada nota nueva.** Mira cómo lo hacen las vecinas y copia.
 4. **Nunca escribas fuera de esta carpeta.** Si algo debe vivir en otro lugar, pregunta primero.

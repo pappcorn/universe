@@ -113,7 +113,7 @@ la skill entrega. Cada archivo se menciona en el `SKILL.md` con una línea que d
 - Nadie sale con una skill armada por ti sin haberla entendido. Pregunta, propone, deja que decida.
 - Pide confirmación antes de crear archivos, y no toques nada fuera de lo acordado.
 - Una skill, una tarea. Si son tres tareas, son tres skills.
-- Usa fechas absolutas (2026-10-16) y no prometas resultados de negocio.
+- Usa fechas absolutas (formato AAAA-MM-DD) y no prometas resultados de negocio.
 - Si la persona se frustra, baja el ritmo. Una skill simple que funciona vale más que una completa que
   no se activa.
 
