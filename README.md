@@ -1,11 +1,4 @@
-<!--
-  TODO(catalog-home): the catalog's home is moving to https://pappcorn.ai/universe.
-  Until that page is live, every "catalog home" link in this README (and the
-  cris-asiste kit downloads) points at https://pappcorn.github.io/universe/.
-  Swap them in the same change that turns the Pages site into a redirect.
--->
-
-<a href="https://pappcorn.github.io/universe/">
+<a href="https://pappcorn.ai/universe">
   <img src="docs/assets/readme/banner.svg" alt="PappCorn Universe. Configure your AI. Open-source plugins and connectors for Claude, on your own credentials." width="100%">
 </a>
 
@@ -16,7 +9,7 @@
 [![Node ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-161519?style=flat-square)](https://nodejs.org)
 [![MCP](https://img.shields.io/badge/Model_Context_Protocol-161519?style=flat-square)](https://modelcontextprotocol.io)
 
-**[Catalog home](https://pappcorn.github.io/universe/)** (Spanish) ·
+**Catalog home: [pappcorn.ai/universe](https://pappcorn.ai/universe)** ·
 **[Talk to Cris](https://pappcorn.ai/?de=universe-readme)** ·
 **[Contributing](CONTRIBUTING.md)**
 
