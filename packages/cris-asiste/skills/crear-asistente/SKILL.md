@@ -68,7 +68,7 @@ de `assets/base/`, no se conecta a internet y no instala nada.
 4. Dile que abra esa carpeta en Claude Code y escriba **"empezar"**. El asistente leerá
    `profile.json`, verá que falta configurarlo y lanzará la skill `configurar`, que hace la entrevista
    de `references/entrevista.md` (versión corta) y escribe todo.
-5. Revisa con la persona la sección "Primera semana" de la guía del kit.
+5. Revisa con la persona la lista de `references/primera-semana.md`.
 
 ## Camino 2. Lo armo yo, paso a paso
 
@@ -103,7 +103,7 @@ estructura y de estilo, y escribe lo específico con las respuestas:
 6. **La skill `bobeda`** (cómo ordenar las notas) siempre; la skill `configurar` solo si la
    persona quiere poder rehacer la entrevista después.
 7. **Primera semana**: un archivo `vault/0. Inbox/primera-semana.md` con la lista de
-   la guía del kit adaptada a sus metas.
+   `references/primera-semana.md` adaptada a sus metas.
 
 Muéstrale cada archivo importante antes de escribirlo y pregunta si suena a ella. No pegues texto
 de plantilla con `[corchetes]` sin reemplazar.
@@ -121,7 +121,7 @@ del computador), no a la conversación.
 1. Cierra y abre Claude Code en la carpeta nueva, para que cargue el asistente y los especialistas.
 2. Pídele a la persona tres cosas reales: capturar un pendiente, preguntar "qué hago hoy" y, si
    conectó algo, usarlo una vez. Ajusta lo que suene genérico.
-3. Entrégale la lista de la primera semana de la guía del kit y recuérdale que el asistente se afina
+3. Entrégale la lista de `references/primera-semana.md` y recuérdale que el asistente se afina
    con el uso: "cámbiate el tono", "agrega un especialista para X" son pedidos normales.
 
 ## Reglas del kit
