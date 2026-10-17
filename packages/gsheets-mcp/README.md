@@ -178,9 +178,11 @@ You need a Google Cloud project of your own. About ten minutes, once.
 | `drive.file`     | Create the converted Sheet. Scoped to files this app creates — it can never touch the rest of your Drive. |
 
 **Narrowing them:** if you always paste explicit spreadsheet links and never convert `.xlsx`,
-drop `drive.readonly` and `drive.file` from both the consent screen and `SCOPES` in
-`src/auth.ts`, and re-mint. You lose `sheet_locate` and `sheet_import_xlsx`; everything else
-keeps working — and the app no longer asks for a _restricted_ scope at all.
+drop `drive.readonly` from both the consent screen and `SCOPES` in `src/auth.ts` and
+`scripts/mint-token.mjs`, and re-mint. Keep `drive.file`: the account check at mint time and
+`sheet_whoami` read Drive's `about` endpoint, which accepts it. You lose `sheet_locate` and
+`sheet_import_xlsx`; everything else keeps working — and the app no longer asks for a
+_restricted_ scope at all.
 
 ### Credentials
 

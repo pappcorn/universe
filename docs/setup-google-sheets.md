@@ -202,18 +202,27 @@ The full tool list and how the confirmation token works are in
 
 ## When something breaks
 
-| Symptom                                     | Cause                                       | Fix                                                                                 |
-| ------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Worked for a week, then `invalid_grant`     | App is in **Testing** status                | Publish to Production (Step 4), re-run Step 6                                       |
-| Step 6 fails with "grant verification"      | Drive API not enabled                       | Step 2, then retry                                                                  |
-| `sheet_locate` fails, everything else works | Drive API not enabled                       | Step 2 — no re-mint needed                                                          |
-| "Google hasn't verified this app"           | Normal for your own app                     | Advanced → continue                                                                 |
-| No refresh token returned                   | Google reused an old grant                  | Revoke the app under your Google account's Security → third-party access, re-run    |
-| `403` on a file you can see in Drive        | The account has **view** access, not edit   | Ask for edit access; Sheets writes need it                                          |
-| `404` on an id you copied                   | The file was never shared with this account | Run `sheet_whoami` and check which account the connector is acting as               |
-| "over the 5000-cell read limit"             | Working as designed                         | Ask the assistant to find the rows first (`sheet_find`), then read only those       |
-| A write is refused with a fresh preview     | Someone edited the range after the preview  | Read the new before/after and confirm again                                         |
-| `whoami` names the wrong account            | You logged in as another account in Step 6  | Re-run Step 6 with `--account`, using an incognito window if the browser auto-picks |
+| Symptom                                    | Cause                                       | Fix                                                                                 |
+| ------------------------------------------ | ------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Worked for a week, then `invalid_grant`    | App is in **Testing** status                | Publish to Production (Step 4), re-run Step 6 (pasted fields: see below the table)  |
+| Step 6 fails with "grant verification"     | Drive API not enabled                       | Step 2, then retry                                                                  |
+| `sheet_locate` fails, `sheet_whoami` works | Token lacks `drive.readonly`                | Add the scope (Step 3) and re-run Step 6                                            |
+| "Google hasn't verified this app"          | Normal for your own app                     | Advanced → continue                                                                 |
+| No refresh token returned                  | Google reused an old grant                  | Revoke the app under your Google account's Security → third-party access, re-run    |
+| `403` on a file you can see in Drive       | The account has **view** access, not edit   | Ask for edit access; Sheets writes need it                                          |
+| `404` on an id you copied                  | The file was never shared with this account | Run `sheet_whoami` and check which account the connector is acting as               |
+| "over the 5000-cell read limit"            | Working as designed                         | Ask the assistant to find the rows first (`sheet_find`), then read only those       |
+| A write is refused with a fresh preview    | Someone edited the range after the preview  | Read the new before/after and confirm again                                         |
+| `whoami` names the wrong account           | You logged in as another account in Step 6  | Re-run Step 6 with `--account`, using an incognito window if the browser auto-picks |
+
+If you pasted the credential into the plugin's fields (Step 7) instead of
+leaving them empty, re-running Step 6 changes nothing: the connector reads the
+fields first and never opens the new file. Clear the three fields, or paste the
+new values into them, delete `~/.cache/pappcorn-gsheets-mcp/token.json`, and
+restart your assistant.
+
+With the Drive API off, Step 6 itself fails and no credential is written, so a
+working `sheet_whoami` already rules that cause out.
 
 ---
 
@@ -222,11 +231,13 @@ The full tool list and how the confirmation token works are in
 ### Narrow the scopes
 
 If you always paste explicit spreadsheet links and never convert `.xlsx`, you
-need only `spreadsheets`. Remove `drive.readonly` and `drive.file` from the
-consent screen and from `SCOPES` in both `src/auth.ts` and
-`scripts/mint-token.mjs` (this means running from a clone), rebuild, and
-re-mint. You lose `sheet_locate` and `sheet_import_xlsx`; everything else keeps
-working.
+can remove `drive.readonly` from the consent screen and from `SCOPES` in both
+`src/auth.ts` and `scripts/mint-token.mjs` (this means running from a clone),
+rebuild, and re-mint. Keep `drive.file`: the account check in Step 6 and
+`sheet_whoami` both read Drive's `about` endpoint, and `drive.file` is enough
+for it while touching only files the connector creates. You lose
+`sheet_locate` and `sheet_import_xlsx`, which reads the original `.xlsx`;
+everything else keeps working.
 
 It also changes the app's tier with Google: `drive.readonly` is a _restricted_
 scope, the tier that requires an annual third-party security assessment if you
