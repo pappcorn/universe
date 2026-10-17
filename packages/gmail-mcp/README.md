@@ -3,9 +3,9 @@
 An MCP server for Gmail. Lets Claude read, search, triage, draft and **send**
 email from your own account.
 
-Claude's built-in Google connector reads and drafts but deliberately cannot
-send. This one can — because it runs on a credential you created, for a mailbox
-you own.
+It runs as a local process on your machine, on a credential you created for a
+mailbox you own, and talks directly to Google. It works in Claude Code and in
+any MCP client.
 
 ## Setup
 

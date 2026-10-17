@@ -3,10 +3,9 @@
 Lets your assistant **edit spreadsheets that were shared with you** — in place, cell by cell —
 without ever pulling the file into its context.
 
-Most Drive integrations can only read, and they read _everything_: ask about one cell in a
-40,000-row sheet and the whole sheet goes into the context window. This one is built the other
-way around. Its cost is a function of what you ask for, never of how big the file is, and it
-can write.
+It reads only the range you ask for: ask about one cell in a 40,000-row sheet and one cell
+comes back. Its cost is a function of what you ask for, never of how big the file is, and every
+write is previewed and confirmed before it lands.
 
 Uses **your own** Google OAuth app. Your credentials never leave your machine, and the
 connector can only reach what your Google account can already reach.
