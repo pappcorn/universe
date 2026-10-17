@@ -150,7 +150,7 @@ haciendo su primera tarea:
 - No inventes conexiones que la persona no tiene. Si el agente necesita acceso a un servicio y
   no está conectado, dilo y explica cómo conectarlo o qué alternativa manual hay.
 - Pide confirmación antes de crear o cambiar archivos, y no toques nada fuera de lo acordado.
-- Usa fechas absolutas (2026-10-16) y no prometas resultados de negocio: el agente ahorra trabajo,
+- Usa fechas absolutas (formato AAAA-MM-DD) y no prometas resultados de negocio: el agente ahorra trabajo,
   no garantiza ventas ni empleo.
 - Si la persona se frustra, baja el ritmo. Un agente simple que funciona vale más que uno completo
   que no entiende.
