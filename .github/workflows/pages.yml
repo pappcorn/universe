@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - 'site/**'
+      - 'packages/cris-asiste/skills/**'
+      - 'packages/cris-asiste/scripts/build-kits.sh'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -27,6 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/configure-pages@v6
+      # The cris-asiste skills, one uploadable zip each, for people who use
+      # Claude in the chat where plugins don't run. Built from the same folders
+      # the plugin installs from, on every deploy, so the download links on the
+      # site always match main and no binary is ever committed.
+      - name: Build the cris-asiste kits
+        run: bash packages/cris-asiste/scripts/build-kits.sh site/kits
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site

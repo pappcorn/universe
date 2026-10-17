@@ -9,19 +9,19 @@
     {
       "name": "gmail-mcp",
       "source": "./packages/gmail-mcp",
-      "version": "0.3.1",
+      "version": "0.3.3",
       "description": "Read, search, triage, draft and SEND email from your own Gmail account. Uses your own Google OAuth app — your credentials never leave your machine."
     },
     {
       "name": "gsheets-mcp",
       "source": "./packages/gsheets-mcp",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "description": "Inspect, search and EDIT Google Sheets that were shared with you — in place, without loading the file into the context. Every write is previewed and confirmed. Uses your own Google OAuth app."
     },
     {
       "name": "whatsapp-mcp",
       "source": "./packages/whatsapp-mcp",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "description": "Send WhatsApp messages from your own number via Meta's official WhatsApp Cloud API. Outbound v1: templates and free-form replies inside the 24-hour window."
     },
     {
@@ -29,6 +29,12 @@
       "source": "./packages/best-practices-git",
       "version": "0.1.0",
       "description": "How a team that works with agents commits and opens pull requests: /commit writes messages that explain why, /git-pr keeps PRs small and can never push to a protected branch, /worktree makes parallel branches the default. Adapts to your repo's existing conventions."
+    },
+    {
+      "name": "cris-asiste",
+      "source": "./packages/cris-asiste",
+      "version": "0.1.1",
+      "description": "In Spanish: three skills that guide you to configure your own AI instead of just using it. /crear-agente interviews you and builds a small focused agent, /crear-skill teaches your Claude a repetitive task, /crear-asistente sets up your own personal assistant with a plain-text second brain. No credentials, no server."
     },
     {
       "name": "product-team",

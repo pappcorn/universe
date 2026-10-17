@@ -4,6 +4,7 @@ Do the account setup first — the connector is useless without a credential:
 
 - **Gmail** → [setup-google-cloud.md](setup-google-cloud.md)
   (visual version with screenshots: [how-to-gmail.md](how-to-gmail.md))
+- **Google Sheets** → [setup-google-sheets.md](setup-google-sheets.md)
 - **WhatsApp** → [setup-meta-whatsapp.md](setup-meta-whatsapp.md)
 
 Then pick one of the two paths below.
@@ -26,6 +27,9 @@ credential file is written to disk.
 **Gmail** asks for: OAuth client ID, client secret, refresh token (all produced
 by the setup guide).
 
+**Google Sheets** asks for: OAuth client ID, client secret, refresh token —
+or leave all three empty to use the credential file its setup guide wrote.
+
 **WhatsApp** asks for: access token, phone number ID, and optionally the
 WhatsApp Business Account ID.
 
@@ -36,9 +40,13 @@ WhatsApp Business Account ID.
 
 ## Path B — from npm (no clone, no plugin)
 
-Both connectors are published as [`@pappcorn/gmail-mcp`](https://www.npmjs.com/package/@pappcorn/gmail-mcp)
-and [`@pappcorn/whatsapp-mcp`](https://www.npmjs.com/package/@pappcorn/whatsapp-mcp),
-so any MCP config can launch them with `npx` — nothing to download first.
+All three connectors are published —
+[`@pappcorn/gmail-mcp`](https://www.npmjs.com/package/@pappcorn/gmail-mcp),
+[`@pappcorn/gsheets-mcp`](https://www.npmjs.com/package/@pappcorn/gsheets-mcp)
+and [`@pappcorn/whatsapp-mcp`](https://www.npmjs.com/package/@pappcorn/whatsapp-mcp) —
+so any MCP config can launch them with `npx` — nothing to download first. The
+examples below use Gmail; swap in `@pappcorn/gsheets-mcp` or
+`@pappcorn/whatsapp-mcp` (and a matching server name) for the others.
 
 **Claude Code** — add to `.mcp.json` in your project:
 
@@ -139,6 +147,10 @@ any secret. If it fails, the error tells you what to fix.
 Run it **from the folder you will be working in**: Gmail identity is scoped to
 the working directory, so the answer can legitimately differ between folders.
 
+Google Sheets has no terminal CLI. Once it is wired in, ask your agent to run
+`sheet_whoami`: it names the account the connector acts as, without printing
+any secret.
+
 Once installed, ask your agent something simple — _"what's in my inbox from
 this week?"_ — and confirm the tools appear.
 
@@ -193,6 +205,14 @@ Useful when running from source or scripting.
 | `GMAIL_ACCOUNT`                                                   | Asserts which mailbox this folder is for. A mismatch with the real mailbox denies access.                                                |
 | `GMAIL_FROM_NAME`                                                 | Optional display name on outgoing mail. Default: bare address.                                                                           |
 
+**Google Sheets** — read from the process environment only (no `.env` search).
+
+| Variable                                                                | Purpose                                                                                            |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `GSHEETS_CLIENT_ID` / `GSHEETS_CLIENT_SECRET` / `GSHEETS_REFRESH_TOKEN` | Credential, supplied directly. Takes precedence over any file.                                     |
+| `GSHEETS_MCP_CREDENTIALS`                                               | Path to the credential file. Default `~/.config/pappcorn-gsheets-mcp/credentials.json`.            |
+| `GSHEETS_MCP_LOG_DIR`                                                   | Where the local audit log of committed writes goes. Default `~/.local/state/pappcorn-gsheets-mcp`. |
+
 **WhatsApp**
 
 | Variable                     | Purpose                                                      |
@@ -210,6 +230,8 @@ Removing the plugin stops the connector, but **does not revoke access**. To
 actually revoke:
 
 - **Gmail** — Google account → Security → third-party access → remove your app.
+- **Google Sheets** — Google account → Security → third-party access → remove
+  your app. (If you reused one app for Gmail and Sheets, this revokes both.)
 - **WhatsApp** — Meta Business Settings → System users → revoke the token.
 
 Then delete the credential file if you created one.

@@ -1,0 +1,19 @@
+{
+  "name": "cris-asiste",
+  "displayName": "Cris asiste",
+  "version": "0.1.1",
+  "description": "In Spanish: three skills that guide you to configure your own AI instead of just using it. /crear-agente interviews you and builds a small focused agent, /crear-skill teaches your Claude a repetitive task, /crear-asistente sets up your own personal assistant with a plain-text second brain. No credentials, no server.",
+  "author": { "name": "PappCorn" },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/cris-asiste",
+  "repository": "https://github.com/pappcorn/universe",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "agents",
+    "personal-assistant",
+    "second-brain",
+    "para",
+    "spanish",
+    "espanol"
+  ]
+}
