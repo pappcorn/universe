@@ -32,7 +32,7 @@ Toda nota nueva lleva:
 
 ```yaml
 ---
-created: 2026-10-16
+created: AAAA-MM-DD
 tags: [area/trabajo, tipo/nota]
 ---
 ```
@@ -51,7 +51,7 @@ categorizan; el nombre solo nombra.
 una sección con fecha a una nota existente casi siempre es lo correcto.
 **Lee antes de editar.** Lee la nota completa antes de cambiarla. Nunca sobrescribas algo que no viste.
 **Enlaza con generosidad:** `[[Nombre de la nota]]`. Un enlace a una nota que aún no existe está bien: marca algo por escribir.
-**Fecha lo que cambia:** `2026-10-16: pasé a X porque Y.` El porqué es lo valioso y lo primero que se pierde.
+**Fecha lo que cambia:** `AAAA-MM-DD: pasé a X porque Y.` El porqué es lo valioso y lo primero que se pierde.
 
 ## Capturar
 
