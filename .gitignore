@@ -41,6 +41,9 @@ testem.log
 .env.*
 !.env.example
 
+# Built by the Pages workflow from packages/cris-asiste; never committed.
+/site/kits/
+
 # System Files
 .DS_Store
 Thumbs.db
