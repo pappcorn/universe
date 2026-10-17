@@ -68,23 +68,27 @@ compartidas contigo, con vista previa y confirmación en cada escritura). Usan *
 de Google** (creas un proyecto en Google Cloud y obtienes tus credenciales), así que tus llaves no pasan por nadie más.
 La contra: la configuración inicial es técnica. Úsala con personas cómodas con eso, o paso a paso con la guía.
 
-1. Sigue la guía de la cuenta de Google en el repositorio `pappcorn/universe`, archivo `docs/setup-google-cloud.md`
-   (guía visual: `docs/how-to-gmail.md`).
+1. Sigue la guía de la cuenta de Google en el repositorio `pappcorn/universe`: para correo, el archivo
+   `docs/setup-google-cloud.md` (guía visual: `docs/how-to-gmail.md`); para hojas, el archivo
+   `docs/setup-google-sheets.md`. Cada conector tiene su propia configuración.
 2. Instala el conector desde Claude Code:
    ```
    /plugin marketplace add pappcorn/universe
    /plugin install gmail-mcp@pappcorn-plugins
    ```
    (Para hojas: `/plugin install gsheets-mcp@pappcorn-plugins`.)
-3. El instalador te pide las credenciales y las guarda en el llavero de tu sistema operativo; no se
-   escribe ningún archivo de claves. Reinicia Claude Code.
+3. El instalador te pide las credenciales y las guarda en el llavero de tu sistema operativo. Reinicia
+   Claude Code. La guía de hojas propone otro camino: deja los campos vacíos y el conector lee el
+   archivo `~/.config/pappcorn-gsheets-mcp/credentials.json` que crea su paso 6. Ese archivo guarda
+   una llave de acceso, así que cuéntaselo a la persona.
 
 - **Acceso:** `gmail-mcp` usa los permisos `gmail.modify` y `gmail.send` sobre **tu** buzón; `gsheets-mcp`
   lee y escribe hojas y puede crear archivos que él mismo genera. Los permisos exactos están en el
   README de cada conector.
 - **Cómo quitarlo:** `/plugin` para desinstalar el conector; en tu cuenta de Google, retira el
-  acceso de tu aplicación (**verificar** el menú); y si quieres cerrar del todo, borra las credenciales en
-  tu proyecto de Google Cloud.
+  acceso de tu aplicación (**verificar** el menú); si usaste el archivo de hojas, bórralo
+  (`~/.config/pappcorn-gsheets-mcp/credentials.json`), porque desinstalar no lo borra; y si quieres
+  cerrar del todo, borra las credenciales en tu proyecto de Google Cloud.
 
 ## Slack
 

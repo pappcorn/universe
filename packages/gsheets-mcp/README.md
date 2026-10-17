@@ -178,9 +178,11 @@ You need a Google Cloud project of your own. About ten minutes, once.
 | `drive.file`     | Create the converted Sheet. Scoped to files this app creates — it can never touch the rest of your Drive. |
 
 **Narrowing them:** if you always paste explicit spreadsheet links and never convert `.xlsx`,
-drop `drive.readonly` and `drive.file` from both the consent screen and `SCOPES` in
-`src/auth.ts`, and re-mint. You lose `sheet_locate` and `sheet_import_xlsx`; everything else
-keeps working — and the app no longer asks for a _restricted_ scope at all.
+drop `drive.readonly` from both the consent screen and `SCOPES` in `src/auth.ts` and
+`scripts/mint-token.mjs`, and re-mint. Keep `drive.file`: the account check at mint time and
+`sheet_whoami` read Drive's `about` endpoint, which accepts it. You lose `sheet_locate` and
+`sheet_import_xlsx`; everything else keeps working — and the app no longer asks for a
+_restricted_ scope at all.
 
 ### Credentials
 
@@ -203,15 +205,15 @@ whole security story.
 
 ## Troubleshooting
 
-| Symptom                                     | Cause                                                                                                                                            |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `invalid_grant` after ~7 days               | The OAuth app is still in _Testing_. Publish it to Production and re-mint.                                                                       |
-| "Google hasn't verified this app"           | Expected for an app you built for yourself. **Advanced** → continue. Verification is optional; the step you needed was `Audience → Publish app`. |
-| `403` on a file you can see in Drive        | The account has **view** access, not **edit**. Sheets writes need edit.                                                                          |
-| `404` on an id you copied                   | The file was never shared with the account that granted the token. Check `sheet_whoami`.                                                         |
-| `sheet_locate` fails, everything else works | The Drive API is not enabled on your Cloud project.                                                                                              |
-| "over the 5000-cell read limit"             | Working as designed. Use `sheet_find` to locate rows, then read those.                                                                           |
-| A write is REFUSED with a fresh preview     | Someone edited the range after the preview. Read the new before/after and confirm again.                                                         |
+| Symptom                                    | Cause                                                                                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `invalid_grant` after ~7 days              | The OAuth app is still in _Testing_. Publish it to Production and re-mint.                                                                       |
+| "Google hasn't verified this app"          | Expected for an app you built for yourself. **Advanced** → continue. Verification is optional; the step you needed was `Audience → Publish app`. |
+| `403` on a file you can see in Drive       | The account has **view** access, not **edit**. Sheets writes need edit.                                                                          |
+| `404` on an id you copied                  | The file was never shared with the account that granted the token. Check `sheet_whoami`.                                                         |
+| `sheet_locate` fails, `sheet_whoami` works | The token lacks `drive.readonly`: add the scope and re-mint. (With the Drive API off, `sheet_whoami` and minting fail too.)                      |
+| "over the 5000-cell read limit"            | Working as designed. Use `sheet_find` to locate rows, then read those.                                                                           |
+| A write is REFUSED with a fresh preview    | Someone edited the range after the preview. Read the new before/after and confirm again.                                                         |
 
 ---
 
