@@ -12,12 +12,12 @@
   "devDependencies": {
     "@nx/js": "23.3.0",
     "@swc-node/register": "~1.12.1",
-    "@swc/core": "~1.16.13",
+    "@swc/core": "~1.16.18",
     "@swc/helpers": "~0.5.23",
     "@types/node": "^26.6.5",
     "esbuild": "^0.28.2",
     "nx": "23.3.0",
-    "prettier": "^3.9.9",
+    "prettier": "^3.9.10",
     "tslib": "^2.3.0",
     "typescript": "~6.0.3"
   },
