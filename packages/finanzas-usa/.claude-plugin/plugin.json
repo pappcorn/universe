@@ -1,0 +1,21 @@
+{
+  "name": "finanzas-usa",
+  "displayName": "Finanzas USA",
+  "version": "0.1.0",
+  "description": "In Spanish: two advisor agents for personal finance in the United States. Indexandro builds a written investment policy (IPS), a boring indexed core and a monthly review from your Interactive Brokers CSV statements, with banded rebalancing, a capped learning sleeve and an HTML dashboard; it never places orders. Tributina organizes personal and small-business taxes (LLC, S-corp, C-corp), finds legal savings with IRS sources and prepares the work for your CPA; it never files. No credentials, no server.",
+  "author": { "name": "PappCorn" },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/finanzas-usa",
+  "repository": "https://github.com/pappcorn/universe",
+  "license": "MIT",
+  "keywords": [
+    "agents",
+    "personal-finance",
+    "retirement",
+    "investing",
+    "interactive-brokers",
+    "taxes",
+    "irs",
+    "spanish",
+    "espanol"
+  ]
+}
