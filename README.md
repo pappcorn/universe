@@ -95,6 +95,22 @@ product team plus its dev-loop skills. [Request access](mailto:cris@pappcorn.com
 
 </td>
 </tr>
+<tr>
+<td width="50%" valign="top">
+
+### 💵 [finanzas-usa](packages/finanzas-usa)
+
+![Free · MIT](https://img.shields.io/badge/free-MIT-00d9ff?style=flat-square&labelColor=161519) **Agents** · in Spanish
+
+Two advisors for money in the United States: **Indexandro** (an IPS, a boring
+indexed core and a monthly review from your Interactive Brokers statements) and
+**Tributina** (personal and small-business taxes, ready for your CPA). They
+propose; they never trade or file. Also usable [as Claude Projects](packages/finanzas-usa#en-la-app-de-claude-sin-terminal-proyectos-y-una-carpeta).
+
+</td>
+<td width="50%" valign="top">
+</td>
+</tr>
 </table>
 
 **Connectors** are open source and bring-your-own-credentials. Each one runs
@@ -105,6 +121,9 @@ They are standard MCP servers, so they work in any MCP client, not only Claude.
 **Skill packs** need no credentials and no server: they are skills that encode
 a way of working. `best-practices-git` is the first of a `best-practices-*`
 family, one plugin per practice a team otherwise learns the hard way.
+
+**Agent packs** are free agents with a narrow job, a memory in plain files you
+own, and hard limits written into each agent. `finanzas-usa` is the first.
 
 **Licensed plugins** keep their source in a private repository. The catalog
 entry points at that repo, and **read access to the repo is the license**:
@@ -128,6 +147,7 @@ which is expected, not broken. To request access to `product-team`, write to
 /plugin install whatsapp-mcp@pappcorn-plugins
 /plugin install best-practices-git@pappcorn-plugins
 /plugin install cris-asiste@pappcorn-plugins
+/plugin install finanzas-usa@pappcorn-plugins
 ```
 
 The plugin asks for your credentials at install time and keeps them in your
@@ -140,9 +160,10 @@ first:
 | 📊 Google Sheets | [Connect your own Google Sheets account](docs/setup-google-sheets.md)                                         | ~10 min | Its own APIs and token, separate from Gmail's |
 | 💬 WhatsApp      | [Connect your own WhatsApp number](docs/setup-meta-whatsapp.md)                                               |         | Free test number, no line to buy              |
 
-The skill packs need none of that. `best-practices-git` drives the `git` and
-`gh` already on your machine, and `cris-asiste` only writes the files you agree
-to, where you agree to. Prefer wiring it by hand, or not using plugins at all?
+The skill and agent packs need none of that. `best-practices-git` drives the
+`git` and `gh` already on your machine, `cris-asiste` only writes the files you
+agree to, where you agree to, and `finanzas-usa` works from the statements you
+download yourself. Prefer wiring it by hand, or not using plugins at all?
 See [install.md](docs/install.md).
 
 ### Not on Claude?

@@ -20,6 +20,7 @@ below exists to keep what is committed equal to what we think we shipped.
 | `whatsapp-mcp`       | Connector (MCP server) | [`packages/whatsapp-mcp`](../packages/whatsapp-mcp)             | committed `server/mcp.cjs` | [`@pappcorn/whatsapp-mcp`][npm-whatsapp], built at tag |
 | `best-practices-git` | Skill pack             | [`packages/best-practices-git`](../packages/best-practices-git) | the skills, as committed   | not published                                          |
 | `cris-asiste`        | Skill pack             | [`packages/cris-asiste`](../packages/cris-asiste)               | the skills, as committed   | not published                                          |
+| `finanzas-usa`       | Agent pack             | [`packages/finanzas-usa`](../packages/finanzas-usa)             | the agents, as committed   | not published                                          |
 | `product-team`       | Licensed plugin        | a private repository                                            | that repository            | not published                                          |
 
 [npm-gmail]: https://www.npmjs.com/package/@pappcorn/gmail-mcp
@@ -309,6 +310,39 @@ CODEOWNERS would request one anyway.
 - **Verify end to end:** install the plugin, open a new session and say
   "quiero crear un agente". For the chat path, download a zip from the site and
   upload it as a skill in a fresh Claude account.
+
+### finanzas-usa
+
+- **Source:** `packages/finanzas-usa/agents/` (`indexandro`, `tributina`),
+  written in Spanish for a LATAM audience living in the United States. They
+  are advisors on real money: they never place orders and never file.
+- **Ships:** two packagings from one source. The plugin installs the agents
+  straight from `agents/`. For people who use a Project in the Claude app,
+  `scripts/build-kit.sh` writes each agent body without its frontmatter to
+  `kit/instrucciones/`, which is committed so it can be downloaded from GitHub,
+  next to the dashboard template in `kit/plantillas/`. Nothing goes to npm, and
+  there is no release tag.
+- **Version lockstep:** `.claude-plugin/plugin.json`, its `marketplace.json`
+  line, and the `<!-- versión: X.Y.Z -->` first line of each agent body (the
+  line a Project uses to notice stale pasted instructions). Rebuild the kit in
+  the same PR.
+- **Release:** merge the bump to `main`.
+- **Tests:** `npx nx run finanzas-usa:test` checks frontmatter, version
+  lockstep, that the committed kit matches a fresh build, the doctrine that
+  must survive any rewrite, and privacy rules. `npx nx run finanzas-usa:kit`
+  rebuilds the kit.
+- **Guide:** its [README](../packages/finanzas-usa/README.md), including the
+  Projects install for people without a terminal. Update it when the Claude
+  app moves the screens it walks through, and when Interactive Brokers moves
+  the statement menus the agent describes.
+- **Verify end to end:** install the plugin, open a new session in an empty
+  folder, say "armemos mi plan de retiro", and check the interview writes under
+  `vault/2. Areas/Finanzas/retiro/`. Run a monthly review against a sample IBKR
+  Activity Statement CSV with made-up numbers, never a real one.
+- **Specific risk:** people act on what these agents say. Any change that
+  softens a rule (orders, the IPS, the learning-sleeve cap, wash sales, IRS
+  citations with the year, sensitive data) needs a human reviewer who reads the
+  rule, not only the diff.
 
 ### product-team (licensed)
 

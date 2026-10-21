@@ -1,0 +1,15 @@
+{
+  "name": "finanzas-usa",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/finanzas-usa/agents",
+  "tags": ["type:agent-pack"],
+  "targets": {
+    "kit": {
+      "command": "bash packages/finanzas-usa/scripts/build-kit.sh"
+    },
+    "test": {
+      "command": "node --test packages/finanzas-usa/test/*.test.mjs"
+    }
+  }
+}

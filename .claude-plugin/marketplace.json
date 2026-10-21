@@ -37,6 +37,12 @@
       "description": "In Spanish: three skills that guide you to configure your own AI instead of just using it. /crear-agente interviews you and builds a small focused agent, /crear-skill teaches your Claude a repetitive task, /crear-asistente sets up your own personal assistant with a plain-text second brain. No credentials, no server."
     },
     {
+      "name": "finanzas-usa",
+      "source": "./packages/finanzas-usa",
+      "version": "0.1.0",
+      "description": "In Spanish: two advisor agents for personal finance in the United States. Indexandro builds a written investment policy (IPS), a boring indexed core and a monthly review from your Interactive Brokers CSV statements, with banded rebalancing, a capped learning sleeve and an HTML dashboard; it never places orders. Tributina organizes personal and small-business taxes (LLC, S-corp, C-corp), finds legal savings with IRS sources and prepares the work for your CPA; it never files. No credentials, no server."
+    },
+    {
       "name": "product-team",
       "source": { "source": "github", "repo": "pappcorn/plugin-product-team" },
       "version": "0.6.9",
