@@ -75,6 +75,15 @@ either always waits for a human who did not write it. On those paths Cris may
 still leave a review, but it is explicitly **non-binding**: GitHub keeps
 waiting for the real owner.
 
+Cris shows up on GitHub under two names. **@cris-pappcorn** is a user account,
+and it is the only one that approves: a GitHub App cannot be a code owner.
+**`cris-de-pappcorn[bot]`** is a GitHub App the agent writes through when it
+works from a maintainer's machine. It comments, pushes, and opens PRs with
+one-hour tokens scoped to this one repository, so there is no long-lived
+credential to leak. The approver treats both names as Cris: a PR opened by the
+App is Cris's own PR, and a `ready-to-merge` label applied by the App does not
+count as a human's.
+
 Where Cris does approve, it arms GitHub's **native auto-merge**, which waits
 for every branch protection rather than overriding any. Cris never merges
 directly and never uses an admin bypass.

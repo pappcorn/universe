@@ -201,6 +201,29 @@ maintainers break the tie.
 
 ---
 
+## Whose name the writes go out in
+
+When this loop runs as the agent maintainer, its comments and pushes go out as
+the agent's GitHub App (`cris-de-pappcorn[bot]`), with a short-lived token the
+operator's machine mints for this repo. Two things to get right:
+
+- **Fail closed.** `gh` silently ignores an _empty_ `GH_TOKEN` and falls back to
+  whatever account is logged in locally, so a failed mint would post as the
+  human without a word. Make a failed mint produce a token that cannot work:
+
+  ```bash
+  GH_TOKEN="$(<mint-command> || echo unresolved)" gh pr comment <PR> --body "…"
+  ```
+
+  A `401` then stops the loop, which is the point. Never print the token.
+
+- **The label is not the agent's to apply.** `cris-approve.yml` only takes
+  `ready-to-merge` from a human code owner, and it counts the App as Cris. Apply
+  the label from the human maintainer's own `gh` login (no `GH_TOKEN`), or hand
+  that one step to them.
+
+---
+
 ## Hard rules
 
 - **Never fake green.** No editing the workflow, weakening the check, or
