@@ -212,10 +212,13 @@ operator's machine mints for this repo. Two things to get right:
   human without a word. Make a failed mint produce a token that cannot work:
 
   ```bash
-  GH_TOKEN="$(<mint-command> || echo unresolved)" gh pr comment <PR> --body "…"
+  t="$(<mint-command>)"; GH_TOKEN="${t:-unresolved}" gh pr comment <PR> --body "…"
   ```
 
-  A `401` then stops the loop, which is the point. Never print the token.
+  The fallback keys on the captured value being empty, not on the exit code: a
+  mint that fails but exits 0 (a pipeline ending in `jq`, say) still prints
+  nothing. If the mint is a pipeline, run it under `set -o pipefail` too. A
+  `401` then stops the loop, which is the point. Never print the token.
 
 - **The label is not the agent's to apply.** `cris-approve.yml` only takes
   `ready-to-merge` from a human code owner, and it counts the App as Cris. Apply
