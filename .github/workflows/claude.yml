@@ -40,6 +40,13 @@ jobs:
           additional_permissions: |
             actions: read
 
+          # The action refuses to run for a non-human actor unless it is named
+          # here. The agent maintainer's GitHub App posts `@claude` disputes
+          # from the review loop as `cris-de-pappcorn[bot]`, so it has to be
+          # allowed or those disputes get no reply. Name the bot, never `*`;
+          # the name is the login with `[bot]` stripped.
+          allowed_bots: 'cris-de-pappcorn'
+
           # Pin an explicit, current model. The action's old default
           # (claude-sonnet-4-20250514) was retired and now 404s. Opus 4.8 for
           # the interactive @claude path — on-demand and lower-volume, so the

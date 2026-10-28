@@ -176,6 +176,14 @@ PR, and where the agent maintainer may and may not sign, is spelled out in
 [CONTRIBUTING → Who can approve](../CONTRIBUTING.md#who-can-approve). Two files
 are humans-only: `.github/workflows/cris-approve.yml` and `.github/CODEOWNERS`.
 
+The agent maintainer has two GitHub identities. `@cris-pappcorn` approves, from
+Actions, with the `CRIS_APPROVE_PAT` secret. Everything the agent writes from a
+maintainer's machine (comments, pushes, PRs) goes out as the GitHub App
+`cris-de-pappcorn[bot]`, with a one-hour installation token scoped to this repo
+and minted on demand. No personal access token for the agent lives on a
+maintainer's machine. `cris-approve.yml` counts both logins as Cris, so an
+App-authored PR always needs a human code owner.
+
 Every PR opens with an assignee and a named human reviewer, even though
 CODEOWNERS would request one anyway.
 

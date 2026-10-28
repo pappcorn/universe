@@ -87,6 +87,15 @@
 #      arming call is rejected outright — the design cannot work.
 #   5. Keep CRIS_LOGIN below in sync with the account login.
 #
+# ── The agent's second face ──
+# Outside Actions the agent writes through a GitHub App ("Cris de PappCorn"),
+# with one-hour installation tokens scoped to a single repo: it comments,
+# pushes, and in an autonomous run it OPENS the PR. Those writes show up as
+# CRIS_APP_LOGIN, not as CRIS_LOGIN. The gate treats both logins as Cris —
+# otherwise a PR the agent opened through the App would look like someone
+# else's work, and Cris could end up signing its own PR. A GitHub App cannot be
+# a code owner, so the App never approves; only CRIS_LOGIN does.
+#
 # Security, and this matters more here than in a private repo: this workflow
 # never runs PR code — it only reads metadata and approves. CODEOWNERS is read
 # from the BASE branch, never from the PR head, so a fork cannot edit CODEOWNERS
@@ -116,6 +125,9 @@ permissions:
 env:
   # The Cris GitHub account login. Keep in sync with .github/CODEOWNERS.
   CRIS_LOGIN: cris-pappcorn
+  # The agent's GitHub App, as GitHub shows it. Treated as Cris everywhere the
+  # gate asks "is this Cris?" (author and labeler). See the header.
+  CRIS_APP_LOGIN: cris-de-pappcorn[bot]
 
 jobs:
   approve:
@@ -140,6 +152,10 @@ jobs:
             const { owner, repo } = context.repo;
             const prNumber = pr.number;
             const cris = process.env.CRIS_LOGIN.toLowerCase();
+            const crisApp = process.env.CRIS_APP_LOGIN.toLowerCase();
+            // Both faces of the agent count as Cris. `cris` alone stays the
+            // login that approves and owns paths in CODEOWNERS.
+            const isCris = (login) => login === cris || login === crisApp;
             const author = pr.user ? pr.user.login.toLowerCase() : '';
             const labeler = context.payload.sender ? context.payload.sender.login.toLowerCase() : '';
 
@@ -327,7 +343,7 @@ jobs:
             };
 
             // ── Identity gate: Cris never approves its own work ──
-            if (author === cris) {
+            if (isCris(author)) {
               return abstain(`this PR is mine — my own work needs human eyes. cc ${tag}`);
             }
 
@@ -395,13 +411,13 @@ jobs:
             //     CODEOWNERS suffices, since the merge stays blocked regardless.
             // Case 2 already withholds the approval, so it keeps its own message.
             const allHumanOwners = [...new Set(rules.flatMap(r => r.owners))].filter(o => o !== cris);
-            if (decision === 'approve_and_merge' && (labeler === cris || !union.includes(labeler))) {
+            if (decision === 'approve_and_merge' && (isCris(labeler) || !union.includes(labeler))) {
               return abstain(
                 `the label was applied by @${labeler || '?'}, who is not a code owner of the touched paths. ` +
                 `\`ready-to-merge\` is the ship order, so I only take it from an owner of those paths. cc ${tag}`,
               );
             }
-            if (decision === 'approve' && (labeler === cris || !allHumanOwners.includes(labeler))) {
+            if (decision === 'approve' && (isCris(labeler) || !allHumanOwners.includes(labeler))) {
               return abstain(
                 `the label was applied by @${labeler || '?'}, who is not a code owner in \`CODEOWNERS\`. cc ${tag}`,
               );
