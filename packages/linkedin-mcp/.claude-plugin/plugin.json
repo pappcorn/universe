@@ -1,0 +1,47 @@
+{
+  "name": "linkedin-mcp",
+  "displayName": "LinkedIn Pages",
+  "version": "0.1.0",
+  "description": "Publish to your organization's LinkedIn Page (text, image, PDF document), read and answer comments as the Page, and read basic Page analytics, through LinkedIn's official Community Management API. Every post and comment is previewed and confirmed. Requires your own LinkedIn app approved for that API. Your credentials stay on your machine.",
+  "author": { "name": "PappCorn" },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/linkedin-mcp",
+  "repository": "https://github.com/pappcorn/universe",
+  "license": "MIT",
+  "keywords": ["linkedin", "linkedin-pages", "social-media", "mcp"],
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "client_id": {
+      "type": "string",
+      "title": "LinkedIn app Client ID",
+      "description": "From the Auth tab of your own LinkedIn developer app. See docs/setup-linkedin.md. Leave every field empty to use the credential file the setup script writes instead ($LINKEDIN_MCP_CREDENTIALS, default ~/.config/pappcorn-linkedin-mcp/credentials.json). That is the recommended path.",
+      "required": false
+    },
+    "client_secret": {
+      "type": "string",
+      "title": "LinkedIn app Client Secret",
+      "description": "From the same Auth tab. Stored in your OS keychain, never written to disk by this plugin. Needed only to renew the access token with a refresh token.",
+      "sensitive": true,
+      "required": false
+    },
+    "refresh_token": {
+      "type": "string",
+      "title": "Refresh token",
+      "description": "Printed nowhere: the setup script writes it to its credential file, and only if LinkedIn issued one to your app. Leave empty if you use the credential file.",
+      "sensitive": true,
+      "required": false
+    },
+    "access_token": {
+      "type": "string",
+      "title": "Access token",
+      "description": "Only for apps LinkedIn issues no refresh token to. It lasts 60 days; after that, run the setup script again. Leave empty if you use the credential file.",
+      "sensitive": true,
+      "required": false
+    },
+    "organization_id": {
+      "type": "string",
+      "title": "Organization (Page) ID",
+      "description": "The numeric ID of the LinkedIn Page to act as. You must be an ADMINISTRATOR of it. Leave empty to use the Page the setup script recorded.",
+      "required": false
+    }
+  }
+}

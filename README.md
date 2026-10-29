@@ -16,8 +16,8 @@
 </div>
 
 **PappCorn Universe is `pappcorn-plugins`, PappCorn's plugin catalog for
-Claude.** Connectors for your email, your spreadsheets and your WhatsApp that
-run on your own credentials, skill packs that help you configure your AI for
+Claude.** Connectors for your email, your spreadsheets, your WhatsApp and your
+company's LinkedIn Page that run on your own credentials, skill packs that help you configure your AI for
 your own work, and a licensed product team of agents. Everything except the
 product team is free and MIT, and you can read every line before you trust it.
 
@@ -64,6 +64,18 @@ Meta's official WhatsApp Cloud API.
 </td>
 <td width="50%" valign="top">
 
+### 📣 [linkedin-mcp](packages/linkedin-mcp)
+
+![Free · MIT](https://img.shields.io/badge/free-MIT-00d9ff?style=flat-square&labelColor=161519) **Connector**
+
+Publish to your company's LinkedIn Page, and read and answer its comments, as
+the Page, through LinkedIn's official API. Needs your own approved app.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
 ### 🌿 [best-practices-git](packages/best-practices-git)
 
 ![Free · MIT](https://img.shields.io/badge/free-MIT-00d9ff?style=flat-square&labelColor=161519) **Skill pack**
@@ -72,8 +84,6 @@ How a team that works with agents commits (`/commit`), opens pull requests
 (`/git-pr`) and runs parallel branches (`/worktree`).
 
 </td>
-</tr>
-<tr>
 <td width="50%" valign="top">
 
 ### 🧭 [cris-asiste](packages/cris-asiste)
@@ -84,6 +94,8 @@ Configure your own AI: build a focused agent, teach Claude a task, set up a
 personal assistant. Also available [as kits for the Claude chat](#cris-asiste-kits-for-the-claude-chat).
 
 </td>
+</tr>
+<tr>
 <td width="50%" valign="top">
 
 ### 🏭 product-team
@@ -94,12 +106,15 @@ PappCorn's six-agent [INSPIRED](https://www.svpg.com/books/inspired-how-to-creat
 product team plus its dev-loop skills. [Request access](mailto:cris@pappcorn.com).
 
 </td>
+<td width="50%" valign="top">
+</td>
 </tr>
 </table>
 
 **Connectors** are open source and bring-your-own-credentials. Each one runs
-as a local process on your machine, signs in with your own Google or Meta
-credentials, and talks straight to Google or Meta with no server in between.
+as a local process on your machine, signs in with your own Google, Meta or
+LinkedIn credentials, and talks straight to that vendor with no server in
+between.
 They are standard MCP servers, so they work in any MCP client, not only Claude.
 
 **Skill packs** need no credentials and no server: they are skills that encode
@@ -126,6 +141,7 @@ which is expected, not broken. To request access to `product-team`, write to
 /plugin install gmail-mcp@pappcorn-plugins
 /plugin install gsheets-mcp@pappcorn-plugins
 /plugin install whatsapp-mcp@pappcorn-plugins
+/plugin install linkedin-mcp@pappcorn-plugins
 /plugin install best-practices-git@pappcorn-plugins
 /plugin install cris-asiste@pappcorn-plugins
 ```
@@ -139,6 +155,7 @@ first:
 | ✉️ Gmail         | [Connect your own Gmail account](docs/setup-google-cloud.md) · [screenshot walkthrough](docs/how-to-gmail.md) | ~15 min |                                               |
 | 📊 Google Sheets | [Connect your own Google Sheets account](docs/setup-google-sheets.md)                                         | ~10 min | Its own APIs and token, separate from Gmail's |
 | 💬 WhatsApp      | [Connect your own WhatsApp number](docs/setup-meta-whatsapp.md)                                               |         | Free test number, no line to buy              |
+| 📣 LinkedIn      | [Connect your organization's LinkedIn Page](docs/setup-linkedin.md)                                           | ~15 min | Registered company and LinkedIn's approval    |
 
 The skill packs need none of that. `best-practices-git` drives the `git` and
 `gh` already on your machine, and `cris-asiste` only writes the files you agree

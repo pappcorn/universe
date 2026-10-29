@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "linkedin": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/mcp.cjs"],
+      "env": {
+        "LINKEDIN_CLIENT_ID": "${user_config.client_id}",
+        "LINKEDIN_CLIENT_SECRET": "${user_config.client_secret}",
+        "LINKEDIN_REFRESH_TOKEN": "${user_config.refresh_token}",
+        "LINKEDIN_ACCESS_TOKEN": "${user_config.access_token}",
+        "LINKEDIN_ORGANIZATION_ID": "${user_config.organization_id}"
+      }
+    }
+  }
+}

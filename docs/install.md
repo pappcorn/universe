@@ -6,6 +6,8 @@ Do the account setup first — the connector is useless without a credential:
   (visual version with screenshots: [how-to-gmail.md](how-to-gmail.md))
 - **Google Sheets** → [setup-google-sheets.md](setup-google-sheets.md)
 - **WhatsApp** → [setup-meta-whatsapp.md](setup-meta-whatsapp.md)
+- **LinkedIn Pages** → [setup-linkedin.md](setup-linkedin.md) (needs a
+  registered company and LinkedIn's approval of your own app)
 
 Then pick one of the two paths below.
 
@@ -33,6 +35,11 @@ or leave all three empty to use the credential file its setup guide wrote.
 **WhatsApp** asks for: access token, phone number ID, and optionally the
 WhatsApp Business Account ID.
 
+**LinkedIn Pages** asks for: client ID, client secret, refresh token, access
+token and Page ID. Leave all five empty to use the credential file its setup
+script wrote, which is the recommended path: that script is the only way to
+authorize the app anyway.
+
 > This path runs a self-contained bundle committed to the repo — nothing is
 > fetched from npm and there is no build step.
 
@@ -40,13 +47,15 @@ WhatsApp Business Account ID.
 
 ## Path B — from npm (no clone, no plugin)
 
-All three connectors are published —
+The connectors are published —
 [`@pappcorn/gmail-mcp`](https://www.npmjs.com/package/@pappcorn/gmail-mcp),
-[`@pappcorn/gsheets-mcp`](https://www.npmjs.com/package/@pappcorn/gsheets-mcp)
-and [`@pappcorn/whatsapp-mcp`](https://www.npmjs.com/package/@pappcorn/whatsapp-mcp) —
+[`@pappcorn/gsheets-mcp`](https://www.npmjs.com/package/@pappcorn/gsheets-mcp),
+[`@pappcorn/whatsapp-mcp`](https://www.npmjs.com/package/@pappcorn/whatsapp-mcp)
+and [`@pappcorn/linkedin-mcp`](https://www.npmjs.com/package/@pappcorn/linkedin-mcp) —
 so any MCP config can launch them with `npx` — nothing to download first. The
-examples below use Gmail; swap in `@pappcorn/gsheets-mcp` or
-`@pappcorn/whatsapp-mcp` (and a matching server name) for the others.
+examples below use Gmail; swap in `@pappcorn/gsheets-mcp`,
+`@pappcorn/whatsapp-mcp` or `@pappcorn/linkedin-mcp` (and a matching server
+name) for the others.
 
 **Claude Code** — add to `.mcp.json` in your project:
 
@@ -138,6 +147,7 @@ Before wiring it into your client, check the credential from a terminal:
 ```bash
 npx -y -p @pappcorn/gmail-mcp    pappcorn-gmail    whoami
 npx -y -p @pappcorn/whatsapp-mcp pappcorn-whatsapp whoami
+npx -y -p @pappcorn/linkedin-mcp pappcorn-linkedin whoami
 ```
 
 `whoami` prints the account the connector is authenticated as — plus a
@@ -222,6 +232,17 @@ Useful when running from source or scripting.
 | `WHATSAPP_WABA_ID`           | Business account ID; needed only to list templates.          |
 | `WHATSAPP_GRAPH_API_VERSION` | Defaults to `v25.0`.                                         |
 
+**LinkedIn Pages** — read from the process environment only (no `.env` search).
+
+| Variable                                                                   | Purpose                                                                                                   |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `LINKEDIN_MCP_CREDENTIALS`                                                 | Path to the credential file. Default `~/.config/pappcorn-linkedin-mcp/credentials.json`.                  |
+| `LINKEDIN_ACCESS_TOKEN`                                                    | Access token supplied directly (60-day life). Takes precedence over the file.                             |
+| `LINKEDIN_REFRESH_TOKEN` + `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` | Renewable credential supplied directly. Takes precedence over the file.                                   |
+| `LINKEDIN_ORGANIZATION_ID`                                                 | The Page to act as. Default: the one the setup recorded.                                                  |
+| `LINKEDIN_API_VERSION`                                                     | LinkedIn API version, `YYYYMM`. Defaults to `202610`.                                                     |
+| `LINKEDIN_MCP_LOG_DIR`                                                     | Where the local log of published posts and comments goes. Default `~/.local/state/pappcorn-linkedin-mcp`. |
+
 ---
 
 ## Uninstalling / revoking
@@ -233,5 +254,8 @@ actually revoke:
 - **Google Sheets** — Google account → Security → third-party access → remove
   your app. (If you reused one app for Gmail and Sheets, this revokes both.)
 - **WhatsApp** — Meta Business Settings → System users → revoke the token.
+- **LinkedIn Pages** — the administrator who authorized the app removes it
+  under **Permitted services** in their LinkedIn data-privacy settings; you can
+  also reset the Client Secret in the app's Auth tab.
 
 Then delete the credential file if you created one.
