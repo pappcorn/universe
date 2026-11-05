@@ -339,21 +339,38 @@ function decodeB64Url(data: string): string {
 // into line breaks, strip the rest, decode the common entities. Not a
 // renderer — just enough to read a notification email.
 export function stripHtml(html: string): string {
-  return html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, '')
+  const withoutCode = replaceUntilStable(
+    html,
+    /<(script|style)[\s\S]*?<\/\1>/gi,
+  );
+  const withBreaks = withoutCode
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/(div|tr|li|h[1-6]|blockquote)>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#0?39;|&apos;/gi, "'")
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+    .replace(/<\/(div|tr|li|h[1-6]|blockquote)>/gi, '\n');
+  return (
+    replaceUntilStable(withBreaks, /<[^>]+>/g)
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#0?39;|&apos;/gi, "'")
+      // Last, so "&amp;lt;" reads as the literal text "&lt;", not as "<".
+      .replace(/&amp;/gi, '&')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  );
+}
+
+// One pass isn't enough: removing a match can join what's left into a new one.
+function replaceUntilStable(text: string, pattern: RegExp): string {
+  let current = text;
+  let previous: string;
+  do {
+    previous = current;
+    current = current.replace(pattern, '');
+  } while (current !== previous);
+  return current;
 }
 
 // Walk the MIME tree collecting the first text/plain and first text/html

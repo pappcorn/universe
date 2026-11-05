@@ -37058,7 +37058,21 @@ function decodeB64Url(data) {
   return Buffer.from(data, "base64url").toString("utf8");
 }
 function stripHtml(html) {
-  return html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n\n").replace(/<\/(div|tr|li|h[1-6]|blockquote)>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;/gi, "'").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  const withoutCode = replaceUntilStable(
+    html,
+    /<(script|style)[\s\S]*?<\/\1>/gi
+  );
+  const withBreaks = withoutCode.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n\n").replace(/<\/(div|tr|li|h[1-6]|blockquote)>/gi, "\n");
+  return replaceUntilStable(withBreaks, /<[^>]+>/g).replace(/&nbsp;/gi, " ").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;/gi, "'").replace(/&amp;/gi, "&").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+function replaceUntilStable(text, pattern) {
+  let current = text;
+  let previous;
+  do {
+    previous = current;
+    current = current.replace(pattern, "");
+  } while (current !== previous);
+  return current;
 }
 function extractBody(payload) {
   const found = {};

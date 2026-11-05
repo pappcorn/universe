@@ -258,6 +258,23 @@ describe('stripHtml', () => {
   });
 });
 
+describe('stripHtml, on hostile or tricky input', () => {
+  it('removes a script split so that stripping it forms a new one', () => {
+    assert.equal(stripHtml('a<scr<script>x</script>ipt>y</script>b'), 'ab');
+  });
+
+  it('decodes entities exactly once', () => {
+    assert.equal(
+      stripHtml('&amp;lt;b&amp;gt; &lt;b&gt; &amp;'),
+      '&lt;b&gt; <b> &',
+    );
+  });
+
+  it('leaves a lone angle bracket in text alone', () => {
+    assert.equal(stripHtml('<p>a < b</p>'), 'a < b');
+  });
+});
+
 describe('buildMessage', () => {
   it('sends plain text as multipart/alternative, text first', async () => {
     const body = 'One paragraph, on one line.\n\nJane Doe\nExample Inc\n';
