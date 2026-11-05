@@ -1,0 +1,50 @@
+{
+  "name": "@pappcorn/linkedin-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for LinkedIn Pages — publish posts (text, image, PDF document), read and answer comments, and read basic analytics AS YOUR ORGANIZATION'S PAGE, through LinkedIn's official Community Management API. Uses your own LinkedIn app.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pappcorn/universe.git",
+    "directory": "packages/linkedin-mcp"
+  },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/linkedin-mcp",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "linkedin",
+    "linkedin-pages",
+    "community-management",
+    "claude"
+  ],
+  "type": "commonjs",
+  "main": "./dist/mcp.js",
+  "bin": {
+    "linkedin-mcp": "./dist/mcp.js",
+    "pappcorn-linkedin-mcp": "./dist/mcp.js",
+    "pappcorn-linkedin": "./dist/cli.js",
+    "pappcorn-linkedin-setup": "./scripts/setup.mjs"
+  },
+  "files": [
+    "dist",
+    "server",
+    "scripts",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && npm run bundle",
+    "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=server/mcp.cjs",
+    "linkedin": "node -r @swc-node/register src/cli.ts",
+    "setup": "node scripts/setup.mjs",
+    "test": "node --test -r @swc-node/register test/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

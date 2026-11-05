@@ -25,6 +25,12 @@
       "description": "Send WhatsApp messages from your own number via Meta's official WhatsApp Cloud API. Outbound v1: templates and free-form replies inside the 24-hour window."
     },
     {
+      "name": "linkedin-mcp",
+      "source": "./packages/linkedin-mcp",
+      "version": "0.1.0",
+      "description": "Publish to your organization's LinkedIn Page (text, image, PDF carousel), read and answer comments as the Page, and read basic Page analytics, via LinkedIn's official Community Management API. Every post and comment is previewed and confirmed. Requires your own LinkedIn app, approved for that API, for a registered company."
+    },
+    {
       "name": "best-practices-git",
       "source": "./packages/best-practices-git",
       "version": "0.1.0",

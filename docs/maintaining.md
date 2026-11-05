@@ -18,6 +18,7 @@ below exists to keep what is committed equal to what we think we shipped.
 | `gmail-mcp`          | Connector (MCP server) | [`packages/gmail-mcp`](../packages/gmail-mcp)                   | committed `server/mcp.cjs` | [`@pappcorn/gmail-mcp`][npm-gmail], built at tag       |
 | `gsheets-mcp`        | Connector (MCP server) | [`packages/gsheets-mcp`](../packages/gsheets-mcp)               | committed `server/mcp.cjs` | [`@pappcorn/gsheets-mcp`][npm-gsheets], built at tag   |
 | `whatsapp-mcp`       | Connector (MCP server) | [`packages/whatsapp-mcp`](../packages/whatsapp-mcp)             | committed `server/mcp.cjs` | [`@pappcorn/whatsapp-mcp`][npm-whatsapp], built at tag |
+| `linkedin-mcp`       | Connector (MCP server) | [`packages/linkedin-mcp`](../packages/linkedin-mcp)             | committed `server/mcp.cjs` | [`@pappcorn/linkedin-mcp`][npm-linkedin], built at tag |
 | `best-practices-git` | Skill pack             | [`packages/best-practices-git`](../packages/best-practices-git) | the skills, as committed   | not published                                          |
 | `cris-asiste`        | Skill pack             | [`packages/cris-asiste`](../packages/cris-asiste)               | the skills, as committed   | not published                                          |
 | `product-team`       | Licensed plugin        | a private repository                                            | that repository            | not published                                          |
@@ -25,6 +26,7 @@ below exists to keep what is committed equal to what we think we shipped.
 [npm-gmail]: https://www.npmjs.com/package/@pappcorn/gmail-mcp
 [npm-gsheets]: https://www.npmjs.com/package/@pappcorn/gsheets-mcp
 [npm-whatsapp]: https://www.npmjs.com/package/@pappcorn/whatsapp-mcp
+[npm-linkedin]: https://www.npmjs.com/package/@pappcorn/linkedin-mcp
 
 Every product is listed in
 [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). Its
@@ -275,6 +277,41 @@ CODEOWNERS would request one anyway.
      `whatsapp_whoami`. Only test a send against a number you own.
 - **Specific risk:** a send reaches a real person and can cost money. Send
   tools must keep saying they confirm first.
+
+### linkedin-mcp
+
+- **Source:** `packages/linkedin-mcp/src`. Setup script: `scripts/setup.mjs`
+  (bin `pappcorn-linkedin-setup`). Tests: `packages/linkedin-mcp/test`, all
+  against a mocked LinkedIn. The CLI is read-only on purpose.
+- **Ships:** plugin runs the committed `server/mcp.cjs`; npm ships `dist/`,
+  `server/`, `scripts/`, README and CHANGELOG. npm bins: `linkedin-mcp`,
+  `pappcorn-linkedin-mcp` (server), `pappcorn-linkedin` (CLI),
+  `pappcorn-linkedin-setup`.
+- **Version lockstep:** `package.json`, `.claude-plugin/plugin.json`, its
+  `marketplace.json` line, its `package-lock.json` entry, `CHANGELOG.md`.
+- **Release tag:** `linkedin-mcp@<version>`.
+- **Setup guide:** [setup-linkedin.md](setup-linkedin.md), plus
+  [install.md](install.md). Update it when the setup script's flags, the
+  redirect URL, the scopes or the `userConfig` prompts change, or when LinkedIn
+  moves a developer-portal screen or changes the Development and Standard tier
+  terms.
+- **API version:** the connector pins `LinkedIn-Version` (`DEFAULT_API_VERSION`
+  in `src/config.ts`, mirrored in `scripts/setup.mjs`). LinkedIn sunsets
+  versions roughly a year after release and answers 426 afterwards. Bump it,
+  check the endpoints in `src/core.ts` against the docs, and release, at least
+  twice a year.
+- **Verify end to end:**
+  1. From npm, in an empty directory:
+     `npx -y -p @pappcorn/linkedin-mcp@<version> pappcorn-linkedin-setup --help`.
+  2. From a clone: `npm run linkedin -w @pappcorn/linkedin-mcp -- whoami` names
+     your Page and the token expiry.
+  3. As a plugin: update, new session, `/mcp` connected, ask for
+     `linkedin_whoami`, then `linkedin_post` without confirming: check the
+     preview. Only confirm a post you are willing to leave up on a Page you
+     own; the connector cannot delete it.
+- **Specific risk:** it publishes as a company, in public, and cannot take it
+  back. Both publish tools must keep their preview-then-confirm flow, and the
+  gate tests (`test/gate.test.ts`, `test/publish.test.ts`) must stay green.
 
 ### best-practices-git
 
