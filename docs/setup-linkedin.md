@@ -101,13 +101,21 @@ http://localhost:8919/callback
 
 The setup script listens there for the one moment LinkedIn sends you back
 after you approve. LinkedIn only redirects to URLs registered on the app, so
-the address must match character for character. If port 8919 is taken on your
+the address must match character for character. The portal accepts this
+plain-`http` localhost address. If port 8919 is taken on your
 machine, register `http://localhost:<another-port>/callback` instead and pass
 `--port <another-port>` in Step 6.
 
 While you are on the Auth tab, check the **OAuth 2.0 scopes** it lists. You
-should see `w_organization_social`, `r_organization_social` and
-`rw_organization_admin`. If the names differ, note them for `--scopes`.
+should see these five, which the setup script requests:
+
+- `w_organization_social` and `r_organization_social`: publish and read the
+  Page's posts.
+- `w_organization_social_feed` and `r_organization_social_feed`: comment as the
+  Page, and read comments.
+- `rw_organization_admin`: find the Pages you administer, and read analytics.
+
+If the names differ, note them for `--scopes`.
 
 ## Step 5 — Keep the Client Secret in a file
 
@@ -136,11 +144,36 @@ npx -y -p @pappcorn/linkedin-mcp pappcorn-linkedin-setup \
    the Page**, and approve the permissions. (An incognito window helps if your
    browser keeps choosing another LinkedIn account.)
 2. LinkedIn sends you back to `localhost:8919`, and the script catches it.
-3. It asks LinkedIn which Pages you administer. With one, it records it. With
-   several, it lists them and asks you to re-run with `--organization <id>`;
-   approving again is instant.
+3. It asks LinkedIn which Pages you administer. With one, it records it.
+   **With several, you must pass `--organization <id>`.** Without it, the script
+   lists your Pages and exits without saving anything, and you repeat the
+   authorization with the flag added.
 4. It writes `~/.config/pappcorn-linkedin-mcp/credentials.json` (chmod 600) and
    tells you when your tokens expire. No token or secret is printed.
+
+A credential you already have is replaced only when the whole flow succeeds. A
+failed or abandoned run leaves it as it was.
+
+### Approving on another device
+
+The redirect goes to `localhost`, which means _the device whose browser you
+approve in_. If that is not the machine running the script, such as an iPad or
+another computer, the last step fails in the browser with a page that cannot
+connect. Nothing is wrong, and the approval is not lost:
+
+1. Keep the script running. It waits 15 minutes.
+2. Copy the **whole address** from that browser's address bar. It starts with
+   `http://localhost:8919/callback?` and holds a one-time authorization code,
+   so do not paste it anywhere shared.
+3. On the machine running the script, in another terminal, run it with `curl`.
+   Keep the single quotes; the address contains `&`.
+
+   ```bash
+   curl '<the address you copied>'
+   ```
+
+The script takes it from there. If you administer several Pages, pass
+`--organization <id>` from the start: otherwise you make this round trip twice.
 
 ## Step 7 — Verify
 
@@ -156,12 +189,13 @@ the safest choice; the connector cannot delete it.
 
 ## Tokens, and how long this lasts
 
-- **Access tokens last 60 days.**
-- If LinkedIn issues your app a **refresh token**, it lasts **one year from the
-  first authorization** and the connector renews the access token on its own
-  until then. Renewing does not extend the year.
-- Not every app gets refresh tokens. The setup script tells you which case you
-  are in. Without one, run Step 6 again before the 60 days are up.
+- **Access tokens last about two months.**
+- A Development-tier app also gets a **refresh token**, which lasts about
+  **twelve months from the first authorization**. The connector renews the
+  access token on its own until then. Renewing does not extend the twelve
+  months; after that, run Step 6 again.
+- The setup script reports what LinkedIn issued. If it says no refresh token was
+  issued, run Step 6 again before the access token expires.
 
 `linkedin_whoami` always shows both dates.
 
@@ -185,7 +219,7 @@ management, that means showing:
 - a post published to the Page through the app (`linkedin_post`);
 - how a member's comment on that post is displayed (`linkedin_list_comments`);
 - which personal data fields of the commenter the app displays. With this
-  connector, the answer is: the member URN only, no name or profile data.
+  connector, the answer is: the author's URN only, no name or profile data.
 
 For Page analytics, show how post performance is displayed
 (`linkedin_page_stats`). A rejection at this stage is also final for that app,
@@ -199,10 +233,13 @@ so record carefully.
 | LinkedIn says the scope is invalid            | Your app was not granted one of the scopes. Check the Auth tab's scope list and pass `--scopes "…"` with the names it shows.       |
 | `cannot listen on localhost:8919`             | Another program holds the port. Free it, or register another port and pass `--port`.                                               |
 | `you administer no Pages`                     | You logged in with an account that is not an ADMINISTRATOR of the Page. Use the right account; Page "content admin" is not enough. |
+| Reading comments answers `HTTP 403`           | The credential was authorized without `r_organization_social_feed`. Re-run Step 6 with the default scopes.                         |
 | A tool answers `HTTP 403`                     | Missing scope, or the authorizing account lost its admin role. Re-run the setup as a current Page admin.                           |
+| The browser cannot connect to `localhost`     | You approved on another device. See [Approving on another device](#approving-on-another-device).                                   |
+| `you administer 2 Pages`                      | Nothing was saved. Re-run with `--organization <id>`, using an id from the list, and authorize again.                              |
 | A tool answers `HTTP 426`                     | LinkedIn sunset the API version the connector sends. Update the connector, or set `LINKEDIN_API_VERSION` to a current `YYYYMM`.    |
 | A tool answers `HTTP 429`                     | Development-tier call budget used up for now. Wait and retry later.                                                                |
-| `The access token expired … no refresh token` | Expected after 60 days on an app without refresh tokens. Re-run Step 6.                                                            |
+| `The access token expired … no refresh token` | Your credential holds no refresh token, so it cannot renew. Re-run Step 6.                                                         |
 
 ## Revoking access
 

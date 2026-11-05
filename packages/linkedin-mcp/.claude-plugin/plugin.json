@@ -26,14 +26,14 @@
     "refresh_token": {
       "type": "string",
       "title": "Refresh token",
-      "description": "Printed nowhere: the setup script writes it to its credential file, and only if LinkedIn issued one to your app. Leave empty if you use the credential file.",
+      "description": "Printed nowhere: the setup script writes it to its credential file. Leave empty if you use the credential file.",
       "sensitive": true,
       "required": false
     },
     "access_token": {
       "type": "string",
       "title": "Access token",
-      "description": "Only for apps LinkedIn issues no refresh token to. It lasts 60 days; after that, run the setup script again. Leave empty if you use the credential file.",
+      "description": "Only if you have no refresh token. It lasts about two months; after that, run the setup script again. Leave empty if you use the credential file.",
       "sensitive": true,
       "required": false
     },

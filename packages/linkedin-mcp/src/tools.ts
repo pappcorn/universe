@@ -359,8 +359,9 @@ export function registerTools(
       description:
         "Read the comments on one of the Page's posts, or the replies under one comment. " +
         'Returns each comment URN (what linkedin_comment needs to reply), the author URN — ' +
-        "marked when it is the Page itself — the time and the text. Commenters' names are not " +
-        'resolved: LinkedIn returns a member URN, and this connector requests no profile data. ' +
+        'a member (urn:li:person:…) or an organization (urn:li:organization:…), marked when it ' +
+        "is the Page itself — the time and the text. Authors' names are not resolved: this " +
+        'connector requests no profile data. ' +
         'Read-only.',
       inputSchema: {
         post_urn: z

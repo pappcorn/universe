@@ -31,17 +31,26 @@ import { dirname } from 'node:path';
 const API_VERSION = process.env.LINKEDIN_API_VERSION || '202610';
 const DEFAULT_OUT = `${homedir()}/.config/pappcorn-linkedin-mcp/credentials.json`;
 const DEFAULT_PORT = 8919;
-// w_organization_social  publish posts and comments as the Page.
-// r_organization_social  read the Page's posts and their comments.
-// rw_organization_admin  look up the Pages you administer, and Page analytics.
-// All three come with the Community Management API; the consent screen shows
+// w_organization_social       publish posts as the Page.
+// r_organization_social       read the Page's posts.
+// w_organization_social_feed  comment and reply as the Page.
+// r_organization_social_feed  read comments. Without it LinkedIn answers 403
+//                             ACCESS_DENIED on a comment read, even with
+//                             r_organization_social.
+// rw_organization_admin       look up the Pages you administer, and Page analytics.
+// All five come with the Community Management API; the consent screen shows
 // them to you. --scopes overrides, e.g. if your app's Auth tab lists others.
 const DEFAULT_SCOPES = [
   'w_organization_social',
   'r_organization_social',
+  'w_organization_social_feed',
+  'r_organization_social_feed',
   'rw_organization_admin',
 ];
-const TIMEOUT_MS = 5 * 60 * 1000;
+// Long enough to approve on another device and carry the redirect address back
+// to this machine. The wait costs nothing: the listener is on loopback only and
+// ignores any request without this run's state.
+const TIMEOUT_MS = 15 * 60 * 1000;
 
 function fail(msg) {
   process.stderr.write(`linkedin-setup: ${msg}\n`);
@@ -249,6 +258,10 @@ process.stdout.write(
     '1. OPEN THIS URL and log in as an ADMINISTRATOR of the Page:\n\n' +
     `${authUrl.toString()}\n\n` +
     `2. Approve. LinkedIn redirects to ${redirectUri}, and this script catches it.\n\n` +
+    'Approving on another device (a tablet, another computer)? Its browser will fail on the\n' +
+    'localhost page. That is expected. Copy the whole address from its address bar and run\n' +
+    `this on THIS machine, in another terminal: curl '<address>'\n` +
+    'The address holds a one-time authorization code, so do not paste it anywhere shared.\n\n' +
     `Waiting (timeout ${TIMEOUT_MS / 60000} min)...\n`,
 );
 
@@ -340,7 +353,7 @@ async function exchangeAndWrite(code) {
     );
   } else {
     fail(
-      `you administer ${orgs.length} Pages. NOTHING WAS WRITTEN. Re-run with --organization <id>:\n${list}`,
+      `you administer ${orgs.length} Pages. NOTHING WAS WRITTEN. Re-run with --organization <id> and authorize again:\n${list}`,
     );
   }
 

@@ -176,6 +176,12 @@ describe('read operations', () => {
             actor: 'urn:li:organization:1234567',
             message: { text: 'Gracias' },
           },
+          {
+            id: '3',
+            commentUrn: 'urn:li:comment:(urn:li:activity:9,3)',
+            actor: 'urn:li:organization:7654321',
+            message: { text: 'Felicitaciones' },
+          },
         ],
       },
     }));
@@ -183,8 +189,10 @@ describe('read operations', () => {
       const list = await listComments('urn:li:share:9');
       assert.deepEqual(
         list.map((c) => c.byPage),
-        [false, true],
+        [false, true, false],
+        'another organization is an author, not this Page',
       );
+      assert.equal(list[2].actor, 'urn:li:organization:7654321');
       assert.ok(
         li.calls[0].url.startsWith(
           'https://api.linkedin.com/rest/socialActions/urn%3Ali%3Ashare%3A9/comments?',

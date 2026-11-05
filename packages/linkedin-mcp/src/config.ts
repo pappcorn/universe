@@ -23,13 +23,14 @@
 // The Page to act as: $LINKEDIN_ORGANIZATION_ID, else the one the setup script
 // recorded in the credential file. Nothing about any account is hardcoded.
 //
-// TOKEN LIFETIMES (LinkedIn's documentation, checked 2026-10-29):
+// TOKEN LIFETIMES (LinkedIn's documentation, and a real Development-tier
+// authorization on 2026-11-04):
 //   · access tokens last 60 days;
-//   · refresh tokens, when LinkedIn issues them to your app at all, last 365
-//     days from the FIRST authorization — refreshing does not extend them.
-// So without a refresh token the connector works for 60 days, and with one for
-// a year; after that a human authorizes again. Both expiries are reported by
-// linkedin_whoami so nobody is surprised.
+//   · refresh tokens last 365 days from the FIRST authorization — refreshing
+//     does not extend them. Development-tier apps get one. The token-only path
+//     below stays because LinkedIn's docs do not promise one to every app.
+// So the connector works for a year, and then a human authorizes again. Both
+// expiries are reported by linkedin_whoami so nobody is surprised.
 //
 // No credential field is ever printed, logged, or returned by any tool.
 

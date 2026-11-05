@@ -106,34 +106,36 @@ attachment.
 
 ## Comments and personal data
 
-`linkedin_list_comments` shows each commenter as the member URN LinkedIn
-returns (`urn:li:person:…`) and marks the Page's own comments. It does not
-resolve names: the connector requests no profile data about the people who
-comment. Bear that in mind when you describe your app to LinkedIn for the
+`linkedin_list_comments` shows each author as the URN LinkedIn returns: a member
+(`urn:li:person:…`) or an organization (`urn:li:organization:…`), with the
+Page's own comments marked. It does not resolve names: the connector requests
+no profile data about the people who comment. Bear that in mind when you describe your app to LinkedIn for the
 Standard tier, where they ask which commenter fields your app displays.
 
 ## Scopes
 
-The setup script requests three scopes, all part of the Community Management
+The setup script requests five scopes, all part of the Community Management
 API:
 
-| Scope                   | Why                                                   |
-| ----------------------- | ----------------------------------------------------- |
-| `w_organization_social` | Publish posts and comments as the Page                |
-| `r_organization_social` | Read the Page's posts and their comments              |
-| `rw_organization_admin` | Find the Pages you administer, and the Page analytics |
+| Scope                        | Why                                                   |
+| ---------------------------- | ----------------------------------------------------- |
+| `w_organization_social`      | Publish posts as the Page                             |
+| `r_organization_social`      | Read the Page's posts                                 |
+| `w_organization_social_feed` | Comment and reply as the Page                         |
+| `r_organization_social_feed` | Read comments (LinkedIn answers 403 without it)       |
+| `rw_organization_admin`      | Find the Pages you administer, and the Page analytics |
 
 The consent screen lists them. If your app's Auth tab shows different scope
 names, pass `--scopes "…"` to the setup script.
 
 ## Tokens
 
-LinkedIn access tokens last **60 days**. If LinkedIn issues your app a refresh
-token, it lasts **one year from the first authorization** (renewing does not
-extend it) and the connector renews the access token on its own until then.
-LinkedIn issues refresh tokens only to some apps; the setup script tells you
-which case you are in, and `linkedin_whoami` always shows both expiry dates.
-When they run out, run the setup again. It takes a minute.
+LinkedIn access tokens last about **two months**, and a Development-tier app
+also gets a refresh token that lasts about **twelve months from the first
+authorization** (renewing does not extend it). The connector renews the access
+token on its own until then. The setup script reports what LinkedIn issued, and
+`linkedin_whoami` always shows both expiry dates. When they run out, run the
+setup again. It takes a minute.
 
 ## Configuration
 
