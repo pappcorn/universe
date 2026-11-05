@@ -1,0 +1,235 @@
+<!doctype html>
+<!-- Plantilla del tablero de Indexandro. Indexandro la copia a "Cómo vamos.html" en la carpeta
+     raíz y reemplaza cada {{...}}. Las filas marcadas con "se repite" van una por cuenta o por
+     parte del núcleo. El diseño no se cambia. -->
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cómo vamos</title>
+    <style>
+      :root {
+        --bg: #faf8f4;
+        --card: #ffffff;
+        --ink: #1d1d1b;
+        --muted: #6b6a66;
+        --line: #e4e1da;
+        --ok: #2f7d4f;
+        --warn: #b26a00;
+        --bad: #b3261e;
+        --accent: #1f4e79;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #161614;
+          --card: #201f1d;
+          --ink: #f1efea;
+          --muted: #a8a59e;
+          --line: #34322e;
+          --ok: #6fcf97;
+          --warn: #f2b84b;
+          --bad: #f28b82;
+          --accent: #8ab4f8;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          19px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          'Helvetica Neue',
+          sans-serif;
+      }
+      main {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 32px 16px 64px;
+      }
+      h1 {
+        font-size: 2rem;
+        margin: 0 0 4px;
+      }
+      .fecha {
+        color: var(--muted);
+        margin: 0 0 28px;
+      }
+      .frase {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-left: 6px solid var(--accent);
+        border-radius: 12px;
+        padding: 18px 20px;
+        font-size: 1.15rem;
+        margin-bottom: 24px;
+      }
+      .cifras {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+      .cifra {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 20px;
+      }
+      .cifra .etiqueta {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .cifra .valor {
+        font-size: 1.9rem;
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+      }
+      section {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      h2 {
+        font-size: 1.25rem;
+        margin: 0 0 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 6px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+        font-size: 0.95rem;
+      }
+      td.num,
+      th.num {
+        text-align: right;
+      }
+      .ok {
+        color: var(--ok);
+      }
+      .warn {
+        color: var(--warn);
+      }
+      .bad {
+        color: var(--bad);
+      }
+      ul {
+        margin: 0;
+        padding-left: 1.2em;
+      }
+      footer {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin-top: 28px;
+      }
+      @media (max-width: 520px) {
+        body {
+          font-size: 17px;
+        }
+        .cifra .valor {
+          font-size: 1.6rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Cómo vamos</h1>
+      <p class="fecha">
+        Actualizado el {{FECHA}} con los extractos de {{MES_EXTRACTOS}}
+      </p>
+
+      <div class="frase">{{FRASE_HONESTA}}</div>
+
+      <div class="cifras">
+        <div class="cifra">
+          <div class="etiqueta">Valor total</div>
+          <div class="valor">{{VALOR_TOTAL}}</div>
+        </div>
+        <div class="cifra">
+          <div class="etiqueta">Retirado este año</div>
+          <div class="valor">{{RETIRADO_ANO}}</div>
+        </div>
+        <div class="cifra">
+          <div class="etiqueta">Frente al plan</div>
+          <div class="valor {{CLASE_PLAN}}">{{ESTADO_PLAN}}</div>
+        </div>
+      </div>
+
+      <section>
+        <h2>Las cuentas</h2>
+        <table>
+          <tr>
+            <th>Cuenta</th>
+            <th>Rol</th>
+            <th class="num">Valor</th>
+            <th class="num">Cambio del mes</th>
+          </tr>
+          <!-- se repite: una fila por cuenta -->
+          <tr>
+            <td>{{CUENTA}}</td>
+            <td>{{ROL}}</td>
+            <td class="num">{{VALOR}}</td>
+            <td class="num {{CLASE_CAMBIO}}">{{CAMBIO}}</td>
+          </tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>Cómo está repartida la plata</h2>
+        <table>
+          <tr>
+            <th>Parte</th>
+            <th class="num">Objetivo</th>
+            <th class="num">Hoy</th>
+            <th>Estado</th>
+          </tr>
+          <!-- se repite: una fila por parte (colchón, renta fija, crecimiento) -->
+          <tr>
+            <td>{{PARTE}}</td>
+            <td class="num">{{OBJETIVO}}</td>
+            <td class="num">{{HOY}}</td>
+            <td class="{{CLASE_ESTADO}}">{{ESTADO}}</td>
+          </tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>Cupo de aprendizaje ({{BROKER_CUPO}})</h2>
+        <p>
+          Usado: <strong>{{CUPO_USADO}}</strong> de un tope de {{CUPO_TOPE}} ·
+          <span class="{{CLASE_CUPO}}">{{ESTADO_CUPO}}</span>
+        </p>
+      </section>
+
+      <section>
+        <h2>Próximas decisiones</h2>
+        <ul>
+          <!-- se repite: una por decisión; si no hay, "Ninguna este mes" -->
+          <li>{{DECISION}}</li>
+        </ul>
+      </section>
+
+      <footer>
+        Lo prepara Indexandro a partir de los extractos. No es asesoría de un
+        profesional con licencia. Ninguna operación se hace sin que tú la pongas
+        en la plataforma.
+      </footer>
+    </main>
+  </body>
+</html>
