@@ -79,7 +79,7 @@ comment, or replay the token, and the call is refused with nothing published.
 There is no bypass flag.
 
 Everything published is appended to a local log,
-`~/.local/state/pappcorn-linkedin-mcp/actions.jsonl`, so "what did the
+`~/.local/state/pappcorn/linkedin-mcp/actions.jsonl`, so "what did the
 assistant post, and when?" always has an answer. It never leaves your machine.
 
 ## Text
@@ -141,12 +141,12 @@ setup again. It takes a minute.
 
 | Variable                                                                   | Purpose                                                                                            |
 | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `LINKEDIN_MCP_CREDENTIALS`                                                 | Credential file. Default `~/.config/pappcorn-linkedin-mcp/credentials.json`, written by the setup. |
+| `LINKEDIN_MCP_CREDENTIALS`                                                 | Credential file. Default `~/.config/pappcorn/linkedin-mcp/credentials.json`, written by the setup. |
 | `LINKEDIN_ACCESS_TOKEN`                                                    | A token supplied directly. Takes precedence over the file.                                         |
 | `LINKEDIN_REFRESH_TOKEN` + `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` | Renewable credential supplied directly. Takes precedence over the file.                            |
 | `LINKEDIN_ORGANIZATION_ID`                                                 | The Page to act as. Default: the one the setup recorded.                                           |
 | `LINKEDIN_API_VERSION`                                                     | `YYYYMM`. Default `202610`. Raise it if LinkedIn answers 426 for a sunset version.                 |
-| `LINKEDIN_MCP_LOG_DIR`                                                     | Where the local publish log goes. Default `~/.local/state/pappcorn-linkedin-mcp`.                  |
+| `LINKEDIN_MCP_LOG_DIR`                                                     | Where the local publish log goes. Default `~/.local/state/pappcorn/linkedin-mcp`.                  |
 
 ## Security
 
@@ -161,6 +161,17 @@ setup again. It takes a minute.
   administer.
 - Nothing runs on its own. The connector acts only when asked, and publishes
   only after a confirmed preview.
+
+## Local files
+
+Everything sits under one parent, so there is one place to look:
+`~/.config/pappcorn/linkedin-mcp/` (the credential),
+`~/.cache/pappcorn/linkedin-mcp/` (renewed access tokens) and
+`~/.local/state/pappcorn/linkedin-mcp/` (the publish log).
+
+Deleting them stops this machine, but **the token stays alive until it is
+revoked in LinkedIn**. See
+[Where the files live, and revoking access](../../docs/setup-linkedin.md#where-the-files-live-and-revoking-access).
 
 ## Not in v1
 

@@ -9,7 +9,11 @@ import { join } from 'node:path';
 import { after, beforeEach, describe, it } from 'node:test';
 
 import { fakeLinkedIn, isolate, tempDir } from './helpers';
+import { homedir } from 'node:os';
+import { DEFAULT_LOG_DIR } from '../src/core';
 import {
+  DEFAULT_CACHE_DIR,
+  DEFAULT_CREDENTIALS_PATH,
   getAccessToken,
   loadConfig,
   LinkedInAccessError,
@@ -38,6 +42,21 @@ function writeCreds(obj: Record<string, unknown>): string {
   writeFileSync(p, JSON.stringify(obj));
   return p;
 }
+
+describe('where local files live', () => {
+  it('keeps everything under one pappcorn parent, one folder per connector', () => {
+    const home = homedir();
+    assert.equal(
+      DEFAULT_CREDENTIALS_PATH,
+      join(home, '.config/pappcorn/linkedin-mcp/credentials.json'),
+    );
+    assert.equal(DEFAULT_CACHE_DIR, join(home, '.cache/pappcorn/linkedin-mcp'));
+    assert.equal(
+      DEFAULT_LOG_DIR,
+      join(home, '.local/state/pappcorn/linkedin-mcp'),
+    );
+  });
+});
 
 describe('credential resolution', () => {
   it('uses the environment first and labels the source without a value', () => {

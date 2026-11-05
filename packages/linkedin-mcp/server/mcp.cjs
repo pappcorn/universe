@@ -36546,8 +36546,8 @@ var import_node_crypto = require("node:crypto");
 var import_node_fs = require("node:fs");
 var import_node_os = require("node:os");
 var DEFAULT_API_VERSION = "202610";
-var DEFAULT_CREDENTIALS_PATH = `${(0, import_node_os.homedir)()}/.config/pappcorn-linkedin-mcp/credentials.json`;
-var DEFAULT_CACHE_DIR = `${(0, import_node_os.homedir)()}/.cache/pappcorn-linkedin-mcp`;
+var DEFAULT_CREDENTIALS_PATH = `${(0, import_node_os.homedir)()}/.config/pappcorn/linkedin-mcp/credentials.json`;
+var DEFAULT_CACHE_DIR = `${(0, import_node_os.homedir)()}/.cache/pappcorn/linkedin-mcp`;
 var TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken";
 var LinkedInAccessError = class extends Error {
   constructor(message) {
@@ -37146,8 +37146,9 @@ async function pageStats(postUrns = []) {
     posts
   };
 }
+var DEFAULT_LOG_DIR = `${(0, import_node_os2.homedir)()}/.local/state/pappcorn/linkedin-mcp`;
 function logDir() {
-  return process.env.LINKEDIN_MCP_LOG_DIR || `${(0, import_node_os2.homedir)()}/.local/state/pappcorn-linkedin-mcp`;
+  return process.env.LINKEDIN_MCP_LOG_DIR || DEFAULT_LOG_DIR;
 }
 function logAction(entry) {
   const dir = logDir();

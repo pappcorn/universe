@@ -13,7 +13,7 @@
     "client_id": {
       "type": "string",
       "title": "LinkedIn app Client ID",
-      "description": "From the Auth tab of your own LinkedIn developer app. See docs/setup-linkedin.md. Leave every field empty to use the credential file the setup script writes instead ($LINKEDIN_MCP_CREDENTIALS, default ~/.config/pappcorn-linkedin-mcp/credentials.json). That is the recommended path.",
+      "description": "From the Auth tab of your own LinkedIn developer app. See docs/setup-linkedin.md. Leave every field empty to use the credential file the setup script writes instead ($LINKEDIN_MCP_CREDENTIALS, default ~/.config/pappcorn/linkedin-mcp/credentials.json). That is the recommended path.",
       "required": false
     },
     "client_secret": {

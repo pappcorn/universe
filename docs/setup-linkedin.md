@@ -124,9 +124,9 @@ Secret** (secret). Put the secret, and nothing else, in a file only you can
 read:
 
 ```bash
-mkdir -p ~/.config/pappcorn-linkedin-mcp
-pbpaste > ~/.config/pappcorn-linkedin-mcp/client_secret   # or paste it with an editor
-chmod 600 ~/.config/pappcorn-linkedin-mcp/client_secret
+mkdir -p ~/.config/pappcorn/linkedin-mcp
+pbpaste > ~/.config/pappcorn/linkedin-mcp/client_secret   # or paste it with an editor
+chmod 600 ~/.config/pappcorn/linkedin-mcp/client_secret
 ```
 
 The setup script reads it from there. It refuses a secret typed on the command
@@ -137,7 +137,7 @@ line, because that would land in your shell history.
 ```bash
 npx -y -p @pappcorn/linkedin-mcp pappcorn-linkedin-setup \
   --client-id <your-client-id> \
-  --client-secret-file ~/.config/pappcorn-linkedin-mcp/client_secret
+  --client-secret-file ~/.config/pappcorn/linkedin-mcp/client_secret
 ```
 
 1. The script prints a LinkedIn URL. Open it, **log in as an administrator of
@@ -148,7 +148,7 @@ npx -y -p @pappcorn/linkedin-mcp pappcorn-linkedin-setup \
    **With several, you must pass `--organization <id>`.** Without it, the script
    lists your Pages and exits without saving anything, and you repeat the
    authorization with the flag added.
-4. It writes `~/.config/pappcorn-linkedin-mcp/credentials.json` (chmod 600) and
+4. It writes `~/.config/pappcorn/linkedin-mcp/credentials.json` (chmod 600) and
    tells you when your tokens expire. No token or secret is printed.
 
 A credential you already have is replaced only when the whole flow succeeds. A
@@ -241,9 +241,31 @@ so record carefully.
 | A tool answers `HTTP 429`                     | Development-tier call budget used up for now. Wait and retry later.                                                                |
 | `The access token expired … no refresh token` | Your credential holds no refresh token, so it cannot renew. Re-run Step 6.                                                         |
 
-## Revoking access
+## Where the files live, and revoking access
 
-Deleting the credential file stops the connector but does not revoke the grant.
-To revoke it, the administrator who authorized the app removes it under
-**Permitted services** in their LinkedIn data-privacy settings. You can also
-reset the Client Secret from the app's Auth tab, which stops every renewal.
+Everything this connector keeps on your machine sits under one parent, one
+subfolder per connector, so there is one place to look:
+
+| Folder                                  | What it holds                                                 |
+| --------------------------------------- | ------------------------------------------------------------- |
+| `~/.config/pappcorn/linkedin-mcp/`      | The credential, and the Client Secret file if you made one    |
+| `~/.cache/pappcorn/linkedin-mcp/`       | Renewed access tokens                                         |
+| `~/.local/state/pappcorn/linkedin-mcp/` | The log of what was published. Keep it if you want the record |
+
+Stopping a machine and revoking access are two different things:
+
+- **Deleting the folders stops this machine, but the token stays alive.**
+  LinkedIn does not know you deleted anything, so any copy of that credential
+  can still publish as your Page until it expires.
+
+  ```bash
+  rm -rf ~/.config/pappcorn/linkedin-mcp ~/.cache/pappcorn/linkedin-mcp
+  ```
+
+- **Revoking in LinkedIn kills it everywhere.** The administrator who authorized
+  the app removes it under **Permitted services** in their LinkedIn data-privacy
+  settings. You can also reset the Client Secret in the app's Auth tab, which
+  stops every renewal.
+
+If someone is leaving, or a machine is lost, do the second. Deleting a folder is
+not enough.

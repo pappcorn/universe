@@ -18,5 +18,7 @@ All notable changes to `@pappcorn/linkedin-mcp`. This project follows
 - **`pappcorn-linkedin-setup`**, a zero-dependency OAuth setup with a local
   callback on `http://localhost:8919/callback`. It records the Page you
   administer and refuses one you do not.
+- **One place for local files:** `~/.config/pappcorn/linkedin-mcp/`,
+  `~/.cache/pappcorn/linkedin-mcp/` and `~/.local/state/pappcorn/linkedin-mcp/`.
 - **A read-only CLI**, `pappcorn-linkedin`: `whoami`, `posts`, `comments`,
   `stats`. Publishing is MCP-only, behind the gate.

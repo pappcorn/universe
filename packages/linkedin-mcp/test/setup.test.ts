@@ -48,9 +48,10 @@ interface Fake {
  *  run's state. `query` decides what LinkedIn's redirect says. */
 async function runSetup(
   fake: Fake,
-  out: string,
+  out: string | null,
   args: string[] = [],
   query = 'code=fake-code',
+  env: Record<string, string> = {},
 ): Promise<{ code: number | null; output: string; authUrl: URL }> {
   const port = await freePort();
   const child = spawn(
@@ -63,13 +64,13 @@ async function runSetup(
       'test-client',
       '--port',
       String(port),
-      '--out',
-      out,
+      ...(out ? ['--out', out] : []),
       ...args,
     ],
     {
       env: {
         PATH: process.env.PATH,
+        ...env,
         LINKEDIN_CLIENT_SECRET: 'fake-client-secret',
         FAKE_LINKEDIN: JSON.stringify({
           grantedScope: FIVE.join(','),
@@ -153,6 +154,25 @@ describe('reading what LinkedIn granted', () => {
       path('withheld.json'),
     );
     assert.match(output, /did not grant: r_organization_social_feed\./);
+  });
+});
+
+describe('where the setup writes by default', () => {
+  it('uses ~/.config/pappcorn/linkedin-mcp/credentials.json', async () => {
+    const home = path('home');
+    const { code } = await runSetup({}, null, [], 'code=fake-code', {
+      HOME: home,
+    });
+    assert.equal(code, 0);
+    const written = join(
+      home,
+      '.config/pappcorn/linkedin-mcp/credentials.json',
+    );
+    assert.equal(
+      JSON.parse(readFileSync(written, 'utf8')).organization,
+      'urn:li:organization:42',
+    );
+    assert.equal(statSync(written).mode & 0o777, 0o600);
   });
 });
 

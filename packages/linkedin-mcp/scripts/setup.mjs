@@ -29,7 +29,7 @@ import { dirname } from 'node:path';
 
 // Must match the defaults in src/config.ts.
 const API_VERSION = process.env.LINKEDIN_API_VERSION || '202610';
-const DEFAULT_OUT = `${homedir()}/.config/pappcorn-linkedin-mcp/credentials.json`;
+const DEFAULT_OUT = `${homedir()}/.config/pappcorn/linkedin-mcp/credentials.json`;
 const DEFAULT_PORT = 8919;
 // w_organization_social       publish posts as the Page.
 // r_organization_social       read the Page's posts.

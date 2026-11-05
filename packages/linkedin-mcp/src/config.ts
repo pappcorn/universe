@@ -17,7 +17,7 @@
 //        LINKEDIN_REFRESH_TOKEN + LINKEDIN_CLIENT_ID + LINKEDIN_CLIENT_SECRET
 //                                                    — renewed on demand.
 //   2. A credential JSON file — $LINKEDIN_MCP_CREDENTIALS, else
-//      ~/.config/pappcorn-linkedin-mcp/credentials.json (chmod 600). This is
+//      ~/.config/pappcorn/linkedin-mcp/credentials.json (chmod 600). This is
 //      what scripts/setup.mjs writes.
 //
 // The Page to act as: $LINKEDIN_ORGANIZATION_ID, else the one the setup script
@@ -31,6 +31,13 @@
 //     below stays because LinkedIn's docs do not promise one to every app.
 // So the connector works for a year, and then a human authorizes again. Both
 // expiries are reported by linkedin_whoami so nobody is surprised.
+//
+// WHERE LOCAL FILES LIVE: one parent, one subfolder per connector, in each of
+// the three standard locations, so there is one place to look at and one thing
+// to delete:
+//   ~/.config/pappcorn/linkedin-mcp/       the credential
+//   ~/.cache/pappcorn/linkedin-mcp/        renewed access tokens
+//   ~/.local/state/pappcorn/linkedin-mcp/  the local log of what was published
 //
 // No credential field is ever printed, logged, or returned by any tool.
 
@@ -49,8 +56,8 @@ import { homedir } from 'node:os';
 // this default ages out (the API answers 426 for a sunset version).
 export const DEFAULT_API_VERSION = '202610';
 
-export const DEFAULT_CREDENTIALS_PATH = `${homedir()}/.config/pappcorn-linkedin-mcp/credentials.json`;
-const DEFAULT_CACHE_DIR = `${homedir()}/.cache/pappcorn-linkedin-mcp`;
+export const DEFAULT_CREDENTIALS_PATH = `${homedir()}/.config/pappcorn/linkedin-mcp/credentials.json`;
+export const DEFAULT_CACHE_DIR = `${homedir()}/.cache/pappcorn/linkedin-mcp`;
 
 export const TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken';
 

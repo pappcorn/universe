@@ -556,11 +556,10 @@ export async function pageStats(postUrns: string[] = []): Promise<PageStats> {
 // Local audit log
 // ──────────────────────────────────────────────────────────────────────────────
 
+export const DEFAULT_LOG_DIR = `${homedir()}/.local/state/pappcorn/linkedin-mcp`;
+
 function logDir(): string {
-  return (
-    process.env.LINKEDIN_MCP_LOG_DIR ||
-    `${homedir()}/.local/state/pappcorn-linkedin-mcp`
-  );
+  return process.env.LINKEDIN_MCP_LOG_DIR || DEFAULT_LOG_DIR;
 }
 
 /** Append-only local record of everything published, so "what did the

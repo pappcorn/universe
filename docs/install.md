@@ -236,12 +236,12 @@ Useful when running from source or scripting.
 
 | Variable                                                                   | Purpose                                                                                                   |
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `LINKEDIN_MCP_CREDENTIALS`                                                 | Path to the credential file. Default `~/.config/pappcorn-linkedin-mcp/credentials.json`.                  |
+| `LINKEDIN_MCP_CREDENTIALS`                                                 | Path to the credential file. Default `~/.config/pappcorn/linkedin-mcp/credentials.json`.                  |
 | `LINKEDIN_ACCESS_TOKEN`                                                    | Access token supplied directly (60-day life). Takes precedence over the file.                             |
 | `LINKEDIN_REFRESH_TOKEN` + `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` | Renewable credential supplied directly. Takes precedence over the file.                                   |
 | `LINKEDIN_ORGANIZATION_ID`                                                 | The Page to act as. Default: the one the setup recorded.                                                  |
 | `LINKEDIN_API_VERSION`                                                     | LinkedIn API version, `YYYYMM`. Defaults to `202610`.                                                     |
-| `LINKEDIN_MCP_LOG_DIR`                                                     | Where the local log of published posts and comments goes. Default `~/.local/state/pappcorn-linkedin-mcp`. |
+| `LINKEDIN_MCP_LOG_DIR`                                                     | Where the local log of published posts and comments goes. Default `~/.local/state/pappcorn/linkedin-mcp`. |
 
 ---
 
@@ -256,6 +256,8 @@ actually revoke:
 - **WhatsApp** — Meta Business Settings → System users → revoke the token.
 - **LinkedIn Pages** — the administrator who authorized the app removes it
   under **Permitted services** in their LinkedIn data-privacy settings; you can
-  also reset the Client Secret in the app's Auth tab.
+  also reset the Client Secret in the app's Auth tab. Deleting
+  `~/.config/pappcorn/linkedin-mcp/` only stops that machine: the token stays
+  alive until it is revoked in LinkedIn.
 
 Then delete the credential file if you created one.
