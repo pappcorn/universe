@@ -14,6 +14,7 @@
 // | 2 bad args | 3 Gmail API failure. The CLI never prints any credential field.
 
 import { credentialSource, loadCredentials, MailAccessError } from './auth';
+import { HardWrappedBodyError } from './body-format';
 import {
   archive,
   draft,
@@ -217,7 +218,7 @@ async function composeFromFlags(
   cmd: 'send' | 'draft',
 ): Promise<ComposeArgs> {
   const { flags } = parseFlags(argv);
-  const usage = `Usage: ${cmd} --to <addr> --subject <s> --body <text|-> [--cc <addr>] [--bcc <addr>] [--attach <file>]... [--reply-to-message <id>] [--thread <id>] [--html] [--json]   (--body - reads stdin)`;
+  const usage = `Usage: ${cmd} --to <addr> --subject <s> --body <text|-> [--cc <addr>] [--bcc <addr>] [--attach <file>]... [--reply-to-message <id>] [--thread <id>] [--html] [--allow-hard-wraps] [--json]   (--body - reads stdin)`;
   const to = listFlag(flags.to);
   if (!to) fail(2, usage);
   if (typeof flags.subject !== 'string')
@@ -242,6 +243,7 @@ async function composeFromFlags(
     thread_id: typeof flags.thread === 'string' ? flags.thread : undefined,
     html: flags.html === true,
     attachments: attachFlag(flags.attach),
+    allow_hard_wraps: flags['allow-hard-wraps'] === true,
   };
 }
 
@@ -352,7 +354,7 @@ Commands:
   read      Read a full thread (headers + text bodies).     read <threadId> [--json]
   send      Send an email — OUTWARD-FACING: confirm         send --to <addr> --subject <s> --body <text|->
             recipient + subject + body with the user first.      [--cc <addr>] [--bcc <addr>] [--attach <file>]...
-                                                                 [--reply-to-message <id>] [--thread <id>] [--html] [--json]
+                                                                 [--reply-to-message <id>] [--thread <id>] [--html] [--allow-hard-wraps] [--json]
   draft     Create a draft (same flags as send).            draft --to <addr> --subject <s> --body <text|-> [...]
   labels    List labels (id + name).                        labels [--json]
   label     Add/remove labels on a message or thread.       label <id> --add a,b [--remove c,d] [--thread] [--json]
@@ -368,6 +370,8 @@ Run \`whoami\` to see which of the four won.
 
 Notes: --body - reads the body from stdin (pipe long bodies). --to/--cc/--bcc repeat or take comma lists.
        --attach repeats per file (never comma-split; total ≤ 25MB — the Gmail message limit).
+       A plain-text --body goes out with a generated HTML part. Put each paragraph on one line: a body that
+       looks hard-wrapped by hand is refused (exit 2) unless you pass --allow-hard-wraps.
        Label names resolve case-insensitively; names being ADDED are auto-created. v1 never deletes mail.
 Exit codes: 0 ok | 1 local config (credential missing/revoked/wrong mailbox) | 2 bad args | 3 Gmail API failure.
 `;
@@ -420,6 +424,7 @@ main().catch((err: unknown) => {
   // A revoked grant surfaces mid-call as MailAccessError → still exit 1
   // (local credential problem). Anything else is an API failure → exit 3.
   if (err instanceof MailAccessError) fail(1, err.message);
+  if (err instanceof HardWrappedBodyError) fail(2, err.message);
   const e = err as { stack?: string; message?: string };
   fail(3, e?.stack || e?.message || String(err));
 });

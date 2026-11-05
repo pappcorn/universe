@@ -21,6 +21,12 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { basename, resolve, sep } from 'node:path';
 
 import {
+  findHardWrappedLine,
+  HardWrappedBodyError,
+  textToHtml,
+} from './body-format';
+
+import {
   accountMismatchMessage,
   assertedAccount,
   authHeaders,
@@ -332,21 +338,44 @@ function decodeB64Url(data: string): string {
 // Best-effort text/html → plain text: drop script/style, turn structural tags
 // into line breaks, strip the rest, decode the common entities. Not a
 // renderer — just enough to read a notification email.
-function stripHtml(html: string): string {
-  return html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, '')
+export function stripHtml(html: string): string {
+  const withoutCode = replaceUntilStable(
+    html,
+    /<(script|style)[\s\S]*?<\/\1>/gi,
+  );
+  const withBreaks = withoutCode
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|tr|li|h[1-6]|blockquote)>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#0?39;|&apos;/gi, "'")
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/(div|tr|li|h[1-6]|blockquote)>/gi, '\n');
+  return (
+    replaceUntilStable(withBreaks, /<[^>]+>/g)
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#0?39;|&apos;/gi, "'")
+      // Last, so "&amp;lt;" reads as the literal text "&lt;", not as "<".
+      .replace(/&amp;/gi, '&')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  );
+}
+
+// One pass isn't enough: removing a match can join what's left into a new one.
+// Mail is untrusted and each nested layer costs a full pass, so the passes are
+// capped. Past the cap the input is hostile: no angle bracket survives, so no
+// tag can either, in linear time.
+const MAX_STRIP_PASSES = 8;
+
+function replaceUntilStable(text: string, pattern: RegExp): string {
+  let current = text;
+  for (let pass = 0; pass < MAX_STRIP_PASSES; pass++) {
+    const next = current.replace(pattern, '');
+    if (next === current) return current;
+    current = next;
+  }
+  return current.replace(/[<>]/g, '');
 }
 
 // Walk the MIME tree collecting the first text/plain and first text/html
@@ -476,6 +505,7 @@ export interface ComposeArgs {
   thread_id?: string;
   html?: boolean;
   attachments?: string | string[];
+  allow_hard_wraps?: boolean;
 }
 
 // Attachment paths are NOT comma-split (paths may contain commas) — a string
@@ -555,7 +585,13 @@ interface BuiltMessage {
 // original message's Message-ID header feeds In-Reply-To/References (that's
 // what makes mail clients — including Gmail itself — thread the reply), and
 // its threadId is inherited unless the caller passed one explicitly.
-async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
+export async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
+  // Before anything else: a refused body shouldn't spend a single API call.
+  if (!args.html && !args.allow_hard_wraps && args.body) {
+    const wrapped = findHardWrappedLine(args.body);
+    if (wrapped) throw new HardWrappedBodyError(wrapped);
+  }
+
   // The sending address is always the authenticated mailbox — never a
   // configured value, so this tool cannot be pointed at someone else's From.
   // Prefer the account recorded when the token was minted; otherwise ask Gmail
@@ -618,36 +654,30 @@ async function buildMessage(args: ComposeArgs): Promise<BuiltMessage> {
   if (references) headers.push(`References: ${references}`);
   headers.push('MIME-Version: 1.0');
 
-  // The text/html content, expressed as its own headers + body so it can sit
-  // either at the top level (no attachments) or as the first part of a
-  // multipart/mixed envelope (with attachments).
-  const contentHeaders: string[] = [];
-  let contentBody: string;
-  if (args.html) {
-    // multipart/alternative: a stripped-text part first (lowest fidelity),
-    // then the HTML the caller supplied.
-    const boundary = `=_pappcorn_${randomBytes(12).toString('hex')}`;
-    contentHeaders.push(
-      `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    );
-    contentBody = [
-      `--${boundary}`,
-      'Content-Type: text/plain; charset=UTF-8',
-      'Content-Transfer-Encoding: base64',
-      '',
-      b64Body(stripHtml(args.body)),
-      `--${boundary}`,
-      'Content-Type: text/html; charset=UTF-8',
-      'Content-Transfer-Encoding: base64',
-      '',
-      b64Body(args.body),
-      `--${boundary}--`,
-    ].join('\r\n');
-  } else {
-    contentHeaders.push('Content-Type: text/plain; charset=UTF-8');
-    contentHeaders.push('Content-Transfer-Encoding: base64');
-    contentBody = b64Body(args.body);
-  }
+  // Always multipart/alternative, expressed as its own headers + body so it can
+  // sit either at the top level (no attachments) or as the first part of a
+  // multipart/mixed envelope (with attachments). The caller's body is one of
+  // the two parts and the other is derived from it. Plain-text callers need the
+  // HTML part too: see body-format.ts for what happens to mail without one.
+  const plainPart = args.html ? stripHtml(args.body) : args.body;
+  const htmlPart = args.html ? args.body : textToHtml(args.body);
+  const boundary = `=_pappcorn_${randomBytes(12).toString('hex')}`;
+  const contentHeaders = [
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+  ];
+  const contentBody = [
+    `--${boundary}`,
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    b64Body(plainPart),
+    `--${boundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    b64Body(htmlPart),
+    `--${boundary}--`,
+  ].join('\r\n');
 
   let bodyBlock: string;
   const attachmentPaths = toAttachmentList(args.attachments);

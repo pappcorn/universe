@@ -3,6 +3,18 @@
 All notable changes to `@pappcorn/gmail-mcp`. This project follows
 [semantic versioning](https://semver.org/).
 
+## 0.4.0
+
+### Changed
+
+- **Plain-text mail now reads properly on delivery.** A text-only message stays one line per paragraph in the sender's Sent copy, but the delivered copy's plain part is cut at about 70-75 columns, so recipients saw sentences broken mid-line. `mail_send` and `mail_draft` now always send `multipart/alternative`: your text unchanged as `text/plain`, plus a generated `text/html` that fills the width of the screen. Blocks separated by a blank line become paragraphs, single newlines become line breaks, the text is HTML-escaped, and `http(s)` URLs become links that leave a sentence's closing punctuation out. Nesting inside `multipart/mixed` with attachments is unchanged.
+- **Behavior change: a plain-text body that looks hard-wrapped by hand is refused.** That means three or more consecutive lines of 55-80 characters that stop mid-sentence with more text following; list items, quoted lines and code-looking lines don't count. The error asks for one line per paragraph. Pass `allow_hard_wraps: true` (CLI: `--allow-hard-wraps`) if the line breaks are intentional.
+
+### Fixed
+
+- **Paragraphs keep their blank line when text is derived from HTML.** `</p>` used to yield a single newline, so the `text/plain` part of an `html: true` message, and the text of HTML mail read through `mail_read_thread`, ran its paragraphs together.
+- **Text derived from HTML is decoded once and fully stripped.** `&amp;lt;` used to read as `<` instead of `&lt;`, and a tag split so that removing it formed a new one could survive the single pass. The passes are capped at 8, so a deeply nested message can't stall the server. Past the cap, every angle bracket is removed.
+
 ## 0.3.3
 
 ### Changed
