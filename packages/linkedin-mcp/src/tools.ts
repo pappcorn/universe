@@ -17,6 +17,7 @@ import { canRenew, formatDate, loadConfig } from './config';
 import {
   assertCommentUrn,
   assertPostUrn,
+  assertReplyMatchesPost,
   createComment,
   createPost,
   getPage,
@@ -446,7 +447,10 @@ export function registerTools(
       try {
         const { organization } = loadConfig();
         assertPostUrn(args.post_urn);
-        if (args.parent_comment_urn) assertCommentUrn(args.parent_comment_urn);
+        if (args.parent_comment_urn) {
+          assertCommentUrn(args.parent_comment_urn);
+          assertReplyMatchesPost(args.post_urn, args.parent_comment_urn);
+        }
 
         const fp = fingerprint({
           organization,
@@ -466,7 +470,10 @@ export function registerTools(
               `On post:   ${args.post_urn}`,
               `           ${postUrl(args.post_urn)}`,
               ...(args.parent_comment_urn
-                ? [`Reply to:  ${args.parent_comment_urn}`]
+                ? [
+                    `Reply to:  ${args.parent_comment_urn}`,
+                    "           (it lands in this comment's thread)",
+                  ]
                 : []),
               '',
               '──── text ────',

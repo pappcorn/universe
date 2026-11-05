@@ -266,7 +266,8 @@ Stopping a machine and revoking access are two different things:
 
 - **Revoking in LinkedIn kills it everywhere.** The administrator who authorized
   the app removes it under **Permitted services** in their LinkedIn data-privacy
-  settings. You can also reset the Client Secret in the app's Auth tab, which
+  settings. You can also reset the Client Secret in the app's Auth tab (run
+  Step 6 again afterwards, since the credential file holds a copy), which
   stops every renewal.
 
 If someone is leaving, or a machine is lost, do the second. Deleting a folder is

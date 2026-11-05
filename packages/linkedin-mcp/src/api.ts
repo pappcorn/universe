@@ -123,10 +123,23 @@ export async function request<T = unknown>(
   if (!res.ok) throw await errorFrom(res);
 
   const text = await res.text();
+  let body: unknown = {};
+  try {
+    if (text) body = JSON.parse(text);
+  } catch {
+    // A write that LinkedIn accepted must not read as a failure, or someone
+    // retries it: its id is in the header. A read has nothing to show.
+    if (method === 'GET') {
+      throw new LinkedInApiError(
+        `LinkedIn answered HTTP ${res.status} with a body that is not JSON. Try again later.`,
+        res.status,
+      );
+    }
+  }
   return {
     status: res.status,
     restliId: res.headers.get('x-restli-id') ?? undefined,
-    body: (text ? JSON.parse(text) : {}) as T,
+    body: body as T,
   };
 }
 

@@ -36607,8 +36607,14 @@ function loadConfig() {
   const envOrg = readVar("LINKEDIN_ORGANIZATION_ID");
   let creds;
   let source;
-  const file2 = readFileCreds(path);
-  if (envAccess || envRefresh && envId && envSecret) {
+  const fromEnv = Boolean(envAccess || envRefresh && envId && envSecret);
+  let file2 = null;
+  try {
+    file2 = readFileCreds(path);
+  } catch (err) {
+    if (!fromEnv) throw err;
+  }
+  if (fromEnv) {
     creds = {
       access_token: envAccess,
       refresh_token: envRefresh,
@@ -36643,8 +36649,11 @@ function loadConfig() {
   return cached2;
 }
 function cachePath(creds) {
-  const id = (0, import_node_crypto.createHash)("sha256").update(`${creds.client_id ?? ""}
-${creds.refresh_token ?? ""}`).digest("hex").slice(0, 16);
+  const id = (0, import_node_crypto.createHash)("sha256").update(
+    `${creds.client_id ?? ""}
+${creds.refresh_token ?? ""}
+${creds.access_token ?? ""}`
+  ).digest("hex").slice(0, 16);
   return `${cacheDir()}/token-${id}.json`;
 }
 function readCache(creds) {
@@ -36810,10 +36819,21 @@ async function request(method, path, opts = {}) {
   if (res.status === 401) res = await send(await getAccessToken(true));
   if (!res.ok) throw await errorFrom(res);
   const text = await res.text();
+  let body = {};
+  try {
+    if (text) body = JSON.parse(text);
+  } catch {
+    if (method === "GET") {
+      throw new LinkedInApiError(
+        `LinkedIn answered HTTP ${res.status} with a body that is not JSON. Try again later.`,
+        res.status
+      );
+    }
+  }
   return {
     status: res.status,
     restliId: res.headers.get("x-restli-id") ?? void 0,
-    body: text ? JSON.parse(text) : {}
+    body
   };
 }
 async function uploadBinary(uploadUrl, bytes) {
@@ -36904,28 +36924,33 @@ function inspectMedia(kind, path) {
       ).join(", ")}.`
     );
   }
-  let size;
+  let fd;
   try {
-    const st = (0, import_node_fs2.statSync)(path);
-    if (!st.isFile()) throw new Error("not a file");
-    size = st.size;
+    fd = (0, import_node_fs2.openSync)(path, "r");
   } catch {
     throw new Error(`Cannot read ${kind} file: ${path}`);
   }
-  const max = kind === "image" ? MAX_IMAGE_BYTES : MAX_DOCUMENT_BYTES;
-  if (size === 0) throw new Error(`${(0, import_node_path.basename)(path)} is empty.`);
-  if (size > max) {
-    throw new Error(
-      `${(0, import_node_path.basename)(path)} is ${(size / 1048576).toFixed(1)} MB; the limit is ${max / 1048576} MB.`
-    );
+  let data;
+  try {
+    const st = (0, import_node_fs2.fstatSync)(fd);
+    if (!st.isFile()) throw new Error(`Cannot read ${kind} file: ${path}`);
+    const max = kind === "image" ? MAX_IMAGE_BYTES : MAX_DOCUMENT_BYTES;
+    if (st.size === 0) throw new Error(`${(0, import_node_path.basename)(path)} is empty.`);
+    if (st.size > max) {
+      throw new Error(
+        `${(0, import_node_path.basename)(path)} is ${(st.size / 1048576).toFixed(1)} MB; the limit is ${max / 1048576} MB.`
+      );
+    }
+    data = (0, import_node_fs2.readFileSync)(fd);
+  } finally {
+    (0, import_node_fs2.closeSync)(fd);
   }
-  const data = (0, import_node_fs2.readFileSync)(path);
   return {
     kind,
     path,
     name: (0, import_node_path.basename)(path),
     type,
-    bytes: size,
+    bytes: data.length,
     sha256: (0, import_node_crypto2.createHash)("sha256").update(data).digest("hex"),
     data
   };
@@ -37065,6 +37090,16 @@ function assertCommentUrn(urn) {
   if (!COMMENT_URN.test(urn)) {
     throw new Error(
       `"${urn}" is not a comment URN. Expected urn:li:comment:(urn:li:activity:<id>,<id>) (linkedin_list_comments returns them).`
+    );
+  }
+}
+function assertReplyMatchesPost(postUrn, parent) {
+  const m = /^urn:li:comment:\((urn:li:(?:share|ugcPost):\d+),\d+\)$/.exec(
+    parent
+  );
+  if (m && m[1] !== postUrn) {
+    throw new Error(
+      `That comment belongs to ${m[1]}, not to ${postUrn}. Nothing was published.`
     );
   }
 }
@@ -37474,7 +37509,10 @@ function registerTools(server, gate = new ConfirmationGate()) {
       try {
         const { organization } = loadConfig();
         assertPostUrn(args.post_urn);
-        if (args.parent_comment_urn) assertCommentUrn(args.parent_comment_urn);
+        if (args.parent_comment_urn) {
+          assertCommentUrn(args.parent_comment_urn);
+          assertReplyMatchesPost(args.post_urn, args.parent_comment_urn);
+        }
         const fp = fingerprint({
           organization,
           post: args.post_urn,
@@ -37491,7 +37529,10 @@ function registerTools(server, gate = new ConfirmationGate()) {
               `As:        ${page.name ?? page.urn} (${page.urn})`,
               `On post:   ${args.post_urn}`,
               `           ${postUrl(args.post_urn)}`,
-              ...args.parent_comment_urn ? [`Reply to:  ${args.parent_comment_urn}`] : [],
+              ...args.parent_comment_urn ? [
+                `Reply to:  ${args.parent_comment_urn}`,
+                "           (it lands in this comment's thread)"
+              ] : [],
               "",
               "\u2500\u2500\u2500\u2500 text \u2500\u2500\u2500\u2500",
               args.text,

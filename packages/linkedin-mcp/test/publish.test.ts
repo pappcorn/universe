@@ -375,6 +375,16 @@ describe('linkedin_comment', () => {
     });
   });
 
+  it('refuses a reply whose parent comment names a different post', async () => {
+    const out = await call('linkedin_comment', {
+      post_urn: post,
+      parent_comment_urn: 'urn:li:comment:(urn:li:ugcPost:999,1)',
+      text: 'Gracias',
+    });
+    assert.match(out, /^ERROR: That comment belongs to urn:li:ugcPost:999/);
+    assert.doesNotMatch(out, /confirm_token/);
+  });
+
   it('rejects something that is not a post URN', async () => {
     const out = await call('linkedin_comment', {
       post_urn: 'urn:li:person:abc',

@@ -176,6 +176,45 @@ describe('where the setup writes by default', () => {
   });
 });
 
+describe('resolving the path like the connector does', () => {
+  it('honors LINKEDIN_MCP_CREDENTIALS when --out is absent', async () => {
+    const home = path('home-env');
+    const custom = path('custom-location.json');
+    const { code } = await runSetup({}, null, [], 'code=fake-code', {
+      HOME: home,
+      LINKEDIN_MCP_CREDENTIALS: custom,
+    });
+    assert.equal(code, 0);
+    assert.equal(existsSync(custom), true);
+    assert.equal(
+      existsSync(join(home, '.config/pappcorn/linkedin-mcp/credentials.json')),
+      false,
+    );
+  });
+
+  it('lets --out win over LINKEDIN_MCP_CREDENTIALS', async () => {
+    const custom = path('ignored.json');
+    const out = path('explicit.json');
+    await runSetup({}, out, [], 'code=fake-code', {
+      LINKEDIN_MCP_CREDENTIALS: custom,
+    });
+    assert.equal(existsSync(out), true);
+    assert.equal(existsSync(custom), false);
+  });
+});
+
+describe('error output', () => {
+  it("prints LinkedIn's named error, never the raw body", async () => {
+    const { output, code } = await runSetup(
+      { tokenStatus: 400 },
+      path('echo.json'),
+    );
+    assert.equal(code, 1);
+    assert.match(output, /HTTP 400\): invalid_request/);
+    assert.doesNotMatch(output, /fake-code/);
+  });
+});
+
 describe('the credential file', () => {
   const previous = '{"marker":"the credential that was already here"}\n';
 

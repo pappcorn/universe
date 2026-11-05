@@ -173,9 +173,16 @@ export function loadConfig(): ResolvedConfig {
   // The file is still consulted on the env path, but only for the Page id —
   // so a plugin install can hold the token in the keychain while the setup
   // script's record of "which Page" stays the default.
-  const file = readFileCreds(path);
+  // A corrupt file only matters when the file is the credential.
+  const fromEnv = Boolean(envAccess || (envRefresh && envId && envSecret));
+  let file: LinkedInCredentials | null = null;
+  try {
+    file = readFileCreds(path);
+  } catch (err) {
+    if (!fromEnv) throw err;
+  }
 
-  if (envAccess || (envRefresh && envId && envSecret)) {
+  if (fromEnv) {
     creds = {
       access_token: envAccess,
       refresh_token: envRefresh,
@@ -222,12 +229,16 @@ interface CachedToken {
   expires_at: number;
 }
 
-// The cache key is a digest of the long-lived credential, so two credentials on
-// one machine never share an access token, and re-authorizing invalidates the
-// cache naturally. The digest is not reversible.
+// The cache key is a digest of the credential, so two credentials on one machine
+// never share an access token. It includes the stored access token because
+// LinkedIn can return the same refresh token on re-authorization: without it, a
+// token renewed before a re-authorization would outrank the new one and keep its
+// old scopes. The digest is not reversible.
 function cachePath(creds: LinkedInCredentials): string {
   const id = createHash('sha256')
-    .update(`${creds.client_id ?? ''}\n${creds.refresh_token ?? ''}`)
+    .update(
+      `${creds.client_id ?? ''}\n${creds.refresh_token ?? ''}\n${creds.access_token ?? ''}`,
+    )
     .digest('hex')
     .slice(0, 16);
   return `${cacheDir()}/token-${id}.json`;

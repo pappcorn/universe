@@ -174,6 +174,47 @@ describe('access token lifecycle', () => {
     }
   });
 
+  it('a re-authorization outranks a token renewed before it, even with the same refresh token', async () => {
+    delete process.env.LINKEDIN_ACCESS_TOKEN;
+    const base = {
+      client_id: 'cid',
+      client_secret: 's',
+      refresh_token: 'same-refresh-token',
+      refresh_token_expires_at: now() + 86400 * 300,
+      organization: 'urn:li:organization:1',
+    };
+    process.env.LINKEDIN_MCP_CREDENTIALS = writeCreds({
+      ...base,
+      access_token: 'expired-old-scopes',
+      access_token_expires_at: now() - 10,
+    });
+    const li = fakeLinkedIn(() => ({
+      json: { access_token: 'renewed-old-scopes', expires_in: 5184000 },
+    }));
+    try {
+      assert.equal(await getAccessToken(), 'renewed-old-scopes');
+    } finally {
+      li.restore();
+    }
+    resetConfigCache();
+    process.env.LINKEDIN_MCP_CREDENTIALS = writeCreds({
+      ...base,
+      access_token: 'fresh-new-scopes',
+      access_token_expires_at: now() + 86400,
+    });
+    assert.equal(await getAccessToken(), 'fresh-new-scopes');
+  });
+
+  it('a corrupt credential file does not break a credential from the environment', () => {
+    const p = join(files.dir, 'corrupt.json');
+    writeFileSync(p, '{not json');
+    process.env.LINKEDIN_MCP_CREDENTIALS = p;
+    assert.equal(loadConfig().source, 'environment');
+    resetConfigCache();
+    delete process.env.LINKEDIN_ACCESS_TOKEN;
+    assert.throws(loadConfig, /not valid JSON/);
+  });
+
   it('does not echo the refresh request when LinkedIn refuses it', async () => {
     delete process.env.LINKEDIN_ACCESS_TOKEN;
     process.env.LINKEDIN_MCP_CREDENTIALS = writeCreds({

@@ -15,7 +15,14 @@
 //   share stats    GET /rest/organizationalEntityShareStatistics?q=organizationalEntity
 
 import { createHash } from 'node:crypto';
-import { appendFileSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  appendFileSync,
+  closeSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, extname } from 'node:path';
 
@@ -136,28 +143,35 @@ export function inspectMedia(
       ).join(', ')}.`,
     );
   }
-  let size: number;
+  // One descriptor for the check and the read, so what was checked is what gets
+  // hashed and uploaded even if the path changes underneath us.
+  let fd: number;
   try {
-    const st = statSync(path);
-    if (!st.isFile()) throw new Error('not a file');
-    size = st.size;
+    fd = openSync(path, 'r');
   } catch {
     throw new Error(`Cannot read ${kind} file: ${path}`);
   }
-  const max = kind === 'image' ? MAX_IMAGE_BYTES : MAX_DOCUMENT_BYTES;
-  if (size === 0) throw new Error(`${basename(path)} is empty.`);
-  if (size > max) {
-    throw new Error(
-      `${basename(path)} is ${(size / 1048576).toFixed(1)} MB; the limit is ${max / 1048576} MB.`,
-    );
+  let data: Buffer;
+  try {
+    const st = fstatSync(fd);
+    if (!st.isFile()) throw new Error(`Cannot read ${kind} file: ${path}`);
+    const max = kind === 'image' ? MAX_IMAGE_BYTES : MAX_DOCUMENT_BYTES;
+    if (st.size === 0) throw new Error(`${basename(path)} is empty.`);
+    if (st.size > max) {
+      throw new Error(
+        `${basename(path)} is ${(st.size / 1048576).toFixed(1)} MB; the limit is ${max / 1048576} MB.`,
+      );
+    }
+    data = readFileSync(fd);
+  } finally {
+    closeSync(fd);
   }
-  const data = readFileSync(path);
   return {
     kind,
     path,
     name: basename(path),
     type,
-    bytes: size,
+    bytes: data.length,
     sha256: createHash('sha256').update(data).digest('hex'),
     data,
   };
@@ -416,6 +430,21 @@ export function assertCommentUrn(urn: string): void {
     throw new Error(
       `"${urn}" is not a comment URN. Expected urn:li:comment:(urn:li:activity:<id>,<id>) ` +
         '(linkedin_list_comments returns them).',
+    );
+  }
+}
+
+/** A reply lands in its parent comment's thread, whatever post_urn says. When
+ *  the parent's URN names its post, refuse a mismatch, so a preview can never
+ *  promise one post and publish under another. An activity-form URN does not
+ *  name its post, so that case cannot be checked from the URNs alone. */
+export function assertReplyMatchesPost(postUrn: string, parent: string): void {
+  const m = /^urn:li:comment:\((urn:li:(?:share|ugcPost):\d+),\d+\)$/.exec(
+    parent,
+  );
+  if (m && m[1] !== postUrn) {
+    throw new Error(
+      `That comment belongs to ${m[1]}, not to ${postUrn}. Nothing was published.`,
     );
   }
 }

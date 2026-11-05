@@ -92,7 +92,8 @@ credential file the connector reads (chmod 600).
                         http://localhost:<port>/callback must be registered on the
                         app, exactly.
   --out                 Where to write the credential. Default: the path the
-                        connector reads.
+                        connector reads ($LINKEDIN_MCP_CREDENTIALS, else the path
+                        above).
   --scopes              Space-separated OAuth scopes. Default:
                         ${DEFAULT_SCOPES.join(' ')}
 
@@ -137,7 +138,12 @@ if (!clientSecret) {
 const port = flags.port ? Number(flags.port) : DEFAULT_PORT;
 if (!Number.isInteger(port) || port < 1 || port > 65535)
   fail(`invalid --port ${flags.port}`);
-const outPath = expand(typeof flags.out === 'string' ? flags.out : DEFAULT_OUT);
+// Same resolution as the connector, so setup writes where it will read.
+const outPath = expand(
+  typeof flags.out === 'string'
+    ? flags.out
+    : process.env.LINKEDIN_MCP_CREDENTIALS || DEFAULT_OUT,
+);
 const scopes =
   typeof flags.scopes === 'string'
     ? flags.scopes.split(/[\s,]+/).filter(Boolean)
@@ -265,6 +271,20 @@ process.stdout.write(
     `Waiting (timeout ${TIMEOUT_MS / 60000} min)...\n`,
 );
 
+// Only LinkedIn's named error fields, never the raw body, which could echo back
+// what was submitted (such as the authorization code).
+async function errorDetail(res) {
+  try {
+    const b = await res.json();
+    const parts = [b.error, b.error_description, b.code, b.message].filter(
+      (x) => typeof x === 'string',
+    );
+    return parts.length ? `: ${parts.join(' — ').slice(0, 500)}` : '';
+  } catch {
+    return '';
+  }
+}
+
 async function api(token, path) {
   const res = await fetch(`https://api.linkedin.com/rest/${path}`, {
     headers: {
@@ -275,7 +295,7 @@ async function api(token, path) {
   });
   if (!res.ok) {
     throw new Error(
-      `LinkedIn API ${path.split('?')[0]} failed (HTTP ${res.status}): ${await res.text()}`,
+      `LinkedIn API ${path.split('?')[0]} failed (HTTP ${res.status})${await errorDetail(res)}`,
     );
   }
   return res.json();
@@ -295,7 +315,7 @@ async function exchangeAndWrite(code) {
   });
   if (!res.ok) {
     throw new Error(
-      `token exchange failed (HTTP ${res.status}): ${await res.text()}\n` +
+      `token exchange failed (HTTP ${res.status})${await errorDetail(res)}\n` +
         'Usual causes: the redirect URL registered on the app does not match ' +
         `${redirectUri} exactly, the Client Secret is wrong, or the code expired (30 min).`,
     );

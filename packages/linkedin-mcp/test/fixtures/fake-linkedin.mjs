@@ -11,7 +11,10 @@ globalThis.fetch = async (input) => {
 
   if (url.pathname === '/oauth/v2/accessToken') {
     if (cfg.tokenStatus)
-      return json({ error: 'invalid_request' }, cfg.tokenStatus);
+      return json(
+        { error: 'invalid_request', submitted: { code: 'fake-code' } },
+        cfg.tokenStatus,
+      );
     return json({
       access_token: 'fake-access-token',
       expires_in: 5184000,
