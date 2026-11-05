@@ -13,7 +13,7 @@ All notable changes to `@pappcorn/gmail-mcp`. This project follows
 ### Fixed
 
 - **Paragraphs keep their blank line when text is derived from HTML.** `</p>` used to yield a single newline, so the `text/plain` part of an `html: true` message, and the text of HTML mail read through `mail_read_thread`, ran its paragraphs together.
-- **Text derived from HTML is decoded once and fully stripped.** `&amp;lt;` used to read as `<` instead of `&lt;`, and a tag split so that removing it formed a new one could survive the single pass.
+- **Text derived from HTML is decoded once and fully stripped.** `&amp;lt;` used to read as `<` instead of `&lt;`, and a tag split so that removing it formed a new one could survive the single pass. The passes are capped at 8, so a deeply nested message can't stall the server. Past the cap, every angle bracket is removed.
 
 ## 0.3.3
 

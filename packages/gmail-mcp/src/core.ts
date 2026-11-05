@@ -363,14 +363,19 @@ export function stripHtml(html: string): string {
 }
 
 // One pass isn't enough: removing a match can join what's left into a new one.
+// Mail is untrusted and each nested layer costs a full pass, so the passes are
+// capped. Past the cap the input is hostile: no angle bracket survives, so no
+// tag can either, in linear time.
+const MAX_STRIP_PASSES = 8;
+
 function replaceUntilStable(text: string, pattern: RegExp): string {
   let current = text;
-  let previous: string;
-  do {
-    previous = current;
-    current = current.replace(pattern, '');
-  } while (current !== previous);
-  return current;
+  for (let pass = 0; pass < MAX_STRIP_PASSES; pass++) {
+    const next = current.replace(pattern, '');
+    if (next === current) return current;
+    current = next;
+  }
+  return current.replace(/[<>]/g, '');
 }
 
 // Walk the MIME tree collecting the first text/plain and first text/html

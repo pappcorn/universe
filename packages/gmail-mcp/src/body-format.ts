@@ -60,6 +60,15 @@ function trimUrl(raw: string): string {
   return url;
 }
 
+// HTML collapses a run of spaces, which would break aligned lines. The first
+// space stays breakable so the line can still wrap.
+function textToInlineHtml(text: string): string {
+  return escapeHtml(text).replace(
+    / {2,}/g,
+    (run) => ` ${'&nbsp;'.repeat(run.length - 1)}`,
+  );
+}
+
 function lineToHtml(line: string): string {
   const indent = /^[ \t]*/.exec(line)?.[0] ?? '';
   const text = line.slice(indent.length);
@@ -68,11 +77,11 @@ function lineToHtml(line: string): string {
   for (const match of text.matchAll(URL_RE)) {
     const url = trimUrl(match[0]);
     if (/^https?:\/\/$/i.test(url)) continue;
-    html += escapeHtml(text.slice(from, match.index));
+    html += textToInlineHtml(text.slice(from, match.index));
     html += `<a href="${escapeHtml(url)}">${escapeHtml(url)}</a>`;
     from = match.index + url.length;
   }
-  return html + escapeHtml(text.slice(from));
+  return html + textToInlineHtml(text.slice(from));
 }
 
 /**

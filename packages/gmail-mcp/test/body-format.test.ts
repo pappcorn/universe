@@ -104,6 +104,13 @@ describe('textToHtml', () => {
     );
   });
 
+  it('keeps runs of spaces inside a line, so aligned text stays aligned', () => {
+    assert.equal(
+      textToHtml('Total:    42 a b'),
+      '<p>Total: &nbsp;&nbsp;&nbsp;42 a b</p>',
+    );
+  });
+
   it('links URLs and escapes them in the attribute too', () => {
     assert.equal(
       textToHtml('See http://example.com/?a=1&b=2 now'),
@@ -261,6 +268,19 @@ describe('stripHtml', () => {
 describe('stripHtml, on hostile or tricky input', () => {
   it('removes a script split so that stripping it forms a new one', () => {
     assert.equal(stripHtml('a<scr<script>x</script>ipt>y</script>b'), 'ab');
+  });
+
+  it('does not spend a pass per nested layer, and leaves no tag behind', () => {
+    const layers = 60_000;
+    const hostile = `${'<scr'.repeat(layers)}<script></script>${'ipt></script>'.repeat(layers)}`;
+    const started = performance.now();
+    const text = stripHtml(hostile);
+    assert.ok(performance.now() - started < 2_000, 'took too long');
+    assert.doesNotMatch(text, /[<>]/);
+  });
+
+  it('keeps a bare angle bracket in ordinary text', () => {
+    assert.equal(stripHtml('<p>2 < 3</p>'), '2 < 3');
   });
 
   it('decodes entities exactly once', () => {

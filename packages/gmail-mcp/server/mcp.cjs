@@ -36883,6 +36883,12 @@ function trimUrl(raw) {
   }
   return url2;
 }
+function textToInlineHtml(text) {
+  return escapeHtml(text).replace(
+    / {2,}/g,
+    (run) => ` ${"&nbsp;".repeat(run.length - 1)}`
+  );
+}
 function lineToHtml(line) {
   const indent = /^[ \t]*/.exec(line)?.[0] ?? "";
   const text = line.slice(indent.length);
@@ -36891,11 +36897,11 @@ function lineToHtml(line) {
   for (const match of text.matchAll(URL_RE)) {
     const url2 = trimUrl(match[0]);
     if (/^https?:\/\/$/i.test(url2)) continue;
-    html += escapeHtml(text.slice(from, match.index));
+    html += textToInlineHtml(text.slice(from, match.index));
     html += `<a href="${escapeHtml(url2)}">${escapeHtml(url2)}</a>`;
     from = match.index + url2.length;
   }
-  return html + escapeHtml(text.slice(from));
+  return html + textToInlineHtml(text.slice(from));
 }
 function textToHtml(text) {
   return text.replace(/\r\n/g, "\n").replace(/^(?:[ \t]*\n)+/, "").trimEnd().split(BLOCK_SEPARATOR_RE).map((block) => `<p>${block.split("\n").map(lineToHtml).join("<br>")}</p>`).join("\n");
@@ -37065,14 +37071,15 @@ function stripHtml(html) {
   const withBreaks = withoutCode.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n\n").replace(/<\/(div|tr|li|h[1-6]|blockquote)>/gi, "\n");
   return replaceUntilStable(withBreaks, /<[^>]+>/g).replace(/&nbsp;/gi, " ").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;/gi, "'").replace(/&amp;/gi, "&").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
+var MAX_STRIP_PASSES = 8;
 function replaceUntilStable(text, pattern) {
   let current = text;
-  let previous;
-  do {
-    previous = current;
-    current = current.replace(pattern, "");
-  } while (current !== previous);
-  return current;
+  for (let pass = 0; pass < MAX_STRIP_PASSES; pass++) {
+    const next = current.replace(pattern, "");
+    if (next === current) return current;
+    current = next;
+  }
+  return current.replace(/[<>]/g, "");
 }
 function extractBody(payload) {
   const found = {};
