@@ -54,6 +54,15 @@ npx -y -p @pappcorn/gmail-mcp pappcorn-gmail whoami
 Scopes: `gmail.modify` (read/search/label/archive) and `gmail.send`. To narrow
 them, see [Hardening](../../docs/setup-google-cloud.md#hardening--how-to-make-this-stricter).
 
+## Message bodies
+
+`mail_send` and `mail_draft` always send `multipart/alternative`. Gmail cuts the `text/plain` part of a delivered message at about 70-75 columns, so a text-only mail reaches people with sentences broken mid-line. The `text/html` part is what fills the width of their screen.
+
+- **Plain-text body (the default).** Your text goes out unchanged as `text/plain`, plus a generated `text/html`: blocks separated by a blank line become paragraphs, single newlines become line breaks, the text is HTML-escaped, and `http(s)` URLs become links.
+- **`html: true`.** Your body is the `text/html` part, and the `text/plain` part is derived from it.
+
+Write each paragraph on one line. A plain-text body that looks hard-wrapped by hand is refused: three or more consecutive lines of 55-80 characters that stop mid-sentence with more text following. List items, quoted lines and code-looking lines don't count. If the line breaks are intentional, pass `allow_hard_wraps: true` (CLI: `--allow-hard-wraps`).
+
 ## Attachments
 
 `mail_send` and `mail_draft` take local file paths via `attachments` (one path or

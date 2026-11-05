@@ -36847,6 +36847,93 @@ async function authHeaders(extra = {}) {
 var import_node_crypto2 = require("node:crypto");
 var import_node_fs3 = require("node:fs");
 var import_node_path3 = require("node:path");
+
+// src/body-format.ts
+var URL_RE = /https?:\/\/[^\s<>"]+/gi;
+var URL_TRAILER_RE = /[.,;:!?'’”»…)\]]$/;
+var BLOCK_SEPARATOR_RE = /\n(?:[ \t]*\n)+/;
+var WRAP_MIN_COLUMNS = 55;
+var WRAP_MAX_COLUMNS = 80;
+var WRAP_MIN_RUN = 3;
+var SENTENCE_END_RE = /[.!?:;…)\]"'”’»]$/;
+var NOT_PROSE_START_RE = /^(?:\s|[-*+•>|#]|\d+[.)]\s|[a-z][.)]\s|\$\s|`{3}|~{3})/i;
+var CODE_RE = /[{}=`\\]|&&|\|\||\(\)|::/;
+var FENCE_RE = /^\s*(?:`{3}|~{3})/;
+var HardWrappedBodyError = class extends Error {
+  constructor(line) {
+    super(
+      `Refused: this plain-text body looks hard-wrapped by hand, at: "${line}". Put each paragraph on one line and separate paragraphs with a blank line; mail clients wrap it to the screen. If these line breaks are intentional, retry with allow_hard_wraps: true (CLI: --allow-hard-wraps).`
+    );
+    this.name = "HardWrappedBodyError";
+  }
+};
+function escapeHtml(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function occurrences(text, char) {
+  return text.split(char).length - 1;
+}
+function trimUrl(raw) {
+  let url2 = raw;
+  while (URL_TRAILER_RE.test(url2)) {
+    const last = url2[url2.length - 1];
+    if (last === ")" && occurrences(url2, "(") >= occurrences(url2, ")")) break;
+    if (last === "]" && occurrences(url2, "[") >= occurrences(url2, "]")) break;
+    url2 = url2.slice(0, -1);
+  }
+  return url2;
+}
+function lineToHtml(line) {
+  const indent = /^[ \t]*/.exec(line)?.[0] ?? "";
+  const text = line.slice(indent.length);
+  let html = indent.replace(/\t/g, "    ").replace(/ /g, "&nbsp;");
+  let from = 0;
+  for (const match of text.matchAll(URL_RE)) {
+    const url2 = trimUrl(match[0]);
+    if (/^https?:\/\/$/i.test(url2)) continue;
+    html += escapeHtml(text.slice(from, match.index));
+    html += `<a href="${escapeHtml(url2)}">${escapeHtml(url2)}</a>`;
+    from = match.index + url2.length;
+  }
+  return html + escapeHtml(text.slice(from));
+}
+function textToHtml(text) {
+  return text.replace(/\r\n/g, "\n").replace(/^(?:[ \t]*\n)+/, "").trimEnd().split(BLOCK_SEPARATOR_RE).map((block) => `<p>${block.split("\n").map(lineToHtml).join("<br>")}</p>`).join("\n");
+}
+function isNotProse(line) {
+  return NOT_PROSE_START_RE.test(line) || CODE_RE.test(line);
+}
+function looksWrapped(line) {
+  const text = line.trimEnd();
+  return text.length >= WRAP_MIN_COLUMNS && text.length <= WRAP_MAX_COLUMNS && !isNotProse(text) && // A lone token (a bare URL, a path) has no words to wrap.
+  /\s/.test(text) && !SENTENCE_END_RE.test(text);
+}
+function findHardWrappedLine(text) {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  let inFence = false;
+  let run = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (FENCE_RE.test(line)) {
+      inFence = !inFence;
+      run = 0;
+      continue;
+    }
+    if (inFence || !looksWrapped(line)) {
+      run = 0;
+      continue;
+    }
+    run++;
+    const next = lines[i + 1];
+    const moreProseFollows = next !== void 0 && next.trim() !== "" && !isNotProse(next);
+    if (run >= WRAP_MIN_RUN && moreProseFollows) {
+      return lines[i - run + 1].trimEnd();
+    }
+  }
+  return null;
+}
+
+// src/core.ts
 var API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 var GmailApiError = class extends Error {
   constructor(op, status, googleMessage) {
@@ -36971,7 +37058,7 @@ function decodeB64Url(data) {
   return Buffer.from(data, "base64url").toString("utf8");
 }
 function stripHtml(html) {
-  return html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|tr|li|h[1-6]|blockquote)>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;/gi, "'").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  return html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n\n").replace(/<\/(div|tr|li|h[1-6]|blockquote)>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;/gi, "'").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 function extractBody(payload) {
   const found = {};
@@ -37107,6 +37194,10 @@ function buildAttachmentParts(paths) {
   });
 }
 async function buildMessage(args) {
+  if (!args.html && !args.allow_hard_wraps && args.body) {
+    const wrapped = findHardWrappedLine(args.body);
+    if (wrapped) throw new HardWrappedBodyError(wrapped);
+  }
   const creds = loadCredentials();
   let account = creds.account;
   if (!account) {
@@ -37156,31 +37247,25 @@ async function buildMessage(args) {
   if (inReplyTo) headers.push(`In-Reply-To: ${inReplyTo}`);
   if (references) headers.push(`References: ${references}`);
   headers.push("MIME-Version: 1.0");
-  const contentHeaders = [];
-  let contentBody;
-  if (args.html) {
-    const boundary = `=_pappcorn_${(0, import_node_crypto2.randomBytes)(12).toString("hex")}`;
-    contentHeaders.push(
-      `Content-Type: multipart/alternative; boundary="${boundary}"`
-    );
-    contentBody = [
-      `--${boundary}`,
-      "Content-Type: text/plain; charset=UTF-8",
-      "Content-Transfer-Encoding: base64",
-      "",
-      b64Body(stripHtml(args.body)),
-      `--${boundary}`,
-      "Content-Type: text/html; charset=UTF-8",
-      "Content-Transfer-Encoding: base64",
-      "",
-      b64Body(args.body),
-      `--${boundary}--`
-    ].join("\r\n");
-  } else {
-    contentHeaders.push("Content-Type: text/plain; charset=UTF-8");
-    contentHeaders.push("Content-Transfer-Encoding: base64");
-    contentBody = b64Body(args.body);
-  }
+  const plainPart = args.html ? stripHtml(args.body) : args.body;
+  const htmlPart = args.html ? args.body : textToHtml(args.body);
+  const boundary = `=_pappcorn_${(0, import_node_crypto2.randomBytes)(12).toString("hex")}`;
+  const contentHeaders = [
+    `Content-Type: multipart/alternative; boundary="${boundary}"`
+  ];
+  const contentBody = [
+    `--${boundary}`,
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    b64Body(plainPart),
+    `--${boundary}`,
+    "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    b64Body(htmlPart),
+    `--${boundary}--`
+  ].join("\r\n");
   let bodyBlock;
   const attachmentPaths = toAttachmentList(args.attachments);
   if (attachmentPaths.length) {
@@ -37422,7 +37507,7 @@ var composeShape = {
   ),
   subject: external_exports.string().describe("Subject line (UTF-8 fine; encoded per RFC 2047 on the wire)."),
   body: external_exports.string().describe(
-    "Message body. Plain text by default; when html=true this IS the HTML."
+    "Message body. Plain text by default: put each paragraph on ONE line and separate paragraphs with a blank line (never wrap lines by hand; mail clients wrap to the screen). When html=true this IS the HTML."
   ),
   cc: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).optional().describe("Cc recipient(s)."),
   bcc: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).optional().describe("Bcc recipient(s)."),
@@ -37433,7 +37518,10 @@ var composeShape = {
     "Thread id to attach to (inferred from reply_to_message_id when replying)."
   ),
   html: external_exports.boolean().optional().describe(
-    "Send as HTML (multipart/alternative with an auto-derived text part). Default: plain text."
+    "The body is HTML, sent with an auto-derived text part. Default: the body is plain text, sent with an auto-generated HTML part so it fills the width of the screen on delivery."
+  ),
+  allow_hard_wraps: external_exports.boolean().optional().describe(
+    "Send a plain-text body even though it looks hard-wrapped by hand. Only for line breaks that are intentional; otherwise fix the body. Default: such a body is refused."
   ),
   attachments: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).optional().describe(
     "Local file path(s) to attach (multipart/mixed; filename = basename, Content-Type by extension). Files must live inside the allowed directory (GMAIL_ATTACHMENT_DIR, default: the working directory) \u2014 paths outside it are rejected. Paths are NOT comma-split \u2014 pass an array for several files. Total \u2264 25MB (Gmail limit)."
@@ -37518,7 +37606,7 @@ function registerTools(server) {
   server.registerTool(
     "mail_send",
     {
-      description: "Send an email from the authenticated mailbox. OUTWARD-FACING \u2014 real people receive it immediately: ALWAYS confirm recipient(s) + subject + FULL body (and any attachments) with the user before calling. v1 has no auto-sends. Plain text by default; html=true sends multipart/alternative; attachments (local file paths) ride multipart/mixed. To reply in a thread pass reply_to_message_id (In-Reply-To/References are set from the original and the thread is inherited). Returns the sent message id + thread id.",
+      description: "Send an email from the authenticated mailbox. OUTWARD-FACING \u2014 real people receive it immediately: ALWAYS confirm recipient(s) + subject + FULL body (and any attachments) with the user before calling. v1 has no auto-sends. Always multipart/alternative: a plain-text body gets a generated HTML part, html=true gets a derived text part. A plain-text body that looks hard-wrapped by hand is refused: put each paragraph on one line. Attachments (local file paths) ride multipart/mixed. To reply in a thread pass reply_to_message_id (In-Reply-To/References are set from the original and the thread is inherited). Returns the sent message id + thread id.",
       inputSchema: composeShape
     },
     async (args) => {

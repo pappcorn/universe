@@ -81,7 +81,7 @@ const composeShape = {
   body: z
     .string()
     .describe(
-      'Message body. Plain text by default; when html=true this IS the HTML.',
+      'Message body. Plain text by default: put each paragraph on ONE line and separate paragraphs with a blank line (never wrap lines by hand; mail clients wrap to the screen). When html=true this IS the HTML.',
     ),
   cc: z
     .union([z.string(), z.array(z.string())])
@@ -107,7 +107,13 @@ const composeShape = {
     .boolean()
     .optional()
     .describe(
-      'Send as HTML (multipart/alternative with an auto-derived text part). Default: plain text.',
+      'The body is HTML, sent with an auto-derived text part. Default: the body is plain text, sent with an auto-generated HTML part so it fills the width of the screen on delivery.',
+    ),
+  allow_hard_wraps: z
+    .boolean()
+    .optional()
+    .describe(
+      'Send a plain-text body even though it looks hard-wrapped by hand. Only for line breaks that are intentional; otherwise fix the body. Default: such a body is refused.',
     ),
   attachments: z
     .union([z.string(), z.array(z.string())])
@@ -223,7 +229,7 @@ export function registerTools(server: McpServer): void {
     'mail_send',
     {
       description:
-        'Send an email from the authenticated mailbox. OUTWARD-FACING — real people receive it immediately: ALWAYS confirm recipient(s) + subject + FULL body (and any attachments) with the user before calling. v1 has no auto-sends. Plain text by default; html=true sends multipart/alternative; attachments (local file paths) ride multipart/mixed. To reply in a thread pass reply_to_message_id (In-Reply-To/References are set from the original and the thread is inherited). Returns the sent message id + thread id.',
+        'Send an email from the authenticated mailbox. OUTWARD-FACING — real people receive it immediately: ALWAYS confirm recipient(s) + subject + FULL body (and any attachments) with the user before calling. v1 has no auto-sends. Always multipart/alternative: a plain-text body gets a generated HTML part, html=true gets a derived text part. A plain-text body that looks hard-wrapped by hand is refused: put each paragraph on one line. Attachments (local file paths) ride multipart/mixed. To reply in a thread pass reply_to_message_id (In-Reply-To/References are set from the original and the thread is inherited). Returns the sent message id + thread id.',
       inputSchema: composeShape,
     },
     async (args) => {
