@@ -78,6 +78,14 @@ attached file. Change a word, swap the image, point the reply at another
 comment, or replay the token, and the call is refused with nothing published.
 There is no bypass flag.
 
+**What this does not guarantee.** The gate proves the exact content was
+previewed, and that one approval publishes one thing. It cannot prove a person
+said yes, because the token goes back to the assistant making the call. The check
+only you can enforce lives in your client: keep its permission prompt on
+`linkedin_post` and `linkedin_comment`, and do not pre-allow them. This matters
+because comments are written by strangers, and one could try to steer an
+assistant that reads it.
+
 Everything published is appended to a local log,
 `~/.local/state/pappcorn/linkedin-mcp/actions.jsonl`, so "what did the
 assistant post, and when?" always has an answer. It never leaves your machine.

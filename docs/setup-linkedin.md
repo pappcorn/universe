@@ -181,8 +181,10 @@ Install the connector ([install.md](install.md)), start a new session, and ask
 for `linkedin_whoami`. It should name your Page and show the token expiry.
 
 Then ask the assistant to draft a short post. It will show you a **preview**
-first, with the exact text and the Page that will publish it. Nothing goes out
-until you say yes. For a first test, a plain post you are happy to leave up is
+first, with the exact text and the Page that will publish it. Keep your client's
+permission prompt on `linkedin_post` and `linkedin_comment`, and do not pre-allow
+them: the preview makes the assistant show its work, and that prompt is what
+makes the final yes yours. For a first test, a plain post you are happy to leave up is
 the safest choice; the connector cannot delete it.
 
 ---
