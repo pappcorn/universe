@@ -1,0 +1,58 @@
+{
+  "manifest_version": "0.3",
+  "name": "reminders-mcp",
+  "display_name": "Apple Reminders",
+  "version": "0.1.0",
+  "description": "Read, create, complete and update your Apple Reminders. Runs on your Mac and never deletes anything.",
+  "long_description": "Lets Claude work with the Reminders app on your own Mac: see your lists, read what is due, add a reminder with a date, notes and priority, check one off, or change it. Everything happens on this Mac, through the Reminders app; reminders sync to your other devices through your own iCloud, as always. There is no account and no token. The first time Claude uses it, macOS asks whether Claude may control Reminders: click OK. Nothing is deleted, and nothing runs on its own.",
+  "author": {
+    "name": "PappCorn",
+    "url": "https://github.com/pappcorn"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pappcorn/universe"
+  },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/reminders-mcp",
+  "documentation": "https://github.com/pappcorn/universe/blob/main/docs/setup-apple-reminders.md",
+  "support": "https://github.com/pappcorn/universe/issues",
+  "license": "MIT",
+  "keywords": ["reminders", "apple", "macos", "todo"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/mcp.cjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/mcp.cjs"]
+    }
+  },
+  "tools": [
+    {
+      "name": "list_lists",
+      "description": "Your reminder lists, with how many open reminders each has."
+    },
+    {
+      "name": "list_reminders",
+      "description": "Reminders in one list, filtered by status and due date."
+    },
+    {
+      "name": "create_reminder",
+      "description": "Create a reminder with a title, notes, list, due date and priority."
+    },
+    {
+      "name": "complete_reminder",
+      "description": "Check a reminder off. It is kept, not deleted."
+    },
+    {
+      "name": "update_reminder",
+      "description": "Change a reminder's title, notes, due date or priority, or reopen it."
+    }
+  ],
+  "tools_generated": false,
+  "compatibility": {
+    "platforms": ["darwin"],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  }
+}

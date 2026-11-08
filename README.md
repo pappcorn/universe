@@ -16,8 +16,8 @@
 </div>
 
 **PappCorn Universe is `pappcorn-plugins`, PappCorn's plugin catalog for
-Claude.** Connectors for your email, your spreadsheets, your WhatsApp and your
-company's LinkedIn Page that run on your own credentials, skill packs that help you configure your AI for
+Claude.** Connectors for your email, your spreadsheets, your WhatsApp, your
+company's LinkedIn Page and your Apple Reminders that run on your own credentials, skill packs that help you configure your AI for
 your own work, and a licensed product team of agents. Everything except the
 product team is free and MIT, and you can read every line before you trust it.
 
@@ -107,6 +107,14 @@ product team plus its dev-loop skills. [Request access](mailto:cris@pappcorn.com
 
 </td>
 <td width="50%" valign="top">
+
+### ⏰ [reminders-mcp](packages/reminders-mcp)
+
+![Free · MIT](https://img.shields.io/badge/free-MIT-00d9ff?style=flat-square&labelColor=161519) **Connector** · macOS
+
+Read, create, complete and update your Apple Reminders, on your Mac, with no
+account or token. One-click install for Claude Desktop and Cowork.
+
 </td>
 </tr>
 </table>
@@ -114,7 +122,8 @@ product team plus its dev-loop skills. [Request access](mailto:cris@pappcorn.com
 **Connectors** are open source and bring-your-own-credentials. Each one runs
 as a local process on your machine, signs in with your own Google, Meta or
 LinkedIn credentials, and talks straight to that vendor with no server in
-between.
+between. The Apple Reminders connector needs no credential at all: it talks to
+the Reminders app on your own Mac, and macOS asks you once for permission.
 They are standard MCP servers, so they work in any MCP client, not only Claude.
 
 **Skill packs** need no credentials and no server: they are skills that encode
@@ -142,6 +151,7 @@ which is expected, not broken. To request access to `product-team`, write to
 /plugin install gsheets-mcp@pappcorn-plugins
 /plugin install whatsapp-mcp@pappcorn-plugins
 /plugin install linkedin-mcp@pappcorn-plugins
+/plugin install reminders-mcp@pappcorn-plugins
 /plugin install best-practices-git@pappcorn-plugins
 /plugin install cris-asiste@pappcorn-plugins
 ```
@@ -156,11 +166,19 @@ first:
 | 📊 Google Sheets | [Connect your own Google Sheets account](docs/setup-google-sheets.md)                                         | ~10 min | Its own APIs and token, separate from Gmail's |
 | 💬 WhatsApp      | [Connect your own WhatsApp number](docs/setup-meta-whatsapp.md)                                               |         | Free test number, no line to buy              |
 | 📣 LinkedIn      | [Connect your organization's LinkedIn Page](docs/setup-linkedin.md)                                           | ~15 min | Registered company and LinkedIn's approval    |
+| ⏰ Reminders     | [Connect Apple Reminders](docs/setup-apple-reminders.md)                                                      | ~2 min  | macOS only. No account: one permission click  |
 
 The skill packs need none of that. `best-practices-git` drives the `git` and
 `gh` already on your machine, and `cris-asiste` only writes the files you agree
 to, where you agree to. Prefer wiring it by hand, or not using plugins at all?
 See [install.md](docs/install.md).
+
+### Claude Desktop and Cowork
+
+The Apple Reminders connector also comes as a one-click extension that needs
+nothing else installed: download
+[`reminders-mcp.mcpb`](https://pappcorn.github.io/universe/extensions/reminders-mcp.mcpb)
+and double-click it. See [install.md](docs/install.md#claude-desktop-and-cowork--one-click-extension-mcpb).
 
 ### Not on Claude?
 

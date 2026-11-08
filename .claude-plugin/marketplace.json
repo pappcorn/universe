@@ -31,6 +31,12 @@
       "description": "Publish to your organization's LinkedIn Page (text, image, PDF carousel), read and answer comments as the Page, and read basic Page analytics, via LinkedIn's official Community Management API. Every post and comment is previewed and confirmed. Requires your own LinkedIn app, approved for that API, for a registered company."
     },
     {
+      "name": "reminders-mcp",
+      "source": "./packages/reminders-mcp",
+      "version": "0.1.0",
+      "description": "Read, create, complete and update your Apple Reminders on macOS. Runs on your Mac and talks only to the Reminders app: no account, no token, nothing deleted. In Claude Desktop and Cowork, install the one-click .mcpb from the GitHub release instead."
+    },
+    {
       "name": "best-practices-git",
       "source": "./packages/best-practices-git",
       "version": "0.1.0",

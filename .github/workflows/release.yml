@@ -20,6 +20,11 @@
 # connectors version independently, and a repo-wide `v1.2.3` tag would force them
 # to move in lockstep for no reason.
 #
+# A connector that ships a one-click Claude Desktop extension (it keeps
+# packages/<name>/mcpb/manifest.json) also gets a GitHub Release for the tag,
+# with <name>-<version>.mcpb attached, built from the same commit. See the
+# `mcpb` job below.
+#
 # ── One-time setup ──
 # Either an npm automation token in the repo secret NPM_TOKEN, or (better) npm
 # trusted publishing configured for this repo, which drops the secret entirely.
@@ -113,3 +118,40 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
+
+  # The one-click Claude Desktop extension (.mcpb), for connectors that ship
+  # one. It runs after npm so both channels carry the same commit, and it is
+  # the only job that may write to the repository: it creates the Release.
+  mcpb:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the GitHub Release and attach the .mcpb
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # The archive packs the COMMITTED bundle (server/mcp.cjs), which the CI
+      # drift gate already proved equal to a clean build of this commit, so no
+      # install or build step is needed here.
+      - name: Build and attach the extension
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pkg="${REF_NAME%@*}"
+          if [ ! -f "packages/$pkg/mcpb/manifest.json" ]; then
+            echo "packages/$pkg ships no .mcpb; nothing to attach."
+            exit 0
+          fi
+          file=$(node scripts/build-mcpb.mjs "packages/$pkg" --out mcpb-out)
+          gh release create "$REF_NAME" "$file" \
+            --verify-tag \
+            --title "$REF_NAME" \
+            --notes "One-click install for Claude Desktop and Cowork: download $(basename "$file"), then open Claude → Settings → Extensions → Advanced settings → Install Extension. Changes: packages/$pkg/CHANGELOG.md."

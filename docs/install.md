@@ -8,8 +8,44 @@ Do the account setup first — the connector is useless without a credential:
 - **WhatsApp** → [setup-meta-whatsapp.md](setup-meta-whatsapp.md)
 - **LinkedIn Pages** → [setup-linkedin.md](setup-linkedin.md) (needs a
   registered company and LinkedIn's approval of your own app)
+- **Apple Reminders** (macOS) → [setup-apple-reminders.md](setup-apple-reminders.md)
+  (no account: one macOS permission click)
 
-Then pick one of the two paths below.
+Then pick a path below. On **Claude Desktop or Cowork**, a connector that ships
+a one-click extension is easiest through [the extension](#claude-desktop-and-cowork--one-click-extension-mcpb).
+
+---
+
+## Claude Desktop and Cowork — one-click extension (.mcpb)
+
+Some connectors also ship as a **Claude Desktop extension**, a single `.mcpb`
+file. Today: **Apple Reminders**.
+
+| Connector       | Download                                                                                  |
+| --------------- | ----------------------------------------------------------------------------------------- |
+| Apple Reminders | [`reminders-mcp.mcpb`](https://pappcorn.github.io/universe/extensions/reminders-mcp.mcpb) |
+
+Double-click the downloaded file; Claude opens its install dialog. Or, in
+Claude: **Settings → Extensions → Advanced settings → Install Extension…** and
+pick the file.
+
+Why this path for Desktop and Cowork:
+
+- **It runs on your computer, not in Cowork's sandbox.** Cowork executes
+  commands inside an isolated virtual machine, but Claude Desktop starts
+  extensions itself, on the host, where they can reach your apps and files.
+  That is what a connector to a Mac app needs.
+- **Nothing to install first.** Claude Desktop runs the extension with its own
+  built-in Node.js. The plugin path below starts the same server with the
+  `node` on your machine, so it needs Node.js 20 or newer.
+- **Same code.** The `.mcpb` holds the manifest and the committed
+  `server/mcp.cjs` bundle, the exact file the plugin install runs. The stable
+  link is rebuilt from `main` on every change; each version is also attached
+  to its [GitHub Release](https://github.com/pappcorn/universe/releases).
+
+The extension is not in Claude's directory, so Claude says so before
+installing. Extensions you install this way do not update themselves: download
+the file again for a new version.
 
 ---
 
@@ -39,6 +75,10 @@ WhatsApp Business Account ID.
 token and Page ID. Leave all five empty to use the credential file its setup
 script wrote, which is the recommended path: that script is the only way to
 authorize the app anyway.
+
+**Apple Reminders** asks for nothing. The first call makes macOS ask whether
+the app running Claude Code (your **terminal app**: Terminal, iTerm, Ghostty…)
+may control Reminders. Click **Allow**. It needs Node.js 20 or newer.
 
 > This path runs a self-contained bundle committed to the repo — nothing is
 > fetched from npm and there is no build step.
@@ -148,6 +188,7 @@ Before wiring it into your client, check the credential from a terminal:
 npx -y -p @pappcorn/gmail-mcp    pappcorn-gmail    whoami
 npx -y -p @pappcorn/whatsapp-mcp pappcorn-whatsapp whoami
 npx -y -p @pappcorn/linkedin-mcp pappcorn-linkedin whoami
+npx -y -p @pappcorn/reminders-mcp pappcorn-reminders whoami   # macOS
 ```
 
 `whoami` prints the account the connector is authenticated as — plus a
@@ -243,6 +284,13 @@ Useful when running from source or scripting.
 | `LINKEDIN_API_VERSION`                                                     | LinkedIn API version, `YYYYMM`. Defaults to `202610`.                                                     |
 | `LINKEDIN_MCP_LOG_DIR`                                                     | Where the local log of published posts and comments goes. Default `~/.local/state/pappcorn/linkedin-mcp`. |
 
+**Apple Reminders** — read from the process environment only. Nothing is required.
+
+| Variable                   | Purpose                                                         |
+| -------------------------- | --------------------------------------------------------------- |
+| `REMINDERS_MCP_TIMEOUT_MS` | How long one call to Reminders may take. Default `120000`.      |
+| `REMINDERS_MCP_OSASCRIPT`  | Path to `osascript`. Default `/usr/bin/osascript`. For testing. |
+
 ---
 
 ## Uninstalling / revoking
@@ -259,5 +307,10 @@ actually revoke:
   also reset the Client Secret in the app's Auth tab. Deleting
   `~/.config/pappcorn/linkedin-mcp/` only stops that machine: the token stays
   alive until it is revoked in LinkedIn.
+
+- **Apple Reminders** — no credential exists. To withdraw access, System
+  Settings → Privacy & Security → Automation → switch off **Reminders** under
+  Claude or your terminal app. A Desktop extension is removed under
+  Settings → Extensions.
 
 Then delete the credential file if you created one.
