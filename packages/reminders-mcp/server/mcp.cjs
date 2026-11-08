@@ -36557,6 +36557,22 @@ function loadConfig(env = process.env) {
 }
 
 // src/dates.ts
+var import_node_fs = require("node:fs");
+function readSystemTimeZone() {
+  try {
+    const m = /zoneinfo\/(.+)$/.exec((0, import_node_fs.readlinkSync)("/etc/localtime"));
+    return m ? m[1] : null;
+  } catch {
+    return null;
+  }
+}
+function syncSystemTimeZone(read = readSystemTimeZone) {
+  const zone2 = read();
+  if (!zone2) return false;
+  if (Intl.DateTimeFormat().resolvedOptions().timeZone === zone2) return false;
+  process.env.TZ = zone2;
+  return true;
+}
 var DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 var DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(Z|[+-]\d{2}:?\d{2})?$/i;
 var DateInputError = class extends Error {
@@ -36765,6 +36781,7 @@ var execRunner = (file2, args, timeoutMs) => new Promise((resolve) => {
 var runner = execRunner;
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 var platform = process.platform;
+var systemZone = null;
 var RemindersError = class extends Error {
   constructor(message, kind = "reminders") {
     super(message);
@@ -36813,12 +36830,17 @@ async function launchReminders() {
 function isNotRunning(e) {
   return e.number !== void 0 && NOT_RUNNING.includes(e.number) || /connection is invalid|isn.t running/i.test(e.error ?? "");
 }
+function syncZone() {
+  if (systemZone) syncSystemTimeZone(systemZone);
+  else syncSystemTimeZone();
+}
 async function call(payload) {
   if (platform !== "darwin")
     throw new RemindersError(
       "This connector only works on macOS.",
       "not-macos"
     );
+  syncZone();
   let env = await runOnce(payload);
   if (!env.ok && isNotRunning(env)) {
     await launchReminders();
@@ -36875,6 +36897,7 @@ function parseOrInputError(s, field) {
   }
 }
 async function listReminders(input2) {
+  syncZone();
   const after = input2.dueAfter ? boundMs(parseOrInputError(input2.dueAfter, "due_after")) : null;
   const before = input2.dueBefore ? boundMs(parseOrInputError(input2.dueBefore, "due_before")) : null;
   const limit = Math.max(1, Math.min(input2.limit ?? 50, 500));
@@ -36925,6 +36948,7 @@ function resolveWhen(due, remindAt) {
   );
 }
 async function createReminder(input2) {
+  syncZone();
   const title = input2.title.trim();
   if (!title) throw new RemindersError("title must not be empty.", "input");
   const fields = {
@@ -36942,6 +36966,7 @@ async function createReminder(input2) {
   return toReminder(raw, raw.list);
 }
 async function updateReminder(input2) {
+  syncZone();
   const fields = { ...resolveWhen(input2.due, input2.remindAt) };
   if (input2.title !== void 0) {
     const t = input2.title.trim();
@@ -36965,6 +36990,7 @@ async function updateReminder(input2) {
   return toReminder(raw, raw.list);
 }
 async function completeReminder(input2) {
+  syncZone();
   const raw = await call({
     op: "update",
     id: input2.id,

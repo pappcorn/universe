@@ -9,7 +9,36 @@
 // "2026-11-08T09:00:00-05:00", so the model never has to convert from UTC.
 //
 // The Mac's zone is the process's zone: Node inherits it from the system (or
-// from TZ, which tests use to pin it).
+// from TZ, which tests use to pin it). Node reads the zone ONCE, at startup,
+// while every osascript call starts fresh in the CURRENT system zone. A
+// long-lived server (Claude Desktop keeps it running for days) on a laptop that
+// travels would then parse and format in the old zone while Reminders builds
+// dates in the new one. syncSystemTimeZone() closes that gap before each call.
+
+import { readlinkSync } from 'node:fs';
+
+/** The system's IANA zone, from the /etc/localtime link macOS maintains
+ *  (…/zoneinfo/America/Bogota). Null when it cannot be read. */
+export function readSystemTimeZone(): string | null {
+  try {
+    const m = /zoneinfo\/(.+)$/.exec(readlinkSync('/etc/localtime'));
+    return m ? m[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Make Node's zone match the system's. Assigning process.env.TZ is what
+ *  makes Node drop its cached zone. Returns true when it changed. */
+export function syncSystemTimeZone(
+  read: () => string | null = readSystemTimeZone,
+): boolean {
+  const zone = read();
+  if (!zone) return false;
+  if (Intl.DateTimeFormat().resolvedOptions().timeZone === zone) return false;
+  process.env.TZ = zone;
+  return true;
+}
 
 export type When =
   | { kind: 'instant'; ms: number }

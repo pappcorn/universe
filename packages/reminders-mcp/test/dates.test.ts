@@ -12,6 +12,7 @@ import {
   formatLocal,
   isLocalMidnight,
   parseWhen,
+  syncSystemTimeZone,
   zoneLabel,
 } from '../src/dates';
 
@@ -94,5 +95,41 @@ describe('formatting', () => {
 
   it('labels the zone with its offset', () => {
     assert.equal(zoneLabel(), 'America/Bogota (UTC-05:00)');
+  });
+});
+
+describe('syncSystemTimeZone', () => {
+  // A long-lived server on a laptop that travels: Node cached the zone at
+  // startup, but osascript builds dates in the Mac's CURRENT zone.
+  it('follows the Mac when its zone changes, and back', () => {
+    try {
+      assert.equal(
+        syncSystemTimeZone(() => 'America/New_York'),
+        true,
+      );
+      assert.equal(process.env.TZ, 'America/New_York');
+      // Node really dropped its cached zone: midnight is now 05:00Z in winter.
+      assert.equal(isLocalMidnight(Date.parse('2026-11-09T05:00:00Z')), true);
+      assert.equal(
+        formatLocal(Date.parse('2026-11-09T14:00:00Z')),
+        '2026-11-09T09:00:00-05:00',
+      );
+      assert.equal(isLocalMidnight(Date.parse('2026-07-09T04:00:00Z')), true);
+      assert.equal(
+        syncSystemTimeZone(() => 'America/New_York'),
+        false,
+      );
+    } finally {
+      syncSystemTimeZone(() => 'America/Bogota');
+    }
+    assert.equal(process.env.TZ, 'America/Bogota');
+  });
+
+  it('leaves the zone alone when the system zone cannot be read', () => {
+    assert.equal(
+      syncSystemTimeZone(() => null),
+      false,
+    );
+    assert.equal(process.env.TZ, 'America/Bogota');
   });
 });

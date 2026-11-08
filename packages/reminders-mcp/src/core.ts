@@ -17,6 +17,7 @@ import {
   isLocalMidnight,
   parseWhen,
   sameLocalDay,
+  syncSystemTimeZone,
   type When,
 } from './dates';
 import { JXA_SCRIPT } from './jxa';
@@ -59,16 +60,23 @@ export const execRunner: Runner = (file, args, timeoutMs) =>
 let runner: Runner = execRunner;
 let sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 let platform: string = process.platform;
+/** Where the system zone comes from. Tests swap it so the suite's pinned zone
+ *  is never overwritten by the zone of the machine running it. */
+let systemZone: (() => string | null) | null = null;
 
 /** Tests only: swap the osascript runner (and pretend to be on macOS, so the
  *  suite runs on any CI). Returns a function that restores the real ones. */
-export function useFakeRunner(r: Runner): () => void {
-  const prev = { runner, sleep, platform };
+export function useFakeRunner(
+  r: Runner,
+  zone: () => string | null = () => null,
+): () => void {
+  const prev = { runner, sleep, platform, systemZone };
   runner = r;
   sleep = async () => {};
   platform = 'darwin';
+  systemZone = zone;
   return () => {
-    ({ runner, sleep, platform } = prev);
+    ({ runner, sleep, platform, systemZone } = prev);
   };
 }
 
@@ -154,12 +162,20 @@ function isNotRunning(e: Envelope): boolean {
 
 /** Run one operation. Retries once after launching Reminders when the app is
  *  not running (error -609 "Connection is invalid", or -600). */
+/** Run before anything turns a date into text or text into a date: the Mac may
+ *  have changed zone since this process started. Cheap (one readlink). */
+function syncZone(): void {
+  if (systemZone) syncSystemTimeZone(systemZone);
+  else syncSystemTimeZone();
+}
+
 export async function call<T>(payload: object): Promise<T> {
   if (platform !== 'darwin')
     throw new RemindersError(
       'This connector only works on macOS.',
       'not-macos',
     );
+  syncZone();
   let env = await runOnce(payload);
   if (!env.ok && isNotRunning(env)) {
     await launchReminders();
@@ -297,6 +313,7 @@ function parseOrInputError(s: string, field: string): When {
 export async function listReminders(
   input: ListRemindersInput,
 ): Promise<ListRemindersResult> {
+  syncZone();
   const after = input.dueAfter
     ? boundMs(parseOrInputError(input.dueAfter, 'due_after'))
     : null;
@@ -386,6 +403,7 @@ export interface CreateInput {
 }
 
 export async function createReminder(input: CreateInput): Promise<Reminder> {
+  syncZone();
   const title = input.title.trim();
   if (!title) throw new RemindersError('title must not be empty.', 'input');
   const fields: Fields = {
@@ -415,6 +433,7 @@ export interface UpdateInput {
 }
 
 export async function updateReminder(input: UpdateInput): Promise<Reminder> {
+  syncZone();
   const fields: Fields = { ...resolveWhen(input.due, input.remindAt) };
   if (input.title !== undefined) {
     const t = input.title.trim();
@@ -442,6 +461,7 @@ export async function completeReminder(input: {
   id: string;
   list?: string;
 }): Promise<Reminder> {
+  syncZone();
   const raw = await call<RawReminder>({
     op: 'update',
     id: input.id,
