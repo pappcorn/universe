@@ -349,6 +349,28 @@ describe('youtube_get_transcript', () => {
     assert.equal(r.isError, true);
     assert.equal(seen.length, 0);
   });
+
+  it('refuses a player answer for a different video', async () => {
+    fakeYouTube({
+      player: player({
+        videoDetails: { videoId: 'aaaaaaaaaaa', title: 'Otro video' },
+      }),
+    });
+    const r = await call('youtube_get_transcript', { video: ID });
+    assert.equal(r.isError, true);
+    assert.match(r.text, /different video \(aaaaaaaaaaa\)/);
+    assert.doesNotMatch(r.text, /Otro video/);
+  });
+
+  it('says so when the offset is past the end', async () => {
+    fakeYouTube();
+    const r = await call('youtube_get_transcript', {
+      video: ID,
+      offset: 1_000_000,
+    });
+    assert.equal(r.isError, true);
+    assert.match(r.text, /past the end/);
+  });
 });
 
 describe('paging', () => {
@@ -360,6 +382,12 @@ describe('paging', () => {
     assert.equal(charsWithinBudget(latin, 0, 5_000), 5_000);
     assert.equal(tokenCost('é'), 0.3);
     assert.equal(tokenCost('ж'), 0.5);
+    assert.equal(tokenCost('א'), 0.5);
+    for (const ch of ['ह', 'ক', 'த', 'ก', 'က', 'ع', '字', '한']) {
+      assert.equal(tokenCost(ch), 1, ch);
+    }
+    const hindi = 'ह'.repeat(200_000);
+    assert.equal(charsWithinBudget(hindi, 0, 80_000), PART_TOKEN_BUDGET);
   });
 
   it('keeps every timestamped line whole across parts', () => {

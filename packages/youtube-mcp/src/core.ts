@@ -190,6 +190,14 @@ export async function getVideo(input: string): Promise<VideoInfo> {
   }
 
   const d = data.videoDetails ?? {};
+  // YouTube sometimes answers with a placeholder video's player data. Never
+  // label another video's transcript with the link that was asked for.
+  if (d.videoId && d.videoId !== id) {
+    throw new TranscriptError(
+      `YouTube answered with a different video (${d.videoId}) instead of ${id}. ` +
+        'Try again in a moment.',
+    );
+  }
   const list = data.captions?.playerCaptionsTracklistRenderer;
   const tracks: CaptionTrack[] = (list?.captionTracks ?? [])
     .filter((t) => t.baseUrl && t.languageCode)

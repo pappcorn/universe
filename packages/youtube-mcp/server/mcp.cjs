@@ -36811,6 +36811,11 @@ async function getVideo(input2) {
     throw playabilityError(status, data.playabilityStatus?.reason);
   }
   const d = data.videoDetails ?? {};
+  if (d.videoId && d.videoId !== id) {
+    throw new TranscriptError(
+      `YouTube answered with a different video (${d.videoId}) instead of ${id}. Try again in a moment.`
+    );
+  }
   const list = data.captions?.playerCaptionsTracklistRenderer;
   const tracks = (list?.captionTracks ?? []).filter((t) => t.baseUrl && t.languageCode).map((t) => ({
     languageCode: t.languageCode,
@@ -36867,9 +36872,19 @@ function fail(err) {
 }
 var DEFAULT_MAX_CHARS = 8e4;
 var PART_TOKEN_BUDGET = 18e3;
+var HALF_TOKEN_RANGES = [
+  [880, 1423],
+  [1424, 1535],
+  [4256, 4351],
+  [7680, 8191]
+];
 function tokenCost(ch) {
   const c = ch.codePointAt(0) ?? 0;
-  return c >= 11904 ? 1 : c >= 880 ? 0.5 : 0.3;
+  if (c < 880) return 0.3;
+  for (const [lo, hi] of HALF_TOKEN_RANGES) {
+    if (c >= lo && c <= hi) return 0.5;
+  }
+  return 1;
 }
 function charsWithinBudget(text, offset, max, budget = PART_TOKEN_BUDGET) {
   let cost = 0;
@@ -36950,7 +36965,14 @@ function registerTools(server) {
       try {
         const t = await getTranscript(video, language);
         const body = timestamps ? renderTimestamped(t.segments) : renderPlain(t.segments);
-        const start = Math.min(offset ?? 0, body.length);
+        const start = offset ?? 0;
+        if (start > 0 && start >= body.length) {
+          return fail(
+            new Error(
+              `offset=${start} is past the end of this transcript, which has ${body.length} characters. Start again from offset=0.`
+            )
+          );
+        }
         const size = charsWithinBudget(
           body,
           start,

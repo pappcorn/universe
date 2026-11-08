@@ -92,17 +92,20 @@ async function main(): Promise<number> {
   return 2;
 }
 
+// Set the exit code and let Node exit on its own: process.exit() would drop
+// whatever is still buffered when stdout is a pipe (async on macOS).
 main().then(
-  (code) => process.exit(code),
+  (code) => {
+    process.exitCode = code;
+  },
   (err: unknown) => {
     const msg = err instanceof Error ? err.message : String(err);
     process.stderr.write(`${msg}\n`);
-    process.exit(
+    process.exitCode =
       err instanceof InvalidVideoError
         ? 2
         : err instanceof TranscriptError
           ? 3
-          : 1,
-    );
+          : 1;
   },
 );

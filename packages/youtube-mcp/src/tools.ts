@@ -38,10 +38,28 @@ function fail(err: unknown): TextResult {
 export const DEFAULT_MAX_CHARS = 80_000;
 export const PART_TOKEN_BUDGET = 18_000;
 
-/** Conservative token estimate: CJK and other wide scripts count 1 per char. */
+// Alphabets that tokenize at about two characters per token: Greek, Cyrillic,
+// Armenian, Hebrew, Georgian, and the Latin and Greek extended blocks.
+const HALF_TOKEN_RANGES: ReadonlyArray<readonly [number, number]> = [
+  [0x0370, 0x058f],
+  [0x0590, 0x05ff],
+  [0x10a0, 0x10ff],
+  [0x1e00, 0x1fff],
+];
+
+/**
+ * Conservative token estimate per character: 0.3 for Latin, 0.5 for the
+ * alphabets above, and 1 for everything else past U+0370 (CJK, Arabic,
+ * Devanagari, Bengali, Tamil, Thai, Myanmar…), which run near a token per
+ * character or worse.
+ */
 export function tokenCost(ch: string): number {
   const c = ch.codePointAt(0) ?? 0;
-  return c >= 0x2e80 ? 1 : c >= 0x0370 ? 0.5 : 0.3;
+  if (c < 0x0370) return 0.3;
+  for (const [lo, hi] of HALF_TOKEN_RANGES) {
+    if (c >= lo && c <= hi) return 0.5;
+  }
+  return 1;
 }
 
 /** How many characters from `offset` fit the token budget, capped at `max`. */
@@ -188,7 +206,15 @@ export function registerTools(server: McpServer): void {
         const body = timestamps
           ? renderTimestamped(t.segments)
           : renderPlain(t.segments);
-        const start = Math.min(offset ?? 0, body.length);
+        const start = offset ?? 0;
+        if (start > 0 && start >= body.length) {
+          return fail(
+            new Error(
+              `offset=${start} is past the end of this transcript, which has ` +
+                `${body.length} characters. Start again from offset=0.`,
+            ),
+          );
+        }
         const size = charsWithinBudget(
           body,
           start,
