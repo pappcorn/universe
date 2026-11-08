@@ -1,0 +1,12 @@
+{
+  "name": "reminders-mcp",
+  "displayName": "Apple Reminders",
+  "version": "0.1.0",
+  "description": "Read, create, complete and update your Apple Reminders on macOS. Runs on your Mac, talks only to the Reminders app, and never deletes anything. No account, no token: macOS asks once for permission.",
+  "author": { "name": "PappCorn" },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/reminders-mcp",
+  "repository": "https://github.com/pappcorn/universe",
+  "license": "MIT",
+  "keywords": ["apple-reminders", "reminders", "macos", "todo", "mcp"],
+  "mcpServers": "./.mcp.json"
+}

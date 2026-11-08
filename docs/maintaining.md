@@ -13,20 +13,22 @@ below exists to keep what is committed equal to what we think we shipped.
 
 ## The catalog at a glance
 
-| Product              | Kind                   | Source                                                          | Plugin install runs        | npm                                                    |
-| -------------------- | ---------------------- | --------------------------------------------------------------- | -------------------------- | ------------------------------------------------------ |
-| `gmail-mcp`          | Connector (MCP server) | [`packages/gmail-mcp`](../packages/gmail-mcp)                   | committed `server/mcp.cjs` | [`@pappcorn/gmail-mcp`][npm-gmail], built at tag       |
-| `gsheets-mcp`        | Connector (MCP server) | [`packages/gsheets-mcp`](../packages/gsheets-mcp)               | committed `server/mcp.cjs` | [`@pappcorn/gsheets-mcp`][npm-gsheets], built at tag   |
-| `whatsapp-mcp`       | Connector (MCP server) | [`packages/whatsapp-mcp`](../packages/whatsapp-mcp)             | committed `server/mcp.cjs` | [`@pappcorn/whatsapp-mcp`][npm-whatsapp], built at tag |
-| `linkedin-mcp`       | Connector (MCP server) | [`packages/linkedin-mcp`](../packages/linkedin-mcp)             | committed `server/mcp.cjs` | [`@pappcorn/linkedin-mcp`][npm-linkedin], built at tag |
-| `best-practices-git` | Skill pack             | [`packages/best-practices-git`](../packages/best-practices-git) | the skills, as committed   | not published                                          |
-| `cris-asiste`        | Skill pack             | [`packages/cris-asiste`](../packages/cris-asiste)               | the skills, as committed   | not published                                          |
-| `product-team`       | Licensed plugin        | a private repository                                            | that repository            | not published                                          |
+| Product              | Kind                   | Source                                                          | Plugin install runs        | npm                                                      |
+| -------------------- | ---------------------- | --------------------------------------------------------------- | -------------------------- | -------------------------------------------------------- |
+| `gmail-mcp`          | Connector (MCP server) | [`packages/gmail-mcp`](../packages/gmail-mcp)                   | committed `server/mcp.cjs` | [`@pappcorn/gmail-mcp`][npm-gmail], built at tag         |
+| `gsheets-mcp`        | Connector (MCP server) | [`packages/gsheets-mcp`](../packages/gsheets-mcp)               | committed `server/mcp.cjs` | [`@pappcorn/gsheets-mcp`][npm-gsheets], built at tag     |
+| `whatsapp-mcp`       | Connector (MCP server) | [`packages/whatsapp-mcp`](../packages/whatsapp-mcp)             | committed `server/mcp.cjs` | [`@pappcorn/whatsapp-mcp`][npm-whatsapp], built at tag   |
+| `linkedin-mcp`       | Connector (MCP server) | [`packages/linkedin-mcp`](../packages/linkedin-mcp)             | committed `server/mcp.cjs` | [`@pappcorn/linkedin-mcp`][npm-linkedin], built at tag   |
+| `reminders-mcp`      | Connector (MCP server) | [`packages/reminders-mcp`](../packages/reminders-mcp)           | committed `server/mcp.cjs` | [`@pappcorn/reminders-mcp`][npm-reminders], built at tag |
+| `best-practices-git` | Skill pack             | [`packages/best-practices-git`](../packages/best-practices-git) | the skills, as committed   | not published                                            |
+| `cris-asiste`        | Skill pack             | [`packages/cris-asiste`](../packages/cris-asiste)               | the skills, as committed   | not published                                            |
+| `product-team`       | Licensed plugin        | a private repository                                            | that repository            | not published                                            |
 
 [npm-gmail]: https://www.npmjs.com/package/@pappcorn/gmail-mcp
 [npm-gsheets]: https://www.npmjs.com/package/@pappcorn/gsheets-mcp
 [npm-whatsapp]: https://www.npmjs.com/package/@pappcorn/whatsapp-mcp
 [npm-linkedin]: https://www.npmjs.com/package/@pappcorn/linkedin-mcp
+[npm-reminders]: https://www.npmjs.com/package/@pappcorn/reminders-mcp
 
 Every product is listed in
 [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). Its
@@ -59,6 +61,19 @@ commits it. That gap is the most expensive mistake in this repo's history (see
 Skill packs have one channel: the plugin install reads their `skills/` folders
 directly. Nothing is built.
 
+A connector can add a third channel, the **Claude Desktop extension**
+(`.mcpb`), by keeping a manifest at `packages/<name>/mcpb/manifest.json`. The
+archive is the manifest plus the same committed `server/mcp.cjs`, packed by
+[`scripts/build-mcpb.mjs`](../scripts/build-mcpb.mjs) (zero dependencies,
+byte-reproducible). Claude Desktop runs it on the host with its built-in
+Node.js, so it is the path for Claude Desktop and Cowork users who have no
+Node installed, and the only one that reaches a local app from Cowork without
+setup. It ships two ways: [`pages.yml`](../.github/workflows/pages.yml) rebuilds
+`https://pappcorn.github.io/universe/extensions/<name>.mcpb` from `main` (the
+stable link guides point at), and [`release.yml`](../.github/workflows/release.yml)
+attaches `<name>-<version>.mcpb` to a GitHub Release for each tag. Today:
+`reminders-mcp`.
+
 ### Version lockstep
 
 A user-visible change to a product bumps its version everywhere it is declared,
@@ -71,6 +86,7 @@ in the same PR:
 | its own `version` line in `marketplace.json` |    yes     |     yes     |  yes, by hand  |
 | its workspace entry in `package-lock.json`   |    yes     |   (none)    |   (not here)   |
 | `packages/<name>/CHANGELOG.md`               |    yes     | if present  |   (not here)   |
+| `packages/<name>/mcpb/manifest.json`         | if present |   (none)    |   (not here)   |
 
 Notes:
 
@@ -146,7 +162,9 @@ differences cannot trip it.
    git push origin gsheets-mcp@0.1.2
    ```
 
-3. [`release.yml`](../.github/workflows/release.yml) takes it from there. It
+3. [`release.yml`](../.github/workflows/release.yml) takes it from there.
+   For a connector with an `mcpb/manifest.json`, a second job then creates
+   the GitHub Release for the tag with `<name>-<version>.mcpb` attached. It
    refuses to publish if the tag's version disagrees with `package.json`, or if
    the tagged commit is not on `main`. It runs `npm ci`, builds and tests the
    whole workspace, then `npm publish --provenance`. It needs either the
@@ -312,6 +330,39 @@ CODEOWNERS would request one anyway.
 - **Specific risk:** it publishes as a company, in public, and cannot take it
   back. Both publish tools must keep their preview-then-confirm flow, and the
   gate tests (`test/gate.test.ts`, `test/publish.test.ts`) must stay green.
+
+### reminders-mcp
+
+- **Source:** `packages/reminders-mcp/src` (TypeScript); the JXA script that
+  runs inside Reminders is the fixed string in `src/jxa.ts`. No setup script
+  and no credential: macOS's Automation permission is the gate. Tests:
+  `packages/reminders-mcp/test`, all against a fake `osascript`. The CLI is
+  read-only.
+- **Ships:** plugin runs the committed `server/mcp.cjs`; npm ships `dist/`,
+  `server/`, README and CHANGELOG (bins `reminders-mcp`,
+  `pappcorn-reminders-mcp`, `pappcorn-reminders`); the `.mcpb` packs
+  `mcpb/manifest.json` with the same bundle. macOS only.
+- **Version lockstep:** `package.json`, `.claude-plugin/plugin.json`,
+  `mcpb/manifest.json`, `VERSION` in `src/server.ts`, its `marketplace.json`
+  line, its `package-lock.json` entry, `CHANGELOG.md`.
+  `test/manifest.test.ts` fails if any of them disagree.
+- **Release tag:** `reminders-mcp@<version>`. Also attaches the `.mcpb`.
+- **Setup guide:** [setup-apple-reminders.md](setup-apple-reminders.md).
+  Update it when Claude Desktop moves the Extensions screen, or macOS changes
+  the wording of the Automation prompt.
+- **Verify end to end** (on a Mac, against a list you create for the purpose
+  and delete afterwards; never against someone's real lists):
+  1. From a clone: `npm run reminders -w @pappcorn/reminders-mcp -- whoami`.
+  2. As a plugin in Claude Code: install, `/mcp` connected, create, list,
+     update and complete a reminder in the scratch list.
+  3. As an extension: `npm run mcpb -w @pappcorn/reminders-mcp`, double-click
+     the file in `mcpb/dist/`, install, and repeat in a Cowork session.
+- **Specific risk:** it writes to a personal database that syncs to every
+  device of that person. No tool may delete, and `update_reminder` must keep
+  its `destructiveHint`. Reminders' scripting has sharp edges (an
+  application-level `reminders.byId` can hang for minutes; dates cannot be
+  cleared; due and remind-me dates are one value); they are documented at the
+  top of `src/jxa.ts`. Re-check them on each major macOS release.
 
 ### best-practices-git
 

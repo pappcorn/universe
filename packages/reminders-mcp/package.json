@@ -1,0 +1,48 @@
+{
+  "name": "@pappcorn/reminders-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Apple Reminders on macOS: list, read, create, complete and update reminders through the Reminders app on your own Mac. No account, no token, no network.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pappcorn/universe.git",
+    "directory": "packages/reminders-mcp"
+  },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/reminders-mcp",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "apple-reminders",
+    "reminders",
+    "macos",
+    "claude"
+  ],
+  "type": "commonjs",
+  "main": "./dist/mcp.js",
+  "bin": {
+    "reminders-mcp": "./dist/mcp.js",
+    "pappcorn-reminders-mcp": "./dist/mcp.js",
+    "pappcorn-reminders": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "server",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && npm run bundle",
+    "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=server/mcp.cjs",
+    "mcpb": "npm run bundle && node ../../scripts/build-mcpb.mjs .",
+    "reminders": "node -r @swc-node/register src/cli.ts",
+    "test": "node --test -r @swc-node/register test/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
