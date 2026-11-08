@@ -1,0 +1,20 @@
+{
+  "name": "youtube-mcp",
+  "displayName": "YouTube transcripts",
+  "version": "0.1.0",
+  "description": "Paste a YouTube link and read its transcript, from the video's own or auto-generated captions. Read-only. No API key, no Google account, nothing to set up.",
+  "author": { "name": "PappCorn" },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/youtube-mcp",
+  "repository": "https://github.com/pappcorn/universe",
+  "license": "MIT",
+  "keywords": ["youtube", "transcript", "captions", "mcp"],
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "default_language": {
+      "type": "string",
+      "title": "Preferred caption language (optional)",
+      "description": "A language code such as es or en. Used when you don't ask for a language. Leave empty to get each video in the language it is spoken in.",
+      "required": false
+    }
+  }
+}

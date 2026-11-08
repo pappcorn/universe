@@ -1,0 +1,49 @@
+{
+  "name": "@pappcorn/youtube-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that reads the transcript of a YouTube video from its captions. Paste a link, get the text. No API key, no Google account.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pappcorn/universe.git",
+    "directory": "packages/youtube-mcp"
+  },
+  "homepage": "https://github.com/pappcorn/universe/tree/main/packages/youtube-mcp",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "youtube",
+    "transcript",
+    "captions",
+    "subtitles",
+    "claude"
+  ],
+  "type": "commonjs",
+  "main": "./dist/mcp.js",
+  "bin": {
+    "youtube-mcp": "./dist/mcp.js",
+    "pappcorn-youtube-mcp": "./dist/mcp.js",
+    "pappcorn-youtube": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "server",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && npm run bundle",
+    "bundle": "esbuild src/mcp.ts --bundle --platform=node --format=cjs --target=node20 --outfile=server/mcp.cjs",
+    "youtube": "node -r @swc-node/register src/cli.ts",
+    "test": "node --test -r @swc-node/register test/*.test.ts",
+    "mcpb": "npm run bundle && node ../../scripts/build-mcpb.mjs .",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

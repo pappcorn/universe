@@ -117,6 +117,21 @@ account or token. One-click install for Claude Desktop and Cowork.
 
 </td>
 </tr>
+<tr>
+<td width="50%" valign="top">
+
+### ▶️ [youtube-mcp](packages/youtube-mcp)
+
+![Free · MIT](https://img.shields.io/badge/free-MIT-00d9ff?style=flat-square&labelColor=161519) **Connector** · nothing to set up
+
+Paste a YouTube link and read its transcript from the video's captions, to
+summarize or ask about it. Read-only, no account. One-click install for
+Claude Desktop and Cowork.
+
+</td>
+<td width="50%" valign="top">
+</td>
+</tr>
 </table>
 
 **Connectors** are open source and bring-your-own-credentials. Each one runs
@@ -124,6 +139,8 @@ as a local process on your machine, signs in with your own Google, Meta or
 LinkedIn credentials, and talks straight to that vendor with no server in
 between. The Apple Reminders connector needs no credential at all: it talks to
 the Reminders app on your own Mac, and macOS asks you once for permission.
+The YouTube transcripts connector needs none either: it reads the public
+captions of a video, from your machine, and signs in to nothing.
 They are standard MCP servers, so they work in any MCP client, not only Claude.
 
 **Skill packs** need no credentials and no server: they are skills that encode
@@ -152,6 +169,7 @@ which is expected, not broken. To request access to `product-team`, write to
 /plugin install whatsapp-mcp@pappcorn-plugins
 /plugin install linkedin-mcp@pappcorn-plugins
 /plugin install reminders-mcp@pappcorn-plugins
+/plugin install youtube-mcp@pappcorn-plugins
 /plugin install best-practices-git@pappcorn-plugins
 /plugin install cris-asiste@pappcorn-plugins
 ```
@@ -167,6 +185,7 @@ first:
 | 💬 WhatsApp      | [Connect your own WhatsApp number](docs/setup-meta-whatsapp.md)                                               |         | Free test number, no line to buy              |
 | 📣 LinkedIn      | [Connect your organization's LinkedIn Page](docs/setup-linkedin.md)                                           | ~15 min | Registered company and LinkedIn's approval    |
 | ⏰ Reminders     | [Connect Apple Reminders](docs/setup-apple-reminders.md)                                                      | ~2 min  | macOS only. No account: one permission click  |
+| ▶️ YouTube       | [Install the YouTube transcripts connector](docs/setup-youtube.md)                                            | ~1 min  | No account, no key: nothing to set up         |
 
 The skill packs need none of that. `best-practices-git` drives the `git` and
 `gh` already on your machine, and `cris-asiste` only writes the files you agree
@@ -175,9 +194,10 @@ See [install.md](docs/install.md).
 
 ### Claude Desktop and Cowork
 
-The Apple Reminders connector also comes as a one-click extension that needs
-nothing else installed: download
+The Apple Reminders and YouTube transcripts connectors also come as one-click
+extensions that need nothing else installed: download
 [`reminders-mcp.mcpb`](https://pappcorn.github.io/universe/extensions/reminders-mcp.mcpb)
+or [`youtube-mcp.mcpb`](https://pappcorn.github.io/universe/extensions/youtube-mcp.mcpb)
 and double-click it. See [install.md](docs/install.md#claude-desktop-and-cowork--one-click-extension-mcpb).
 
 ### Not on Claude?

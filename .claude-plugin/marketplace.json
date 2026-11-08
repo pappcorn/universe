@@ -37,6 +37,12 @@
       "description": "Read, create, complete and update your Apple Reminders on macOS. Runs on your Mac and talks only to the Reminders app: no account, no token, nothing deleted. In Claude Desktop and Cowork, install the one-click .mcpb from the GitHub release instead."
     },
     {
+      "name": "youtube-mcp",
+      "source": "./packages/youtube-mcp",
+      "version": "0.1.0",
+      "description": "Paste a YouTube link and read its transcript, from the video's own or auto-generated captions, to summarize, quote or ask about it. Read-only. No API key, no Google account, nothing to set up. In Claude Desktop and Cowork, install the one-click .mcpb instead."
+    },
+    {
       "name": "best-practices-git",
       "source": "./packages/best-practices-git",
       "version": "0.1.0",
