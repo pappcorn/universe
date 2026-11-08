@@ -5,7 +5,8 @@
 // prompt) whether it may. No account, no token, no network.
 
 export interface Config {
-  /** The osascript binary. Override only for testing. */
+  /** The osascript binary. Fixed on purpose: an environment override would let
+   *  a project's config swap in another program. Tests use a fake runner. */
   osascript: string;
   /** How long one call to Reminders may take. The FIRST call waits for the
    *  person to answer the macOS permission prompt, so this is generous. */
@@ -19,7 +20,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const raw = env.REMINDERS_MCP_TIMEOUT_MS;
   const parsed = raw ? Number(raw) : NaN;
   return {
-    osascript: env.REMINDERS_MCP_OSASCRIPT || DEFAULT_OSASCRIPT,
+    osascript: DEFAULT_OSASCRIPT,
     timeoutMs:
       Number.isFinite(parsed) && parsed >= 1000 ? parsed : DEFAULT_TIMEOUT_MS,
   };

@@ -93,12 +93,11 @@ Found by running against a real Reminders database, and handled explicitly:
 
 ## Configuration
 
-Nothing is required. Two optional environment variables:
+Nothing is required. One optional environment variable:
 
 | Variable                   | Purpose                                                                                        |
 | -------------------------- | ---------------------------------------------------------------------------------------------- |
 | `REMINDERS_MCP_TIMEOUT_MS` | How long one call may take. Default `120000` (the first call waits for the permission prompt). |
-| `REMINDERS_MCP_OSASCRIPT`  | Path to `osascript`. Default `/usr/bin/osascript`. For testing.                                |
 
 ## Security
 

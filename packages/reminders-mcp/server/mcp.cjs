@@ -36551,7 +36551,7 @@ function loadConfig(env = process.env) {
   const raw = env.REMINDERS_MCP_TIMEOUT_MS;
   const parsed = raw ? Number(raw) : NaN;
   return {
-    osascript: env.REMINDERS_MCP_OSASCRIPT || DEFAULT_OSASCRIPT,
+    osascript: DEFAULT_OSASCRIPT,
     timeoutMs: Number.isFinite(parsed) && parsed >= 1e3 ? parsed : DEFAULT_TIMEOUT_MS
   };
 }

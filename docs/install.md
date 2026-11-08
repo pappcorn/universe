@@ -286,10 +286,9 @@ Useful when running from source or scripting.
 
 **Apple Reminders** — read from the process environment only. Nothing is required.
 
-| Variable                   | Purpose                                                         |
-| -------------------------- | --------------------------------------------------------------- |
-| `REMINDERS_MCP_TIMEOUT_MS` | How long one call to Reminders may take. Default `120000`.      |
-| `REMINDERS_MCP_OSASCRIPT`  | Path to `osascript`. Default `/usr/bin/osascript`. For testing. |
+| Variable                   | Purpose                                                    |
+| -------------------------- | ---------------------------------------------------------- |
+| `REMINDERS_MCP_TIMEOUT_MS` | How long one call to Reminders may take. Default `120000`. |
 
 ---
 
