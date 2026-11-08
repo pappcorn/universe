@@ -20,6 +20,7 @@ below exists to keep what is committed equal to what we think we shipped.
 | `whatsapp-mcp`       | Connector (MCP server) | [`packages/whatsapp-mcp`](../packages/whatsapp-mcp)             | committed `server/mcp.cjs` | [`@pappcorn/whatsapp-mcp`][npm-whatsapp], built at tag   |
 | `linkedin-mcp`       | Connector (MCP server) | [`packages/linkedin-mcp`](../packages/linkedin-mcp)             | committed `server/mcp.cjs` | [`@pappcorn/linkedin-mcp`][npm-linkedin], built at tag   |
 | `reminders-mcp`      | Connector (MCP server) | [`packages/reminders-mcp`](../packages/reminders-mcp)           | committed `server/mcp.cjs` | [`@pappcorn/reminders-mcp`][npm-reminders], built at tag |
+| `youtube-mcp`        | Connector (MCP server) | [`packages/youtube-mcp`](../packages/youtube-mcp)               | committed `server/mcp.cjs` | [`@pappcorn/youtube-mcp`][npm-youtube], built at tag     |
 | `best-practices-git` | Skill pack             | [`packages/best-practices-git`](../packages/best-practices-git) | the skills, as committed   | not published                                            |
 | `cris-asiste`        | Skill pack             | [`packages/cris-asiste`](../packages/cris-asiste)               | the skills, as committed   | not published                                            |
 | `product-team`       | Licensed plugin        | a private repository                                            | that repository            | not published                                            |
@@ -29,6 +30,7 @@ below exists to keep what is committed equal to what we think we shipped.
 [npm-whatsapp]: https://www.npmjs.com/package/@pappcorn/whatsapp-mcp
 [npm-linkedin]: https://www.npmjs.com/package/@pappcorn/linkedin-mcp
 [npm-reminders]: https://www.npmjs.com/package/@pappcorn/reminders-mcp
+[npm-youtube]: https://www.npmjs.com/package/@pappcorn/youtube-mcp
 
 Every product is listed in
 [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). Its
@@ -72,7 +74,7 @@ setup. It ships two ways: [`pages.yml`](../.github/workflows/pages.yml) rebuilds
 `https://pappcorn.github.io/universe/extensions/<name>.mcpb` from `main` (the
 stable link guides point at), and [`release.yml`](../.github/workflows/release.yml)
 attaches `<name>-<version>.mcpb` to a GitHub Release for each tag. Today:
-`reminders-mcp`.
+`reminders-mcp` and `youtube-mcp`.
 
 ### Version lockstep
 
@@ -363,6 +365,37 @@ CODEOWNERS would request one anyway.
   application-level `reminders.byId` can hang for minutes; dates cannot be
   cleared; due and remind-me dates are one value); they are documented at the
   top of `src/jxa.ts`. Re-check them on each major macOS release.
+
+### youtube-mcp
+
+- **Source:** `packages/youtube-mcp/src`. No credential and no setup script.
+  Tests: `packages/youtube-mcp/test`, all against a fake YouTube. The CLI is
+  read-only, like the tools.
+- **Ships:** plugin runs the committed `server/mcp.cjs`; npm ships `dist/`,
+  `server/`, README and CHANGELOG (bins `youtube-mcp`, `pappcorn-youtube-mcp`,
+  `pappcorn-youtube`); the `.mcpb` packs `mcpb/manifest.json` with the same
+  bundle.
+- **Version lockstep:** `package.json`, `.claude-plugin/plugin.json`,
+  `mcpb/manifest.json`, `VERSION` in `src/server.ts`, its `marketplace.json`
+  line, its `package-lock.json` entry, `CHANGELOG.md`.
+  `test/manifest.test.ts` fails if any of them disagree.
+- **Release tag:** `youtube-mcp@<version>`. Also attaches the `.mcpb`.
+- **Setup guide:** [setup-youtube.md](setup-youtube.md). Update it when Claude
+  Desktop moves the Extensions screen or the tool list changes.
+- **Verify end to end:**
+  1. From a clone: `npm run youtube -w @pappcorn/youtube-mcp -- transcript <link>`
+     on one video with uploaded captions and one with only auto-generated
+     ones, in two languages.
+  2. As a plugin in Claude Code: install, `/mcp` shows
+     `plugin:youtube-mcp:youtube` connected, paste a link.
+  3. As an extension: `npm run mcpb -w @pappcorn/youtube-mcp`, double-click
+     the file in `mcpb/dist/`, install, and paste a link in a chat and in a
+     Cowork task.
+- **Specific risk:** it depends on how YouTube serves captions, which is not a
+  published API and changes without notice. When it breaks, the symptom is an
+  empty caption file or a `LOGIN_REQUIRED` on public videos. Fix it by
+  following what the YouTube app does, never by working around a check: the
+  connector keeps one client identity, no retries and no evasion.
 
 ### best-practices-git
 

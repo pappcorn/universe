@@ -10,6 +10,8 @@ Do the account setup first — the connector is useless without a credential:
   registered company and LinkedIn's approval of your own app)
 - **Apple Reminders** (macOS) → [setup-apple-reminders.md](setup-apple-reminders.md)
   (no account: one macOS permission click)
+- **YouTube transcripts** → [setup-youtube.md](setup-youtube.md) (no account,
+  nothing to set up)
 
 Then pick a path below. On **Claude Desktop or Cowork**, a connector that ships
 a one-click extension is easiest through [the extension](#claude-desktop-and-cowork--one-click-extension-mcpb).
@@ -19,11 +21,12 @@ a one-click extension is easiest through [the extension](#claude-desktop-and-cow
 ## Claude Desktop and Cowork — one-click extension (.mcpb)
 
 Some connectors also ship as a **Claude Desktop extension**, a single `.mcpb`
-file. Today: **Apple Reminders**.
+file. Today: **Apple Reminders** and **YouTube transcripts**.
 
 | Connector       | Download                                                                                  |
 | --------------- | ----------------------------------------------------------------------------------------- |
 | Apple Reminders | [`reminders-mcp.mcpb`](https://pappcorn.github.io/universe/extensions/reminders-mcp.mcpb) |
+| YouTube         | [`youtube-mcp.mcpb`](https://pappcorn.github.io/universe/extensions/youtube-mcp.mcpb)     |
 
 Double-click the downloaded file; Claude opens its install dialog. Or, in
 Claude: **Settings → Extensions → Advanced settings → Install Extension…** and
@@ -79,6 +82,9 @@ authorize the app anyway.
 **Apple Reminders** asks for nothing. The first call makes macOS ask whether
 the app running Claude Code (your **terminal app**: Terminal, iTerm, Ghostty…)
 may control Reminders. Click **Allow**. It needs Node.js 20 or newer.
+
+**YouTube transcripts** asks for nothing required: one optional preferred
+caption language. It needs Node.js 20 or newer.
 
 > This path runs a self-contained bundle committed to the repo — nothing is
 > fetched from npm and there is no build step.
@@ -290,6 +296,13 @@ Useful when running from source or scripting.
 | -------------------------- | ---------------------------------------------------------- |
 | `REMINDERS_MCP_TIMEOUT_MS` | How long one call to Reminders may take. Default `120000`. |
 
+**YouTube transcripts** — no credential, nothing required.
+
+| Variable                 | Purpose                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| `YOUTUBE_MCP_LANGUAGE`   | Caption language to prefer when a request names none, e.g. `es`. Default: spoken one. |
+| `YOUTUBE_MCP_TIMEOUT_MS` | Per-request timeout towards YouTube. Default `20000`.                                 |
+
 ---
 
 ## Uninstalling / revoking
@@ -311,5 +324,8 @@ actually revoke:
   Settings → Privacy & Security → Automation → switch off **Reminders** under
   Claude or your terminal app. A Desktop extension is removed under
   Settings → Extensions.
+
+- **YouTube transcripts** — nothing to revoke: it holds no credential.
+  Remove the plugin, or the extension under Settings → Extensions.
 
 Then delete the credential file if you created one.
