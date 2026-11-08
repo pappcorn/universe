@@ -36873,9 +36873,7 @@ function fail(err) {
 var DEFAULT_MAX_CHARS = 8e4;
 var PART_TOKEN_BUDGET = 18e3;
 var HALF_TOKEN_RANGES = [
-  [880, 1423],
-  [1424, 1535],
-  [4256, 4351],
+  [880, 1327],
   [7680, 8191]
 ];
 function tokenCost(ch) {

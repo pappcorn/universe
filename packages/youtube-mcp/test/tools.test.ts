@@ -382,8 +382,20 @@ describe('paging', () => {
     assert.equal(charsWithinBudget(latin, 0, 5_000), 5_000);
     assert.equal(tokenCost('é'), 0.3);
     assert.equal(tokenCost('ж'), 0.5);
-    assert.equal(tokenCost('א'), 0.5);
-    for (const ch of ['ह', 'ক', 'த', 'ก', 'က', 'ع', '字', '한']) {
+    assert.equal(tokenCost('α'), 0.5);
+    for (const ch of [
+      'ա',
+      'א',
+      'ა',
+      'ह',
+      'ক',
+      'த',
+      'ก',
+      'က',
+      'ع',
+      '字',
+      '한',
+    ]) {
       assert.equal(tokenCost(ch), 1, ch);
     }
     const hindi = 'ह'.repeat(200_000);

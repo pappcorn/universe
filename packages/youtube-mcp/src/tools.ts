@@ -39,19 +39,18 @@ export const DEFAULT_MAX_CHARS = 80_000;
 export const PART_TOKEN_BUDGET = 18_000;
 
 // Alphabets that tokenize at about two characters per token: Greek, Cyrillic,
-// Armenian, Hebrew, Georgian, and the Latin and Greek extended blocks.
+// and the Latin and Greek extended blocks. Armenian, Hebrew and Georgian run
+// close to a token per character, so they stay at the full cost.
 const HALF_TOKEN_RANGES: ReadonlyArray<readonly [number, number]> = [
-  [0x0370, 0x058f],
-  [0x0590, 0x05ff],
-  [0x10a0, 0x10ff],
+  [0x0370, 0x052f],
   [0x1e00, 0x1fff],
 ];
 
 /**
  * Conservative token estimate per character: 0.3 for Latin, 0.5 for the
- * alphabets above, and 1 for everything else past U+0370 (CJK, Arabic,
- * Devanagari, Bengali, Tamil, Thai, Myanmar…), which run near a token per
- * character or worse.
+ * alphabets above, and 1 for everything else past U+0370 (Armenian, Hebrew,
+ * Georgian, Arabic, Devanagari, Bengali, Tamil, Thai, Myanmar, CJK…), which
+ * run near a token per character or worse.
  */
 export function tokenCost(ch: string): number {
   const c = ch.codePointAt(0) ?? 0;
