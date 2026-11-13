@@ -1,6 +1,6 @@
 {
   "name": "@pappcorn/linkedin-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server for LinkedIn Pages — publish posts (text, image, PDF document), read and answer comments, and read basic analytics AS YOUR ORGANIZATION'S PAGE, through LinkedIn's official Community Management API. Uses your own LinkedIn app.",
   "license": "MIT",
   "repository": {

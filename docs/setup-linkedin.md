@@ -113,7 +113,8 @@ should see these five, which the setup script requests:
   Page's posts.
 - `w_organization_social_feed` and `r_organization_social_feed`: comment as the
   Page, and read comments.
-- `rw_organization_admin`: find the Pages you administer, and read analytics.
+- `rw_organization_admin`: find the Pages you administer, read analytics, and
+  look up the organizations a post or comment mentions.
 
 If the names differ, note them for `--scopes`.
 
@@ -187,6 +188,11 @@ them: the preview makes the assistant show its work, and that prompt is what
 makes the final yes yours. For a first test, a plain post you are happy to leave up is
 the safest choice; the connector cannot delete it.
 
+To tag another organization, write `@[Name](linkedin.com/company/<vanity>)` (or
+`linkedin.com/school/<vanity>`) in the text. The preview shows the name LinkedIn
+has for it, which is the one that gets published. The full syntax is in the
+connector's README, under "Mentions".
+
 ---
 
 ## Tokens, and how long this lasts
@@ -242,6 +248,7 @@ so record carefully.
 | A tool answers `HTTP 426`                     | LinkedIn sunset the API version the connector sends. Update the connector, or set `LINKEDIN_API_VERSION` to a current `YYYYMM`.    |
 | A tool answers `HTTP 429`                     | Development-tier call budget used up for now. Wait and retry later.                                                                |
 | `The access token expired … no refresh token` | Your credential holds no refresh token, so it cannot renew. Re-run Step 6.                                                         |
+| A mention `does not resolve`                  | The page address is wrong, or an `urn:li:organization` id is not one you administer. Use `@[Name](linkedin.com/company/<vanity>)`. |
 
 ## Where the files live, and revoking access
 

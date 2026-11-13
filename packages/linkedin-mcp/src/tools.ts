@@ -9,6 +9,8 @@
 // identity check. The two that publish go through the confirmation gate
 // (gate.ts) — a preview first, a single-use token second. Nothing deletes or
 // edits, and nothing runs on its own: the connector acts only when asked.
+// Mentions (mentions.ts) are resolved for the preview, listed in it, and bound
+// into the fingerprint, so the human confirms exactly who gets tagged.
 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -33,6 +35,14 @@ import {
   type ShareStats,
 } from './core';
 import { ConfirmationGate, fingerprint, refusal } from './gate';
+import {
+  describeMentions,
+  MentionResolver,
+  mentionRefs,
+  parseMentions,
+  visibleText,
+  type ResolvedMention,
+} from './mentions';
 
 type TextResult = { content: Array<{ type: 'text'; text: string }> };
 
@@ -60,6 +70,19 @@ const OUTWARD =
   'without confirm_token it publishes nothing and returns a preview plus a single-use ' +
   'confirm_token; show the preview to the human and call again with the same arguments and ' +
   'the token ONLY after their explicit yes. Never confirm on your own.';
+
+const MENTIONS =
+  'To tag an organization or a person, write @[Name](target) in the text, where target is ' +
+  'linkedin.com/company/<vanity>, linkedin.com/school/<vanity>, urn:li:organization:<id> ' +
+  '(only for organizations the authorizing member administers) or urn:li:person:<id> (a ' +
+  "person cannot be looked up by name or profile URL; linkedin_list_comments shows commenters' " +
+  "URNs). The connector looks organizations up and publishes LinkedIn's exact name for them, " +
+  'whatever was typed; the preview lists every mention. A mention that does not resolve ' +
+  'fails the whole call. A bare @handle stays plain text.';
+
+/** Mentions as the fingerprint binds them: who gets tagged, under what name. */
+const boundMentions = (m: ResolvedMention[]) =>
+  m.map(({ urn, name }) => ({ urn, name }));
 
 function formatStats(s: ShareStats): string {
   const n = (v?: number) => (v === undefined ? '0' : String(v));
@@ -91,6 +114,7 @@ function formatComment(c: CommentSummary): string {
 export function registerTools(
   server: McpServer,
   gate: ConfirmationGate = new ConfirmationGate(),
+  resolver: MentionResolver = new MentionResolver(),
 ): void {
   // ── whoami ────────────────────────────────────────────────────────────────
   server.registerTool(
@@ -201,13 +225,15 @@ export function registerTools(
         'Publish a post on the organization Page: text only, text + one image, or text + one ' +
         'document (a PDF shows as a swipeable carousel). ' +
         OUTWARD +
-        ' Text is sent as plain text: #hashtags work, @mentions are not supported.',
+        ' Text is sent as plain text: #hashtags work. ' +
+        MENTIONS,
       inputSchema: {
         text: z
           .string()
           .min(1)
           .describe(
-            `The post text, exactly as it should appear (max ${MAX_POST_CHARS} characters).`,
+            `The post text, exactly as it should appear (max ${MAX_POST_CHARS} characters), ` +
+              'with any mention written @[Name](target).',
           ),
         image_path: z
           .string()
@@ -243,11 +269,7 @@ export function registerTools(
       try {
         const { organization } = loadConfig();
         const text = args.text;
-        if (Array.from(text).length > MAX_POST_CHARS) {
-          throw new Error(
-            `The text is ${Array.from(text).length} characters; LinkedIn allows ${MAX_POST_CHARS}.`,
-          );
-        }
+        const segments = parseMentions(text);
         if (args.image_path && args.document_path) {
           throw new Error('Attach an image OR a document, not both.');
         }
@@ -267,9 +289,21 @@ export function registerTools(
             ? (args.document_title ?? media.name)
             : undefined;
 
+        // Before any token: a mention that does not resolve stops here.
+        const mentions = await resolver.resolve(mentionRefs(segments));
+        // What a reader sees, with each mention as the name LinkedIn shows.
+        const shown = visibleText(segments, mentions);
+        const length = Array.from(shown).length;
+        if (length > MAX_POST_CHARS) {
+          throw new Error(
+            `The text is ${length} characters; LinkedIn allows ${MAX_POST_CHARS}.`,
+          );
+        }
+
         const fp = fingerprint({
           organization,
           text,
+          mentions: boundMentions(mentions),
           media: media
             ? {
                 kind: media.kind,
@@ -300,11 +334,12 @@ export function registerTools(
                       : []),
                   ]
                 : []),
-              `Length:    ${Array.from(text).length} characters`,
+              `Length:    ${length} characters`,
               '',
               '──── text ────',
-              text,
+              shown,
               '──────────────',
+              ...(mentions.length ? ['', ...describeMentions(mentions)] : []),
               '',
               CONFIRM_INSTRUCTIONS,
               `confirm_token: ${token}`,
@@ -318,6 +353,7 @@ export function registerTools(
         const mediaUrn = media ? await uploadMedia(media) : undefined;
         const urn = await createPost({
           text,
+          mentions,
           media:
             media && mediaUrn
               ? {
@@ -336,6 +372,7 @@ export function registerTools(
           media: media
             ? { kind: media.kind, name: media.name, sha256: media.sha256 }
             : undefined,
+          mentions: mentions.length ? boundMentions(mentions) : undefined,
         });
         return ok(
           [
@@ -419,7 +456,9 @@ export function registerTools(
     {
       description:
         "Comment on one of the Page's posts AS THE PAGE, or reply to a comment on it. " +
-        OUTWARD,
+        OUTWARD +
+        ' ' +
+        MENTIONS,
       inputSchema: {
         post_urn: z
           .string()
@@ -434,7 +473,10 @@ export function registerTools(
         text: z
           .string()
           .min(1)
-          .describe('The comment text, exactly as it should appear.'),
+          .describe(
+            'The comment text, exactly as it should appear, with any mention written ' +
+              '@[Name](target).',
+          ),
         confirm_token: z
           .string()
           .optional()
@@ -452,11 +494,17 @@ export function registerTools(
           assertReplyMatchesPost(args.post_urn, args.parent_comment_urn);
         }
 
+        const segments = parseMentions(args.text);
+        // Before any token: a mention that does not resolve stops here.
+        const mentions = await resolver.resolve(mentionRefs(segments));
+        const shown = visibleText(segments, mentions);
+
         const fp = fingerprint({
           organization,
           post: args.post_urn,
           parent: args.parent_comment_urn ?? null,
           text: args.text,
+          mentions: boundMentions(mentions),
         });
 
         if (!args.confirm_token) {
@@ -477,8 +525,9 @@ export function registerTools(
                 : []),
               '',
               '──── text ────',
-              args.text,
+              shown,
               '──────────────',
+              ...(mentions.length ? ['', ...describeMentions(mentions)] : []),
               '',
               CONFIRM_INSTRUCTIONS,
               `confirm_token: ${token}`,
@@ -493,6 +542,7 @@ export function registerTools(
           postUrn: args.post_urn,
           parentCommentUrn: args.parent_comment_urn,
           text: args.text,
+          mentions,
         });
         const log = logAction({
           action: 'comment',
@@ -500,6 +550,7 @@ export function registerTools(
           urn,
           text: args.text,
           target: args.parent_comment_urn ?? args.post_urn,
+          mentions: mentions.length ? boundMentions(mentions) : undefined,
         });
         return ok(
           [
