@@ -36,12 +36,7 @@ import {
   uploadBinary,
 } from './api';
 import { loadConfig } from './config';
-import {
-  commentMessage,
-  parseMentions,
-  postCommentary,
-  type ResolvedMention,
-} from './mentions';
+import { commentMessage, postCommentary, type Piece } from './mentions';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Limits
@@ -49,8 +44,17 @@ import {
 
 /** LinkedIn's limit for a post's commentary. The API answers
  *  FIELD_LENGTH_TOO_LONG past it; checking here gives the human a clear error
- *  at preview time instead of at publish time. */
+ *  at preview time instead of at publish time. It is checked on the commentary
+ *  as sent — escapes and mention markup included, since that is the field
+ *  LinkedIn validates — and in UTF-16 code units, which is never fewer than
+ *  characters: LinkedIn does not say which unit it counts, so the connector
+ *  takes the stricter one. */
 export const MAX_POST_CHARS = 3000;
+
+/** The length MAX_POST_CHARS is compared with. */
+export function commentaryLength(commentary: string): number {
+  return commentary.length;
+}
 
 export const IMAGE_TYPES: Record<string, string> = {
   '.jpg': 'JPG',
@@ -121,6 +125,12 @@ export function escapeLittle(text: string, before = ''): string {
     out += LITTLE_RESERVED.has(c) ? `\\${c}` : c;
   }
   return out;
+}
+
+/** Whether text holds a character little format reserves. A mention's name that
+ *  does is escaped, and whether LinkedIn still matches it is unverified. */
+export function hasLittleReserved(text: string): boolean {
+  return Array.from(text).some((c) => LITTLE_RESERVED.has(c));
 }
 
 /** Escape every reserved character, hashtags included: for a mention's name,
@@ -269,6 +279,7 @@ export interface PageInfo {
   id: string;
   name?: string;
   vanityName?: string;
+  primaryOrganizationType?: string;
 }
 
 export function organizationId(urn: string): string {
@@ -278,15 +289,17 @@ export function organizationId(urn: string): string {
 export async function getPage(): Promise<PageInfo> {
   const { organization } = loadConfig();
   const id = organizationId(organization);
-  const res = await request<{ localizedName?: string; vanityName?: string }>(
-    'GET',
-    `organizations/${id}`,
-  );
+  const res = await request<{
+    localizedName?: string;
+    vanityName?: string;
+    primaryOrganizationType?: string;
+  }>('GET', `organizations/${id}`);
   return {
     urn: organization,
     id,
     name: res.body.localizedName,
     vanityName: res.body.vanityName,
+    primaryOrganizationType: res.body.primaryOrganizationType,
   };
 }
 
@@ -353,10 +366,10 @@ export async function listPosts(count = 10, start = 0): Promise<PostSummary[]> {
 }
 
 export interface NewPost {
-  /** Plain text, exactly as the human approved it. Escaped here, not before. */
-  text: string;
-  /** The text's mentions, resolved, in order. Required when it has any. */
-  mentions?: ResolvedMention[];
+  /** The text the human approved, with its mentions resolved (mentions.ts:
+   *  composeText, or plainPieces for text without any). Escaped here, not
+   *  before. */
+  pieces: Piece[];
   media?: {
     urn: string;
     kind: 'image' | 'document';
@@ -371,12 +384,7 @@ export function buildPostBody(
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     author: organization,
-    commentary: postCommentary(
-      parseMentions(post.text),
-      post.mentions ?? [],
-      escapeLittle,
-      escapeLittleAll,
-    ),
+    commentary: commentaryOf(post.pieces),
     visibility: 'PUBLIC',
     distribution: {
       feedDistribution: 'MAIN_FEED',
@@ -395,6 +403,12 @@ export function buildPostBody(
     body.content = { media };
   }
   return body;
+}
+
+/** The commentary exactly as LinkedIn receives it: little format, escaped,
+ *  with mentions as @[Name](urn). */
+export function commentaryOf(pieces: Piece[]): string {
+  return postCommentary(pieces, escapeLittle, escapeLittleAll);
 }
 
 /** Publish a post as the Page. Returns the new post's URN. */
@@ -503,17 +517,15 @@ export interface NewComment {
   postUrn: string;
   /** Set to reply to a comment; omit for a top-level comment on the post. */
   parentCommentUrn?: string;
-  /** Plain text as the human approved it, mentions written @[Name](target). */
-  text: string;
-  /** The text's mentions, resolved, in order. Required when it has any. */
-  mentions?: ResolvedMention[];
+  /** The text the human approved, with its mentions resolved. */
+  pieces: Piece[];
 }
 
 export function buildCommentBody(
   organization: string,
   c: NewComment,
 ): Record<string, unknown> {
-  const message = commentMessage(parseMentions(c.text), c.mentions ?? []);
+  const message = commentMessage(c.pieces);
   const body: Record<string, unknown> = {
     actor: organization,
     object: c.postUrn,

@@ -5,8 +5,11 @@
 //   @[Display Name](urn:li:organization:<id>)
 //   @[Display Name](urn:li:organizationBrand:<id>)   (same as organization:<id>)
 //   @[Display Name](urn:li:person:<id>)
-//   @[Display Name](linkedin.com/company/<vanity>)
-//   @[Display Name](linkedin.com/school/<vanity>)
+//   @[Display Name](<a LinkedIn company or school page address>)
+// The page address can be pasted from a browser as is: any LinkedIn host
+// (www., m., a country prefix), with or without https://, a sub-page such as
+// /about/ or /posts/, a query string, or a trailing slash. A numeric
+// linkedin.com/company/<digits> is the organization's id, not a vanity name.
 // Anything else keeps being plain text, escaped exactly as before: a bare
 // "@handle" is never a mention.
 //
@@ -23,18 +26,17 @@
 //     An unknown vanity is HTTP 200 with an empty `elements`, not a 404.
 //   · by id — GET /rest/organizations/{id} — only organizations the
 //     authorizing member administers; any other id answers 403, the same as an
-//     id that does not exist. So an organization URN that is not yours fails,
+//     id that does not exist. So an organization id that is not yours fails,
 //     and the error points at the vanity form.
 //   · people — not at all. A person mention needs an explicit urn:li:person
 //     (linkedin_list_comments shows commenters' URNs), and its display name
 //     cannot be checked: LinkedIn matches any one of the member's names.
 //
-// Each distinct target is resolved once and reused between the preview and the
-// publish (an in-memory cache that lives as long as a confirm token), so the
-// small daily call budget of a Development-tier app is not spent twice.
+// Mentions are resolved once, at preview, with each distinct target looked up
+// once and all of them in parallel. What was resolved is stored with the
+// confirm token (gate.ts) and published as is: confirming makes no lookup.
 
 import { LinkedInApiError, request } from './api';
-import { TOKEN_TTL_MS } from './gate';
 
 export type MentionKind = 'organization' | 'school' | 'brand' | 'person';
 
@@ -61,6 +63,11 @@ export interface ResolvedMention {
   verified: boolean;
 }
 
+/** Text with every mention already resolved: what the body builders take. A
+ *  text run never contains a mention (see composeText), so nothing unresolved
+ *  can reach LinkedIn. */
+export type Piece = { text: string } | { mention: ResolvedMention };
+
 /** A mention problem. Always raised before anything is published. */
 export class MentionError extends Error {
   constructor(message: string) {
@@ -75,40 +82,42 @@ const MENTION = /@\[([^[\]\n]+)\]\(([^()\s]+)\)/g;
 
 const ORG_URN = /^urn:li:(?:organization|organizationBrand):(\d+)$/;
 const PERSON_URN = /^urn:li:person:([A-Za-z0-9_-]+)$/;
-const VANITY_URL =
-  /^(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/(company|school)\/([^/?#\s]+)\/?$/i;
-// Any address on a LinkedIn host, and a member's profile on one. Anchored, so a
-// LinkedIn address quoted inside another site's URL is not mistaken for one.
-const LINKEDIN_URL = /^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\//i;
-const PROFILE_URL = /^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\/in\//i;
+// Anchored at the start, so a LinkedIn address quoted inside another site's URL
+// is not mistaken for one. Any LinkedIn host; then optional sub-page, query or
+// fragment after the vanity.
+const LINKEDIN_HOST = String.raw`^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\/`;
+const PAGE_URL = new RegExp(
+  `${LINKEDIN_HOST}(company|school)\\/([^/?#\\s]+)(?:[/?#]\\S*)?$`,
+  'i',
+);
+const LINKEDIN_URL = new RegExp(LINKEDIN_HOST, 'i');
+const PROFILE_URL = new RegExp(`${LINKEDIN_HOST}in\\/`, 'i');
 
-type Target =
+export type Target =
   | { kind: 'org-id'; id: string }
   | { kind: 'person'; urn: string }
-  | { kind: 'vanity'; page: 'company' | 'school'; vanity: string };
+  | { kind: 'vanity'; vanity: string };
 
 function describe(ref: MentionRef): string {
   return `The mention ${ref.raw}`;
 }
 
-function classify(ref: MentionRef): Target | null {
+export function classify(ref: MentionRef): Target | null {
   const t = ref.target;
   const org = ORG_URN.exec(t);
   if (org) return { kind: 'org-id', id: org[1] };
   if (PERSON_URN.test(t)) return { kind: 'person', urn: t };
-  const v = VANITY_URL.exec(t);
-  if (v) {
-    let vanity = v[2];
+  const page = PAGE_URL.exec(t);
+  if (page) {
+    let vanity = page[2];
     try {
       vanity = decodeURIComponent(vanity);
     } catch {
       // keep it as written
     }
-    return {
-      kind: 'vanity',
-      page: v[1].toLowerCase() as 'company' | 'school',
-      vanity,
-    };
+    // linkedin.com/company/<digits> is how LinkedIn addresses a page by id.
+    if (/^\d+$/.test(vanity)) return { kind: 'org-id', id: vanity };
+    return { kind: 'vanity', vanity };
   }
   // Something that is clearly meant as a mention but is not one we can make
   // must not quietly become plain text.
@@ -123,8 +132,8 @@ function classify(ref: MentionRef): Target | null {
     }
     throw new MentionError(
       `${describe(ref)} has a target this connector cannot mention. Use ` +
-        'urn:li:organization:<id>, urn:li:person:<id>, linkedin.com/company/<vanity> or ' +
-        'linkedin.com/school/<vanity>. Nothing was published.',
+        'urn:li:organization:<id>, urn:li:person:<id>, or the address of a LinkedIn company ' +
+        'or school page. Nothing was published.',
     );
   }
   return null;
@@ -152,8 +161,16 @@ export function parseMentions(text: string): Segment[] {
   return out;
 }
 
-export function mentionRefs(segments: Segment[]): MentionRef[] {
-  return segments.flatMap((s) => ('mention' in s ? [s.mention] : []));
+/** Pieces for a text that must not contain mentions. Throws if it does, so a
+ *  caller can never send a mention's markup without resolving it. */
+export function plainPieces(text: string): Piece[] {
+  const segs = parseMentions(text);
+  if (segs.some((s) => 'mention' in s)) {
+    throw new MentionError(
+      'This text contains mentions that were not resolved. Nothing was published.',
+    );
+  }
+  return text ? [{ text }] : [];
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -167,14 +184,22 @@ interface RawOrganization {
   primaryOrganizationType?: string;
 }
 
+/** An organization already fetched (the Page, by getPage()), so mentioning it
+ *  costs no second call. */
+export interface KnownOrganization {
+  id: string;
+  localizedName?: string;
+  primaryOrganizationType?: string;
+}
+
 interface Entity {
   urn: string;
   name?: string;
   kind: MentionKind;
 }
 
-function orgKind(o: RawOrganization): MentionKind {
-  switch (o.primaryOrganizationType) {
+function orgKind(type?: string): MentionKind {
+  switch (type) {
     case 'SCHOOL':
       return 'school';
     case 'BRAND':
@@ -194,7 +219,7 @@ function orgEntity(o: RawOrganization, ref: MentionRef): Entity {
   return {
     urn: `urn:li:organization:${o.id}`,
     name: o.localizedName,
-    kind: orgKind(o),
+    kind: orgKind(o.primaryOrganizationType),
   };
 }
 
@@ -234,10 +259,11 @@ async function byId(id: string, ref: MentionRef): Promise<Entity> {
       (err.status === 403 || err.status === 404)
     ) {
       throw new MentionError(
-        `${describe(ref)} does not resolve (HTTP ${err.status}): LinkedIn only shows this app ` +
-          'organizations that the authorizing member administers, by id. Write it as ' +
-          '@[Name](linkedin.com/company/<vanity>) or linkedin.com/school/<vanity> instead; ' +
-          'the connector then looks up its exact name. Nothing was published.',
+        `${describe(ref)} does not resolve (HTTP ${err.status}): by id, LinkedIn only shows ` +
+          'this app organizations that the authorizing member administers. Use the ' +
+          "address of the organization's page by its vanity name instead, e.g. " +
+          '@[Name](linkedin.com/company/<vanity>); the connector then looks up its exact ' +
+          'name. Nothing was published.',
       );
     }
     throw wrap(err, ref);
@@ -251,7 +277,7 @@ function wrap(err: unknown, ref: MentionRef): Error {
   );
 }
 
-function cacheKey(t: Target): string {
+function targetKey(t: Target): string {
   switch (t.kind) {
     case 'org-id':
       return `org:${t.id}`;
@@ -262,98 +288,106 @@ function cacheKey(t: Target): string {
   }
 }
 
-/** Resolves mentions, at most once per distinct target while a confirmation
- *  can still be redeemed. One per server, like the confirmation gate. */
-export class MentionResolver {
-  private readonly cache = new Map<
-    string,
-    { entity: Entity; expiresAt: number }
-  >();
-
-  constructor(
-    private readonly now: () => number = Date.now,
-    private readonly ttlMs: number = TOKEN_TTL_MS,
-  ) {}
-
-  /** Resolve every mention, in order. The first failure aborts the lot. */
-  async resolve(refs: MentionRef[]): Promise<ResolvedMention[]> {
-    const out: ResolvedMention[] = [];
-    for (const ref of refs) {
-      const target = classify(ref);
-      if (!target) throw new MentionError(`${describe(ref)} is not a mention.`);
-      const entity = await this.entity(target, ref);
-      out.push({
-        typed: ref.typed,
-        target: ref.target,
-        urn: entity.urn,
-        name: entity.name ?? ref.typed,
-        kind: entity.kind,
-        verified: entity.name !== undefined,
-      });
-    }
-    return out;
+/** Resolve the text's mentions and return it as pieces. Each distinct target
+ *  is looked up once, all in parallel; `known` organizations cost no call. Any
+ *  mention that does not resolve fails the whole text. */
+export async function composeText(
+  segments: Segment[],
+  known: KnownOrganization[] = [],
+): Promise<Piece[]> {
+  const targets = new Map<string, { target: Target; ref: MentionRef }>();
+  const keyOf = new Map<MentionRef, string>();
+  for (const s of segments) {
+    if (!('mention' in s)) continue;
+    const target = classify(s.mention);
+    if (!target)
+      throw new MentionError(`${describe(s.mention)} is not a mention.`);
+    const key = targetKey(target);
+    keyOf.set(s.mention, key);
+    if (!targets.has(key)) targets.set(key, { target, ref: s.mention });
   }
 
-  private async entity(t: Target, ref: MentionRef): Promise<Entity> {
-    const key = cacheKey(t);
-    const hit = this.cache.get(key);
-    if (hit && hit.expiresAt > this.now()) return hit.entity;
-    let entity: Entity;
-    if (t.kind === 'person') entity = { urn: t.urn, kind: 'person' };
-    else if (t.kind === 'org-id') entity = await byId(t.id, ref);
-    else entity = await byVanity(t.vanity, ref);
-    this.cache.set(key, { entity, expiresAt: this.now() + this.ttlMs });
-    return entity;
-  }
+  const seeded = new Map(known.map((k) => [k.id, k]));
+  const entries = await Promise.all(
+    [...targets].map(async ([key, { target, ref }]) => {
+      let entity: Entity;
+      if (target.kind === 'person') {
+        entity = { urn: target.urn, kind: 'person' };
+      } else if (
+        target.kind === 'org-id' &&
+        seeded.get(target.id)?.localizedName
+      ) {
+        const k = seeded.get(target.id) as KnownOrganization;
+        entity = orgEntity(
+          {
+            id: Number(k.id),
+            localizedName: k.localizedName,
+            primaryOrganizationType: k.primaryOrganizationType,
+          },
+          ref,
+        );
+      } else if (target.kind === 'org-id') {
+        entity = await byId(target.id, ref);
+      } else {
+        entity = await byVanity(target.vanity, ref);
+      }
+      return [key, entity] as const;
+    }),
+  );
+  const entities = new Map(entries);
+
+  return segments.map((s) => {
+    if (!('mention' in s)) return s;
+    const e = entities.get(keyOf.get(s.mention) as string) as Entity;
+    return {
+      mention: {
+        typed: s.mention.typed,
+        target: s.mention.target,
+        urn: e.urn,
+        name: e.name ?? s.mention.typed,
+        kind: e.kind,
+        verified: e.name !== undefined,
+      },
+    };
+  });
+}
+
+export function mentionsOf(pieces: Piece[]): ResolvedMention[] {
+  return pieces.flatMap((p) => ('mention' in p ? [p.mention] : []));
+}
+
+/** The plain-text runs around the mentions. Needs no lookup, so it gives a
+ *  floor on the rendered length before any I/O. */
+export function plainRuns(segments: Segment[]): string[] {
+  return segments.flatMap((s) => ('text' in s ? [s.text] : []));
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Rendering
 // ──────────────────────────────────────────────────────────────────────────────
 
-function pair(
-  segments: Segment[],
-  resolved: ResolvedMention[],
-): Array<{ text: string } | { mention: ResolvedMention }> {
-  const refs = mentionRefs(segments);
-  if (refs.length !== resolved.length) {
-    throw new MentionError(
-      `Internal error: ${refs.length} mention(s) in the text but ${resolved.length} resolved. ` +
-        'Nothing was published.',
-    );
-  }
-  let i = 0;
-  return segments.map((s) => ('mention' in s ? { mention: resolved[i++] } : s));
-}
-
 /** The text a reader sees: each mention replaced by the name that is published. */
-export function visibleText(
-  segments: Segment[],
-  resolved: ResolvedMention[],
-): string {
-  return pair(segments, resolved)
-    .map((s) => ('mention' in s ? s.mention.name : s.text))
-    .join('');
+export function visibleText(pieces: Piece[]): string {
+  return pieces.map((p) => ('mention' in p ? p.mention.name : p.text)).join('');
 }
 
 /** A post's commentary in little format: plain runs escaped exactly as before
  *  (escape), mentions written as @[Name](urn) with the name's reserved
  *  characters escaped too. */
 export function postCommentary(
-  segments: Segment[],
-  resolved: ResolvedMention[],
+  pieces: Piece[],
   escape: (text: string, prev?: string) => string,
   escapeName: (text: string) => string,
 ): string {
   let out = '';
   let prev = '';
-  for (const s of pair(segments, resolved)) {
-    if ('mention' in s) {
-      out += `@[${escapeName(s.mention.name)}](${s.mention.urn})`;
-      prev = Array.from(s.mention.name).pop() ?? prev;
+  for (const p of pieces) {
+    if ('mention' in p) {
+      out += `@[${escapeName(p.mention.name)}](${p.mention.urn})`;
+      prev = Array.from(p.mention.name).pop() ?? prev;
     } else {
-      out += escape(s.text, prev);
-      prev = Array.from(s.text).pop() ?? prev;
+      out += escape(p.text, prev);
+      prev = Array.from(p.text).pop() ?? prev;
     }
   }
   return out;
@@ -369,16 +403,17 @@ export interface CommentAttribute {
 /** A comment's message for the Comments API: plain text with each mention's
  *  name in place, plus one attribute per mention. `start` and `length` count
  *  UTF-16 code units (JavaScript string indices): an emoji outside the Basic
- *  Multilingual Plane counts as 2. */
-export function commentMessage(
-  segments: Segment[],
-  resolved: ResolvedMention[],
-): { text: string; attributes: CommentAttribute[] } {
+ *  Multilingual Plane counts as 2. Verified live: LinkedIn renders the tag on
+ *  exactly the name with these offsets. */
+export function commentMessage(pieces: Piece[]): {
+  text: string;
+  attributes: CommentAttribute[];
+} {
   let text = '';
   const attributes: CommentAttribute[] = [];
-  for (const s of pair(segments, resolved)) {
-    if ('mention' in s) {
-      const m = s.mention;
+  for (const p of pieces) {
+    if ('mention' in p) {
+      const m = p.mention;
       attributes.push({
         start: text.length,
         length: m.name.length,
@@ -389,18 +424,22 @@ export function commentMessage(
       });
       text += m.name;
     } else {
-      text += s.text;
+      text += p.text;
     }
   }
   return { text, attributes };
 }
 
 /** Preview lines, one per mention, so the human confirms exactly what will be
- *  tagged. Empty when there are none. */
-export function describeMentions(resolved: ResolvedMention[]): string[] {
-  if (!resolved.length) return [];
+ *  tagged. Empty when there are none. `reserved` tells whether a name holds a
+ *  character the post markup reserves. */
+export function describeMentions(
+  mentions: ResolvedMention[],
+  reserved?: (name: string) => boolean,
+): string[] {
+  if (!mentions.length) return [];
   const lines = ['Mentions:'];
-  for (const m of resolved) {
+  for (const m of mentions) {
     lines.push(`  • ${m.name} — ${m.kind} — ${m.urn}`);
     if (!m.verified) {
       lines.push(
@@ -411,6 +450,13 @@ export function describeMentions(resolved: ResolvedMention[]): string[] {
       lines.push(
         `      you wrote "${m.typed}"; LinkedIn's name is "${m.name}", and that is what ` +
           'will be published (a different name would not link).',
+      );
+    }
+    if (reserved?.(m.name)) {
+      lines.push(
+        '      WARNING: this name contains characters that LinkedIn post markup reserves. ' +
+          'They are escaped, but whether LinkedIn still matches an escaped name is not ' +
+          'verified: the tag may render as plain text. Check the post after publishing.',
       );
     }
   }

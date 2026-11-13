@@ -100,23 +100,30 @@ them so they appear exactly as written. Two exceptions:
 - **Mentions work, in one syntax.** See below. A bare `@handle` stays plain text.
 
 Posts are capped at 3,000 characters, LinkedIn's limit, counted on the text as
-readers see it (a mention counts as the name it shows, not its markup).
+LinkedIn receives it: escapes and mention markup included, in UTF-16 code units
+(an emoji can count as 2). LinkedIn does not say which unit it counts, so the
+connector takes the stricter one.
 
 ### Mentions
 
 To tag an organization or a person in a post or a comment, write
 `@[Name](target)`:
 
-| Target                          | Tags                               | Name published                    |
-| ------------------------------- | ---------------------------------- | --------------------------------- |
-| `linkedin.com/company/<vanity>` | a company or brand                 | LinkedIn's name for it, looked up |
-| `linkedin.com/school/<vanity>`  | a school                           | LinkedIn's name for it, looked up |
-| `urn:li:organization:<id>`      | an organization **you administer** | LinkedIn's name for it, looked up |
-| `urn:li:person:<id>`            | a member                           | the name you wrote, unchecked     |
+| Target                                                               | Tags                               | Name published                    |
+| -------------------------------------------------------------------- | ---------------------------------- | --------------------------------- |
+| a company page address, `…linkedin.com/company/<vanity>…`            | a company or brand                 | LinkedIn's name for it, looked up |
+| a school page address, `…linkedin.com/school/<vanity>…`              | a school                           | LinkedIn's name for it, looked up |
+| `urn:li:organization:<id>`, or a numeric `linkedin.com/company/<id>` | an organization **you administer** | LinkedIn's name for it, looked up |
+| `urn:li:person:<id>`                                                 | a member                           | the name you wrote, unchecked     |
 
 ```text
-Thanks to @[Acme](linkedin.com/company/acme) for hosting us.
+Thanks to @[Acme](https://www.linkedin.com/company/acme/) for hosting us.
 ```
+
+A page address can be pasted from the browser as it is: `https://` or not, any
+LinkedIn host (`www.`, `m.`, a country prefix), a sub-page such as `/about/` or
+`/posts/`, a query string such as `?viewAsMember=true`, a trailing slash. The
+connector keeps only the vanity name.
 
 - **The connector picks an organization's name, not you.** LinkedIn only turns a
   mention into a link when the text is the organization's full name exactly as
@@ -125,10 +132,10 @@ Thanks to @[Acme](linkedin.com/company/acme) for hosting us.
   published. The preview shows it next to what you wrote. It may not be the
   name you use: a school can be listed as "University of Somewhere - Campus"
   while everyone says "USomewhere".
-- **Use the page address for organizations you don't administer.** LinkedIn
-  only lets this kind of app look an organization up by id when the
-  authorizing member administers it; any other id is refused, and the call
-  fails with a pointer to the `linkedin.com/company/…` form.
+- **Use the page's vanity address for organizations you don't administer.**
+  LinkedIn only lets this kind of app look an organization up by id when the
+  authorizing member administers it; any other id, including a numeric page
+  address, is refused, and the call fails with a pointer to the vanity form.
 - **People need their URN.** LinkedIn does not let this kind of app look a
   member up by name or profile URL, so a profile link is refused. The person
   URNs you can see are those of people who commented or reacted on the Page's
@@ -136,11 +143,16 @@ Thanks to @[Acme](linkedin.com/company/acme) for hosting us.
   links only if it is the member's first, last or full name as on their profile.
 - **A mention that does not resolve fails the whole call**, naming the mention.
   Nothing is published, and nothing falls back to plain text.
-- **The preview lists every mention** (name, kind, URN), and the confirm token
-  is bound to them: if LinkedIn resolves a mention differently at publish time,
-  the call is refused.
-- **Each distinct target costs one API call**, made for the preview and reused
-  when you confirm.
+- **The preview lists every mention** (name, kind, URN). What it resolved is
+  kept with the confirm token, and confirming publishes exactly that: no new
+  lookup, so a wrong or expired token is refused without calling LinkedIn.
+- **Each distinct target costs one API call**, at preview, all in parallel. A
+  mention of your own Page costs nothing extra.
+- **A name with reserved characters gets a warning.** If an organization's name
+  contains a character post markup reserves, such as `(` or `_`, the connector
+  escapes it, but whether LinkedIn still matches an escaped name is not
+  verified: the preview warns that the tag may show as plain text. Comments
+  have no markup and get no warning.
 
 In a comment, the name appears in the text and the tag is attached to it; in a
 post, it is written in LinkedIn's post markup. Either way, readers see the name

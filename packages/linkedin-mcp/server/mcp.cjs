@@ -4549,8 +4549,8 @@ var require_core = __commonJS({
             return this;
           }
           case "object": {
-            const cacheKey2 = schemaKeyRef;
-            this._cache.delete(cacheKey2);
+            const cacheKey = schemaKeyRef;
+            this._cache.delete(cacheKey);
             let id = schemaKeyRef[this.opts.schemaId];
             if (id) {
               id = (0, resolve_1.normalizeId)(id);
@@ -28948,9 +28948,9 @@ var ParseStatus = class _ParseStatus {
   }
   static async mergeObjectAsync(status, pairs) {
     const syncPairs = [];
-    for (const pair2 of pairs) {
-      const key = await pair2.key;
-      const value = await pair2.value;
+    for (const pair of pairs) {
+      const key = await pair.key;
+      const value = await pair.value;
       syncPairs.push({
         key,
         value
@@ -28960,8 +28960,8 @@ var ParseStatus = class _ParseStatus {
   }
   static mergeObjectSync(status, pairs) {
     const finalObject = {};
-    for (const pair2 of pairs) {
-      const { key, value } = pair2;
+    for (const pair of pairs) {
+      const { key, value } = pair;
       if (key.status === "aborted")
         return INVALID2;
       if (value.status === "aborted")
@@ -28970,7 +28970,7 @@ var ParseStatus = class _ParseStatus {
         status.dirty();
       if (value.status === "dirty")
         status.dirty();
-      if (key.value !== "__proto__" && (typeof value.value !== "undefined" || pair2.alwaysSet)) {
+      if (key.value !== "__proto__" && (typeof value.value !== "undefined" || pair.alwaysSet)) {
         finalObject[key.value] = value.value;
       }
     }
@@ -30853,13 +30853,13 @@ var ZodObject2 = class _ZodObject extends ZodType2 {
     if (ctx.common.async) {
       return Promise.resolve().then(async () => {
         const syncPairs = [];
-        for (const pair2 of pairs) {
-          const key = await pair2.key;
-          const value = await pair2.value;
+        for (const pair of pairs) {
+          const key = await pair.key;
+          const value = await pair.value;
           syncPairs.push({
             key,
             value,
-            alwaysSet: pair2.alwaysSet
+            alwaysSet: pair.alwaysSet
           });
         }
         return syncPairs;
@@ -31548,9 +31548,9 @@ var ZodMap2 = class extends ZodType2 {
     if (ctx.common.async) {
       const finalMap = /* @__PURE__ */ new Map();
       return Promise.resolve().then(async () => {
-        for (const pair2 of pairs) {
-          const key = await pair2.key;
-          const value = await pair2.value;
+        for (const pair of pairs) {
+          const key = await pair.key;
+          const value = await pair.value;
           if (key.status === "aborted" || value.status === "aborted") {
             return INVALID2;
           }
@@ -31563,9 +31563,9 @@ var ZodMap2 = class extends ZodType2 {
       });
     } else {
       const finalMap = /* @__PURE__ */ new Map();
-      for (const pair2 of pairs) {
-        const key = pair2.key;
-        const value = pair2.value;
+      for (const pair of pairs) {
+        const key = pair.key;
+        const value = pair.value;
         if (key.status === "aborted" || value.status === "aborted") {
           return INVALID2;
         }
@@ -36746,7 +36746,7 @@ function canRenew() {
 }
 
 // src/core.ts
-var import_node_crypto3 = require("node:crypto");
+var import_node_crypto2 = require("node:crypto");
 var import_node_fs2 = require("node:fs");
 var import_node_os2 = require("node:os");
 var import_node_path = require("node:path");
@@ -36861,54 +36861,6 @@ async function uploadBinary(uploadUrl, bytes) {
   if (!res.ok) throw await errorFrom(res);
 }
 
-// src/gate.ts
-var import_node_crypto2 = require("node:crypto");
-var TOKEN_TTL_MS = 15 * 60 * 1e3;
-function fingerprint(value) {
-  return (0, import_node_crypto2.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
-}
-var ConfirmationGate = class {
-  constructor(now = Date.now) {
-    this.now = now;
-  }
-  now;
-  pending = /* @__PURE__ */ new Map();
-  issue(action, fp) {
-    this.sweep();
-    const token = (0, import_node_crypto2.randomBytes)(12).toString("hex");
-    this.pending.set(token, {
-      action,
-      fingerprint: fp,
-      expiresAt: this.now() + TOKEN_TTL_MS
-    });
-    return token;
-  }
-  /** Spend a token. Any presented token is consumed whatever the outcome, so a
-   *  token that failed once (wrong content, wrong tool) cannot be retried. */
-  redeem(action, token, fp) {
-    const p = this.pending.get(token);
-    if (!p) return "unknown";
-    this.pending.delete(token);
-    if (p.expiresAt <= this.now()) return "expired";
-    if (p.action !== action || p.fingerprint !== fp) return "mismatch";
-    return "ok";
-  }
-  sweep() {
-    const t = this.now();
-    for (const [k, v] of this.pending)
-      if (v.expiresAt <= t) this.pending.delete(k);
-  }
-};
-function refusal(result) {
-  const why = {
-    unknown: "that confirm_token was never issued by this server, or was already used (tokens are single-use and do not survive a restart).",
-    expired: `that confirm_token expired (they last ${TOKEN_TTL_MS / 6e4} minutes).`,
-    mismatch: "the content is not what was previewed: the text, the target or the attached file changed after the preview. The token is now spent."
-  }[result];
-  return `REFUSED \u2014 nothing was published: ${why}
-Call the tool again WITHOUT confirm_token to get a fresh preview, show it to the person you work for, and confirm only after their explicit yes.`;
-}
-
 // src/mentions.ts
 var MentionError = class extends Error {
   constructor(message) {
@@ -36919,9 +36871,13 @@ var MentionError = class extends Error {
 var MENTION = /@\[([^[\]\n]+)\]\(([^()\s]+)\)/g;
 var ORG_URN = /^urn:li:(?:organization|organizationBrand):(\d+)$/;
 var PERSON_URN = /^urn:li:person:([A-Za-z0-9_-]+)$/;
-var VANITY_URL = /^(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/(company|school)\/([^/?#\s]+)\/?$/i;
-var LINKEDIN_URL = /^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\//i;
-var PROFILE_URL = /^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\/in\//i;
+var LINKEDIN_HOST = String.raw`^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\/`;
+var PAGE_URL = new RegExp(
+  `${LINKEDIN_HOST}(company|school)\\/([^/?#\\s]+)(?:[/?#]\\S*)?$`,
+  "i"
+);
+var LINKEDIN_URL = new RegExp(LINKEDIN_HOST, "i");
+var PROFILE_URL = new RegExp(`${LINKEDIN_HOST}in\\/`, "i");
 function describe3(ref) {
   return `The mention ${ref.raw}`;
 }
@@ -36930,18 +36886,15 @@ function classify(ref) {
   const org = ORG_URN.exec(t);
   if (org) return { kind: "org-id", id: org[1] };
   if (PERSON_URN.test(t)) return { kind: "person", urn: t };
-  const v = VANITY_URL.exec(t);
-  if (v) {
-    let vanity = v[2];
+  const page = PAGE_URL.exec(t);
+  if (page) {
+    let vanity = page[2];
     try {
       vanity = decodeURIComponent(vanity);
     } catch {
     }
-    return {
-      kind: "vanity",
-      page: v[1].toLowerCase(),
-      vanity
-    };
+    if (/^\d+$/.test(vanity)) return { kind: "org-id", id: vanity };
+    return { kind: "vanity", vanity };
   }
   if (/^urn:li:/i.test(t) || LINKEDIN_URL.test(t)) {
     if (PROFILE_URL.test(t)) {
@@ -36950,7 +36903,7 @@ function classify(ref) {
       );
     }
     throw new MentionError(
-      `${describe3(ref)} has a target this connector cannot mention. Use urn:li:organization:<id>, urn:li:person:<id>, linkedin.com/company/<vanity> or linkedin.com/school/<vanity>. Nothing was published.`
+      `${describe3(ref)} has a target this connector cannot mention. Use urn:li:organization:<id>, urn:li:person:<id>, or the address of a LinkedIn company or school page. Nothing was published.`
     );
   }
   return null;
@@ -36974,11 +36927,8 @@ function parseMentions(text) {
   if (last < text.length) out.push({ text: text.slice(last) });
   return out;
 }
-function mentionRefs(segments) {
-  return segments.flatMap((s) => "mention" in s ? [s.mention] : []);
-}
-function orgKind(o) {
-  switch (o.primaryOrganizationType) {
+function orgKind(type) {
+  switch (type) {
     case "SCHOOL":
       return "school";
     case "BRAND":
@@ -36996,7 +36946,7 @@ function orgEntity(o, ref) {
   return {
     urn: `urn:li:organization:${o.id}`,
     name: o.localizedName,
-    kind: orgKind(o)
+    kind: orgKind(o.primaryOrganizationType)
   };
 }
 async function byVanity(vanity, ref) {
@@ -37027,7 +36977,7 @@ async function byId(id, ref) {
   } catch (err) {
     if (err instanceof LinkedInApiError && (err.status === 403 || err.status === 404)) {
       throw new MentionError(
-        `${describe3(ref)} does not resolve (HTTP ${err.status}): LinkedIn only shows this app organizations that the authorizing member administers, by id. Write it as @[Name](linkedin.com/company/<vanity>) or linkedin.com/school/<vanity> instead; the connector then looks up its exact name. Nothing was published.`
+        `${describe3(ref)} does not resolve (HTTP ${err.status}): by id, LinkedIn only shows this app organizations that the authorizing member administers. Use the address of the organization's page by its vanity name instead, e.g. @[Name](linkedin.com/company/<vanity>); the connector then looks up its exact name. Nothing was published.`
       );
     }
     throw wrap(err, ref);
@@ -37039,7 +36989,7 @@ function wrap(err, ref) {
     `${describe3(ref)} could not be resolved: ${msg} Nothing was published.`
   );
 }
-function cacheKey(t) {
+function targetKey(t) {
   switch (t.kind) {
     case "org-id":
       return `org:${t.id}`;
@@ -37049,77 +36999,87 @@ function cacheKey(t) {
       return `vanity:${t.vanity.toLowerCase()}`;
   }
 }
-var MentionResolver = class {
-  constructor(now = Date.now, ttlMs = TOKEN_TTL_MS) {
-    this.now = now;
-    this.ttlMs = ttlMs;
+async function composeText(segments, known = []) {
+  const targets = /* @__PURE__ */ new Map();
+  const keyOf = /* @__PURE__ */ new Map();
+  for (const s of segments) {
+    if (!("mention" in s)) continue;
+    const target = classify(s.mention);
+    if (!target)
+      throw new MentionError(`${describe3(s.mention)} is not a mention.`);
+    const key = targetKey(target);
+    keyOf.set(s.mention, key);
+    if (!targets.has(key)) targets.set(key, { target, ref: s.mention });
   }
-  now;
-  ttlMs;
-  cache = /* @__PURE__ */ new Map();
-  /** Resolve every mention, in order. The first failure aborts the lot. */
-  async resolve(refs) {
-    const out = [];
-    for (const ref of refs) {
-      const target = classify(ref);
-      if (!target) throw new MentionError(`${describe3(ref)} is not a mention.`);
-      const entity = await this.entity(target, ref);
-      out.push({
-        typed: ref.typed,
-        target: ref.target,
-        urn: entity.urn,
-        name: entity.name ?? ref.typed,
-        kind: entity.kind,
-        verified: entity.name !== void 0
-      });
-    }
-    return out;
-  }
-  async entity(t, ref) {
-    const key = cacheKey(t);
-    const hit = this.cache.get(key);
-    if (hit && hit.expiresAt > this.now()) return hit.entity;
-    let entity;
-    if (t.kind === "person") entity = { urn: t.urn, kind: "person" };
-    else if (t.kind === "org-id") entity = await byId(t.id, ref);
-    else entity = await byVanity(t.vanity, ref);
-    this.cache.set(key, { entity, expiresAt: this.now() + this.ttlMs });
-    return entity;
-  }
-};
-function pair(segments, resolved) {
-  const refs = mentionRefs(segments);
-  if (refs.length !== resolved.length) {
-    throw new MentionError(
-      `Internal error: ${refs.length} mention(s) in the text but ${resolved.length} resolved. Nothing was published.`
-    );
-  }
-  let i = 0;
-  return segments.map((s) => "mention" in s ? { mention: resolved[i++] } : s);
+  const seeded = new Map(known.map((k) => [k.id, k]));
+  const entries = await Promise.all(
+    [...targets].map(async ([key, { target, ref }]) => {
+      let entity;
+      if (target.kind === "person") {
+        entity = { urn: target.urn, kind: "person" };
+      } else if (target.kind === "org-id" && seeded.get(target.id)?.localizedName) {
+        const k = seeded.get(target.id);
+        entity = orgEntity(
+          {
+            id: Number(k.id),
+            localizedName: k.localizedName,
+            primaryOrganizationType: k.primaryOrganizationType
+          },
+          ref
+        );
+      } else if (target.kind === "org-id") {
+        entity = await byId(target.id, ref);
+      } else {
+        entity = await byVanity(target.vanity, ref);
+      }
+      return [key, entity];
+    })
+  );
+  const entities = new Map(entries);
+  return segments.map((s) => {
+    if (!("mention" in s)) return s;
+    const e = entities.get(keyOf.get(s.mention));
+    return {
+      mention: {
+        typed: s.mention.typed,
+        target: s.mention.target,
+        urn: e.urn,
+        name: e.name ?? s.mention.typed,
+        kind: e.kind,
+        verified: e.name !== void 0
+      }
+    };
+  });
 }
-function visibleText(segments, resolved) {
-  return pair(segments, resolved).map((s) => "mention" in s ? s.mention.name : s.text).join("");
+function mentionsOf(pieces) {
+  return pieces.flatMap((p) => "mention" in p ? [p.mention] : []);
 }
-function postCommentary(segments, resolved, escape2, escapeName) {
+function plainRuns(segments) {
+  return segments.flatMap((s) => "text" in s ? [s.text] : []);
+}
+function visibleText(pieces) {
+  return pieces.map((p) => "mention" in p ? p.mention.name : p.text).join("");
+}
+function postCommentary(pieces, escape2, escapeName) {
   let out = "";
   let prev = "";
-  for (const s of pair(segments, resolved)) {
-    if ("mention" in s) {
-      out += `@[${escapeName(s.mention.name)}](${s.mention.urn})`;
-      prev = Array.from(s.mention.name).pop() ?? prev;
+  for (const p of pieces) {
+    if ("mention" in p) {
+      out += `@[${escapeName(p.mention.name)}](${p.mention.urn})`;
+      prev = Array.from(p.mention.name).pop() ?? prev;
     } else {
-      out += escape2(s.text, prev);
-      prev = Array.from(s.text).pop() ?? prev;
+      out += escape2(p.text, prev);
+      prev = Array.from(p.text).pop() ?? prev;
     }
   }
   return out;
 }
-function commentMessage(segments, resolved) {
+function commentMessage(pieces) {
   let text = "";
   const attributes = [];
-  for (const s of pair(segments, resolved)) {
-    if ("mention" in s) {
-      const m = s.mention;
+  for (const p of pieces) {
+    if ("mention" in p) {
+      const m = p.mention;
       attributes.push({
         start: text.length,
         length: m.name.length,
@@ -37127,15 +37087,15 @@ function commentMessage(segments, resolved) {
       });
       text += m.name;
     } else {
-      text += s.text;
+      text += p.text;
     }
   }
   return { text, attributes };
 }
-function describeMentions(resolved) {
-  if (!resolved.length) return [];
+function describeMentions(mentions, reserved) {
+  if (!mentions.length) return [];
   const lines = ["Mentions:"];
-  for (const m of resolved) {
+  for (const m of mentions) {
     lines.push(`  \u2022 ${m.name} \u2014 ${m.kind} \u2014 ${m.urn}`);
     if (!m.verified) {
       lines.push(
@@ -37146,12 +37106,20 @@ function describeMentions(resolved) {
         `      you wrote "${m.typed}"; LinkedIn's name is "${m.name}", and that is what will be published (a different name would not link).`
       );
     }
+    if (reserved?.(m.name)) {
+      lines.push(
+        "      WARNING: this name contains characters that LinkedIn post markup reserves. They are escaped, but whether LinkedIn still matches an escaped name is not verified: the tag may render as plain text. Check the post after publishing."
+      );
+    }
   }
   return lines;
 }
 
 // src/core.ts
 var MAX_POST_CHARS = 3e3;
+function commentaryLength(commentary) {
+  return commentary.length;
+}
 var IMAGE_TYPES = {
   ".jpg": "JPG",
   ".jpeg": "JPG",
@@ -37202,6 +37170,9 @@ function escapeLittle(text, before = "") {
   }
   return out;
 }
+function hasLittleReserved(text) {
+  return Array.from(text).some((c) => LITTLE_RESERVED.has(c));
+}
 function escapeLittleAll(text) {
   return Array.from(text).map((c) => LITTLE_RESERVED.has(c) ? `\\${c}` : c).join("");
 }
@@ -37243,7 +37214,7 @@ function inspectMedia(kind, path) {
     name: (0, import_node_path.basename)(path),
     type,
     bytes: data.length,
-    sha256: (0, import_node_crypto3.createHash)("sha256").update(data).digest("hex"),
+    sha256: (0, import_node_crypto2.createHash)("sha256").update(data).digest("hex"),
     data
   };
 }
@@ -37291,15 +37262,13 @@ function organizationId(urn) {
 async function getPage() {
   const { organization } = loadConfig();
   const id = organizationId(organization);
-  const res = await request(
-    "GET",
-    `organizations/${id}`
-  );
+  const res = await request("GET", `organizations/${id}`);
   return {
     urn: organization,
     id,
     name: res.body.localizedName,
-    vanityName: res.body.vanityName
+    vanityName: res.body.vanityName,
+    primaryOrganizationType: res.body.primaryOrganizationType
   };
 }
 function postUrl(urn) {
@@ -37336,12 +37305,7 @@ async function listPosts(count = 10, start = 0) {
 function buildPostBody(organization, post) {
   const body = {
     author: organization,
-    commentary: postCommentary(
-      parseMentions(post.text),
-      post.mentions ?? [],
-      escapeLittle,
-      escapeLittleAll
-    ),
+    commentary: commentaryOf(post.pieces),
     visibility: "PUBLIC",
     distribution: {
       feedDistribution: "MAIN_FEED",
@@ -37360,6 +37324,9 @@ function buildPostBody(organization, post) {
     body.content = { media };
   }
   return body;
+}
+function commentaryOf(pieces) {
+  return postCommentary(pieces, escapeLittle, escapeLittleAll);
 }
 async function createPost(post) {
   const { organization } = loadConfig();
@@ -37419,7 +37386,7 @@ async function listComments(target, count = 20, start = 0) {
   }));
 }
 function buildCommentBody(organization, c) {
-  const message = commentMessage(parseMentions(c.text), c.mentions ?? []);
+  const message = commentMessage(c.pieces);
   const body = {
     actor: organization,
     object: c.postUrn,
@@ -37506,6 +37473,61 @@ function logAction(entry) {
   }
 }
 
+// src/gate.ts
+var import_node_crypto3 = require("node:crypto");
+var TOKEN_TTL_MS = 15 * 60 * 1e3;
+function fingerprint(value) {
+  return (0, import_node_crypto3.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
+}
+var ConfirmationGate = class {
+  constructor(now = Date.now) {
+    this.now = now;
+  }
+  now;
+  pending = /* @__PURE__ */ new Map();
+  /** `payload` is what the preview resolved and the publish must reuse. */
+  issue(action, fp, payload) {
+    this.sweep();
+    const token = (0, import_node_crypto3.randomBytes)(12).toString("hex");
+    this.pending.set(token, {
+      action,
+      fingerprint: fp,
+      expiresAt: this.now() + TOKEN_TTL_MS,
+      payload
+    });
+    return token;
+  }
+  /** Spend a token. Any presented token is consumed whatever the outcome, so a
+   *  token that failed once (wrong content, wrong tool) cannot be retried. */
+  redeem(action, token, fp) {
+    return this.claim(action, token, fp).verdict;
+  }
+  /** redeem(), also handing back the preview's payload when the token is good. */
+  claim(action, token, fp) {
+    const p = this.pending.get(token);
+    if (!p) return { verdict: "unknown" };
+    this.pending.delete(token);
+    if (p.expiresAt <= this.now()) return { verdict: "expired" };
+    if (p.action !== action || p.fingerprint !== fp)
+      return { verdict: "mismatch" };
+    return { verdict: "ok", payload: p.payload };
+  }
+  sweep() {
+    const t = this.now();
+    for (const [k, v] of this.pending)
+      if (v.expiresAt <= t) this.pending.delete(k);
+  }
+};
+function refusal(result) {
+  const why = {
+    unknown: "that confirm_token was never issued by this server, or was already used (tokens are single-use and do not survive a restart).",
+    expired: `that confirm_token expired (they last ${TOKEN_TTL_MS / 6e4} minutes).`,
+    mismatch: "the content is not what was previewed: the text, the target or the attached file changed after the preview. The token is now spent."
+  }[result];
+  return `REFUSED \u2014 nothing was published: ${why}
+Call the tool again WITHOUT confirm_token to get a fresh preview, show it to the person you work for, and confirm only after their explicit yes.`;
+}
+
 // src/tools.ts
 function ok(text) {
   return { content: [{ type: "text", text }] };
@@ -37518,8 +37540,20 @@ var iso = (ms) => ms ? new Date(ms).toISOString() : "(unknown)";
 var indent = (s) => s.replace(/\n/g, "\n    ");
 var CONFIRM_INSTRUCTIONS = "This is a PREVIEW. Nothing has been published. Show the person you work for exactly what is above, and get an explicit yes. Then call this tool again with the SAME arguments plus confirm_token. Do not confirm on their behalf. If they change anything, preview again.";
 var OUTWARD = "OUTWARD-FACING: it publishes AS THE ORGANIZATION PAGE, visible to the public and to every follower, and this connector cannot delete or edit it afterwards. Two-phase: called without confirm_token it publishes nothing and returns a preview plus a single-use confirm_token; show the preview to the human and call again with the same arguments and the token ONLY after their explicit yes. Never confirm on your own.";
-var MENTIONS = "To tag an organization or a person, write @[Name](target) in the text, where target is linkedin.com/company/<vanity>, linkedin.com/school/<vanity>, urn:li:organization:<id> (only for organizations the authorizing member administers) or urn:li:person:<id> (a person cannot be looked up by name or profile URL; linkedin_list_comments shows commenters' URNs). The connector looks organizations up and publishes LinkedIn's exact name for them, whatever was typed; the preview lists every mention. A mention that does not resolve fails the whole call. A bare @handle stays plain text.";
-var boundMentions = (m) => m.map(({ urn, name }) => ({ urn, name }));
+var MENTIONS = "To tag an organization or a person, write @[Name](target) in the text. The target is the address of a LinkedIn company or school page (as pasted from a browser, e.g. https://www.linkedin.com/company/<vanity>/), urn:li:organization:<id> (only for organizations the authorizing member administers) or urn:li:person:<id> (a person cannot be looked up by name or profile URL; linkedin_list_comments shows commenters' URNs). The connector looks organizations up and publishes LinkedIn's exact name for them, whatever was typed; the preview lists every mention. A mention that does not resolve fails the whole call. A bare @handle stays plain text.";
+var loggedMentions = (m) => m.length ? m.map(({ urn, name }) => ({ urn, name })) : void 0;
+var knownPage = (page) => [
+  {
+    id: page.id,
+    localizedName: page.name,
+    primaryOrganizationType: page.primaryOrganizationType
+  }
+];
+function tooLong(length) {
+  return new Error(
+    `The post is ${length} characters as LinkedIn receives it (escapes and mention markup included); LinkedIn allows ${MAX_POST_CHARS}.`
+  );
+}
 function formatStats(s) {
   const n = (v) => v === void 0 ? "0" : String(v);
   return [
@@ -37541,7 +37575,7 @@ function formatComment(c) {
     `    ${indent(c.text)}`
   ].join("\n");
 }
-function registerTools(server, gate = new ConfirmationGate(), resolver = new MentionResolver()) {
+function registerTools(server, gate = new ConfirmationGate()) {
   server.registerTool(
     "linkedin_whoami",
     {
@@ -37627,7 +37661,6 @@ function registerTools(server, gate = new ConfirmationGate(), resolver = new Men
       try {
         const { organization } = loadConfig();
         const text = args.text;
-        const segments = parseMentions(text);
         if (args.image_path && args.document_path) {
           throw new Error("Attach an image OR a document, not both.");
         }
@@ -37637,20 +37670,16 @@ function registerTools(server, gate = new ConfirmationGate(), resolver = new Men
         if (args.document_title && !args.document_path) {
           throw new Error("document_title needs document_path.");
         }
+        const segments = parseMentions(text);
+        const floor = commentaryLength(
+          plainRuns(segments).map((t) => escapeLittle(t)).join("")
+        );
+        if (floor > MAX_POST_CHARS) throw tooLong(floor);
         const media = args.image_path ? inspectMedia("image", args.image_path) : args.document_path ? inspectMedia("document", args.document_path) : void 0;
         const title = media?.kind === "document" ? args.document_title ?? media.name : void 0;
-        const mentions = await resolver.resolve(mentionRefs(segments));
-        const shown = visibleText(segments, mentions);
-        const length = Array.from(shown).length;
-        if (length > MAX_POST_CHARS) {
-          throw new Error(
-            `The text is ${length} characters; LinkedIn allows ${MAX_POST_CHARS}.`
-          );
-        }
         const fp = fingerprint({
           organization,
           text,
-          mentions: boundMentions(mentions),
           media: media ? {
             kind: media.kind,
             sha256: media.sha256,
@@ -37658,59 +37687,65 @@ function registerTools(server, gate = new ConfirmationGate(), resolver = new Men
             title
           } : null
         });
-        if (!args.confirm_token) {
-          const page = await getPage();
-          const token = gate.issue("post", fp);
+        if (args.confirm_token) {
+          const claim2 = gate.claim("post", args.confirm_token, fp);
+          if (claim2.verdict !== "ok") return ok(refusal(claim2.verdict));
+          const { pieces: pieces2 } = claim2.payload;
+          const length2 = commentaryLength(commentaryOf(pieces2));
+          if (length2 > MAX_POST_CHARS) throw tooLong(length2);
+          const mediaUrn = media ? await uploadMedia(media) : void 0;
+          const urn = await createPost({
+            pieces: pieces2,
+            media: media && mediaUrn ? {
+              urn: mediaUrn,
+              kind: media.kind,
+              altText: args.image_alt_text,
+              title
+            } : void 0
+          });
+          const log = logAction({
+            action: "post",
+            organization,
+            urn,
+            text,
+            media: media ? { kind: media.kind, name: media.name, sha256: media.sha256 } : void 0,
+            mentions: loggedMentions(mentionsOf(pieces2))
+          });
           return ok(
             [
-              "PREVIEW \u2014 post on LinkedIn",
-              "",
-              `As:        ${page.name ?? page.urn} (${page.urn})`,
-              "Audience:  public, main feed",
-              ...media ? [
-                `Attached:  ${media.kind} ${media.name} (${media.type}, ${(media.bytes / 1024).toFixed(0)} KB)`,
-                ...title ? [`Title:     ${title}`] : [],
-                ...args.image_alt_text ? [`Alt text:  ${args.image_alt_text}`] : []
-              ] : [],
-              `Length:    ${length} characters`,
-              "",
-              "\u2500\u2500\u2500\u2500 text \u2500\u2500\u2500\u2500",
-              shown,
-              "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
-              ...mentions.length ? ["", ...describeMentions(mentions)] : [],
-              "",
-              CONFIRM_INSTRUCTIONS,
-              `confirm_token: ${token}`
+              `PUBLISHED as ${organization}`,
+              `post: ${urn}`,
+              `link: ${postUrl(urn)}`,
+              log.logged ? `logged to ${log.path}` : `(not logged locally: ${log.error})`
             ].join("\n")
           );
         }
-        const verdict = gate.redeem("post", args.confirm_token, fp);
-        if (verdict !== "ok") return ok(refusal(verdict));
-        const mediaUrn = media ? await uploadMedia(media) : void 0;
-        const urn = await createPost({
-          text,
-          mentions,
-          media: media && mediaUrn ? {
-            urn: mediaUrn,
-            kind: media.kind,
-            altText: args.image_alt_text,
-            title
-          } : void 0
-        });
-        const log = logAction({
-          action: "post",
-          organization,
-          urn,
-          text,
-          media: media ? { kind: media.kind, name: media.name, sha256: media.sha256 } : void 0,
-          mentions: mentions.length ? boundMentions(mentions) : void 0
-        });
+        const page = await getPage();
+        const pieces = await composeText(segments, knownPage(page));
+        const length = commentaryLength(commentaryOf(pieces));
+        if (length > MAX_POST_CHARS) throw tooLong(length);
+        const mentions = mentionsOf(pieces);
+        const token = gate.issue("post", fp, { pieces });
         return ok(
           [
-            `PUBLISHED as ${organization}`,
-            `post: ${urn}`,
-            `link: ${postUrl(urn)}`,
-            log.logged ? `logged to ${log.path}` : `(not logged locally: ${log.error})`
+            "PREVIEW \u2014 post on LinkedIn",
+            "",
+            `As:        ${page.name ?? page.urn} (${page.urn})`,
+            "Audience:  public, main feed",
+            ...media ? [
+              `Attached:  ${media.kind} ${media.name} (${media.type}, ${(media.bytes / 1024).toFixed(0)} KB)`,
+              ...title ? [`Title:     ${title}`] : [],
+              ...args.image_alt_text ? [`Alt text:  ${args.image_alt_text}`] : []
+            ] : [],
+            `Length:    ${length} of ${MAX_POST_CHARS} characters, as LinkedIn receives it`,
+            "",
+            "\u2500\u2500\u2500\u2500 text \u2500\u2500\u2500\u2500",
+            visibleText(pieces),
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+            ...mentions.length ? ["", ...describeMentions(mentions, hasLittleReserved)] : [],
+            "",
+            CONFIRM_INSTRUCTIONS,
+            `confirm_token: ${token}`
           ].join("\n")
         );
       } catch (err) {
@@ -37778,62 +37813,62 @@ function registerTools(server, gate = new ConfirmationGate(), resolver = new Men
           assertReplyMatchesPost(args.post_urn, args.parent_comment_urn);
         }
         const segments = parseMentions(args.text);
-        const mentions = await resolver.resolve(mentionRefs(segments));
-        const shown = visibleText(segments, mentions);
         const fp = fingerprint({
           organization,
           post: args.post_urn,
           parent: args.parent_comment_urn ?? null,
-          text: args.text,
-          mentions: boundMentions(mentions)
+          text: args.text
         });
-        if (!args.confirm_token) {
-          const page = await getPage();
-          const token = gate.issue("comment", fp);
+        if (args.confirm_token) {
+          const claim2 = gate.claim("comment", args.confirm_token, fp);
+          if (claim2.verdict !== "ok") return ok(refusal(claim2.verdict));
+          const { pieces: pieces2 } = claim2.payload;
+          const urn = await createComment({
+            postUrn: args.post_urn,
+            parentCommentUrn: args.parent_comment_urn,
+            pieces: pieces2
+          });
+          const log = logAction({
+            action: "comment",
+            organization,
+            urn,
+            text: args.text,
+            target: args.parent_comment_urn ?? args.post_urn,
+            mentions: loggedMentions(mentionsOf(pieces2))
+          });
           return ok(
             [
-              `PREVIEW \u2014 ${args.parent_comment_urn ? "reply" : "comment"} on LinkedIn`,
-              "",
-              `As:        ${page.name ?? page.urn} (${page.urn})`,
-              `On post:   ${args.post_urn}`,
-              `           ${postUrl(args.post_urn)}`,
-              ...args.parent_comment_urn ? [
-                `Reply to:  ${args.parent_comment_urn}`,
-                "           (it lands in this comment's thread)"
-              ] : [],
-              "",
-              "\u2500\u2500\u2500\u2500 text \u2500\u2500\u2500\u2500",
-              shown,
-              "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
-              ...mentions.length ? ["", ...describeMentions(mentions)] : [],
-              "",
-              CONFIRM_INSTRUCTIONS,
-              `confirm_token: ${token}`
+              `PUBLISHED as ${organization}`,
+              `comment: ${urn}`,
+              `on: ${postUrl(args.post_urn)}`,
+              log.logged ? `logged to ${log.path}` : `(not logged locally: ${log.error})`
             ].join("\n")
           );
         }
-        const verdict = gate.redeem("comment", args.confirm_token, fp);
-        if (verdict !== "ok") return ok(refusal(verdict));
-        const urn = await createComment({
-          postUrn: args.post_urn,
-          parentCommentUrn: args.parent_comment_urn,
-          text: args.text,
-          mentions
-        });
-        const log = logAction({
-          action: "comment",
-          organization,
-          urn,
-          text: args.text,
-          target: args.parent_comment_urn ?? args.post_urn,
-          mentions: mentions.length ? boundMentions(mentions) : void 0
-        });
+        const page = await getPage();
+        const pieces = await composeText(segments, knownPage(page));
+        const mentions = mentionsOf(pieces);
+        const token = gate.issue("comment", fp, { pieces });
         return ok(
           [
-            `PUBLISHED as ${organization}`,
-            `comment: ${urn}`,
-            `on: ${postUrl(args.post_urn)}`,
-            log.logged ? `logged to ${log.path}` : `(not logged locally: ${log.error})`
+            `PREVIEW \u2014 ${args.parent_comment_urn ? "reply" : "comment"} on LinkedIn`,
+            "",
+            `As:        ${page.name ?? page.urn} (${page.urn})`,
+            `On post:   ${args.post_urn}`,
+            `           ${postUrl(args.post_urn)}`,
+            ...args.parent_comment_urn ? [
+              `Reply to:  ${args.parent_comment_urn}`,
+              "           (it lands in this comment's thread)"
+            ] : [],
+            "",
+            "\u2500\u2500\u2500\u2500 text \u2500\u2500\u2500\u2500",
+            visibleText(pieces),
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+            // Comments are plain text, not post markup: no reserved characters.
+            ...mentions.length ? ["", ...describeMentions(mentions)] : [],
+            "",
+            CONFIRM_INSTRUCTIONS,
+            `confirm_token: ${token}`
           ].join("\n")
         );
       } catch (err) {

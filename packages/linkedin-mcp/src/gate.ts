@@ -18,7 +18,10 @@
 //     so a retry after a timeout can never publish twice;
 //   · short-lived — it expires, so an approval from an hour ago does not
 //     quietly authorize something now;
-//   · in memory only — restarting the server voids every pending approval.
+//   · in memory only — restarting the server voids every pending approval;
+//   · carrying what was resolved for the preview (the mentions, looked up on
+//     LinkedIn) — redeeming hands it back, so the publish sends exactly what was
+//     shown, with no new lookup, and a bad token costs no network call at all.
 //
 // There is deliberately no bypass flag.
 
@@ -34,6 +37,7 @@ interface Pending {
   action: GateAction;
   fingerprint: string;
   expiresAt: number;
+  payload?: unknown;
 }
 
 export function fingerprint(value: unknown): string {
@@ -45,13 +49,15 @@ export class ConfirmationGate {
 
   constructor(private readonly now: () => number = Date.now) {}
 
-  issue(action: GateAction, fp: string): string {
+  /** `payload` is what the preview resolved and the publish must reuse. */
+  issue(action: GateAction, fp: string, payload?: unknown): string {
     this.sweep();
     const token = randomBytes(12).toString('hex');
     this.pending.set(token, {
       action,
       fingerprint: fp,
       expiresAt: this.now() + TOKEN_TTL_MS,
+      payload,
     });
     return token;
   }
@@ -59,12 +65,22 @@ export class ConfirmationGate {
   /** Spend a token. Any presented token is consumed whatever the outcome, so a
    *  token that failed once (wrong content, wrong tool) cannot be retried. */
   redeem(action: GateAction, token: string, fp: string): RedeemResult {
+    return this.claim(action, token, fp).verdict;
+  }
+
+  /** redeem(), also handing back the preview's payload when the token is good. */
+  claim<T = unknown>(
+    action: GateAction,
+    token: string,
+    fp: string,
+  ): { verdict: RedeemResult; payload?: T } {
     const p = this.pending.get(token);
-    if (!p) return 'unknown';
+    if (!p) return { verdict: 'unknown' };
     this.pending.delete(token);
-    if (p.expiresAt <= this.now()) return 'expired';
-    if (p.action !== action || p.fingerprint !== fp) return 'mismatch';
-    return 'ok';
+    if (p.expiresAt <= this.now()) return { verdict: 'expired' };
+    if (p.action !== action || p.fingerprint !== fp)
+      return { verdict: 'mismatch' };
+    return { verdict: 'ok', payload: p.payload as T };
   }
 
   private sweep(): void {

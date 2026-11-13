@@ -21,6 +21,18 @@ describe('ConfirmationGate', () => {
     );
   });
 
+  it('hands back the payload only to a good redemption', () => {
+    const gate = new ConfirmationGate();
+    const plan = { pieces: [{ text: 'hola' }] };
+    const t = gate.issue('post', fp, plan);
+    assert.deepEqual(gate.claim('post', t, fp), {
+      verdict: 'ok',
+      payload: plan,
+    });
+    const u = gate.issue('post', fp, plan);
+    assert.deepEqual(gate.claim('comment', u, fp), { verdict: 'mismatch' });
+  });
+
   it('issues random tokens, never a function of the content', () => {
     const gate = new ConfirmationGate();
     assert.notEqual(gate.issue('post', fp), gate.issue('post', fp));
