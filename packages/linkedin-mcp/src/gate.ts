@@ -62,13 +62,9 @@ export class ConfirmationGate {
     return token;
   }
 
-  /** Spend a token. Any presented token is consumed whatever the outcome, so a
-   *  token that failed once (wrong content, wrong tool) cannot be retried. */
-  redeem(action: GateAction, token: string, fp: string): RedeemResult {
-    return this.claim(action, token, fp).verdict;
-  }
-
-  /** redeem(), also handing back the preview's payload when the token is good. */
+  /** Spend a token, handing back the preview's payload when it is good. Any
+   *  presented token is consumed whatever the outcome, so a token that failed
+   *  once (wrong content, wrong tool) cannot be retried. */
   claim<T = unknown>(
     action: GateAction,
     token: string,

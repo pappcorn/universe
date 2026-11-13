@@ -29,9 +29,9 @@ import {
   listPosts,
   logAction,
   MAX_POST_CHARS,
-  commentaryLength,
+  MAX_COMMENT_CHARS,
+  charCount,
   commentaryOf,
-  escapeLittle,
   hasLittleReserved,
   type PageInfo,
   pageStats,
@@ -88,7 +88,8 @@ const MENTIONS =
   "be looked up by name or profile URL; linkedin_list_comments shows commenters' URNs). The " +
   "connector looks organizations up and publishes LinkedIn's exact name for them, whatever " +
   'was typed; the preview lists every mention. A mention that does not resolve fails the ' +
-  'whole call. A bare @handle stays plain text.';
+  'whole call, as does any other @[Name](...) except a link to another website, which stays ' +
+  'plain text. A bare @handle stays plain text.';
 
 /** Mentions as the local log records them: who got tagged, under what name. */
 const loggedMentions = (m: ResolvedMention[]) =>
@@ -104,15 +105,23 @@ interface Plan {
 const knownPage = (page: PageInfo): KnownOrganization[] => [
   {
     id: page.id,
+    vanityName: page.vanityName,
     localizedName: page.name,
     primaryOrganizationType: page.primaryOrganizationType,
   },
 ];
 
-function tooLong(length: number): Error {
-  return new Error(
-    `The post is ${length} characters as LinkedIn receives it (escapes and mention markup ` +
-      `included); LinkedIn allows ${MAX_POST_CHARS}.`,
+function tooLong(length: number, max: number): Error {
+  return new Error(`The text is ${length} characters; LinkedIn allows ${max}.`);
+}
+
+/** A floor on the length of the text as readers see it, with no I/O: the text
+ *  around the mentions, plus one character per mention (a name is never
+ *  empty). */
+function lengthFloor(segments: ReturnType<typeof parseMentions>): number {
+  return (
+    charCount(plainRuns(segments).join('')) +
+    segments.filter((x) => 'mention' in x).length
   );
 }
 
@@ -309,15 +318,11 @@ export function registerTools(
         if (args.document_title && !args.document_path) {
           throw new Error('document_title needs document_path.');
         }
-        // No I/O yet. The text around the mentions, escaped, is a floor on the
-        // commentary's length, so a post that cannot fit stops here.
+        // No I/O yet: a post that cannot fit, whatever its mentions resolve
+        // to, stops here.
         const segments = parseMentions(text);
-        const floor = commentaryLength(
-          plainRuns(segments)
-            .map((t) => escapeLittle(t))
-            .join(''),
-        );
-        if (floor > MAX_POST_CHARS) throw tooLong(floor);
+        const floor = lengthFloor(segments);
+        if (floor > MAX_POST_CHARS) throw tooLong(floor, MAX_POST_CHARS);
 
         const media = args.image_path
           ? inspectMedia('image', args.image_path)
@@ -346,11 +351,9 @@ export function registerTools(
           // The token first: a bad one is refused with no network call.
           const claim = gate.claim<Plan>('post', args.confirm_token, fp);
           if (claim.verdict !== 'ok') return ok(refusal(claim.verdict));
+          // The length was checked at preview, on these same pieces: nothing
+          // below refuses on length, so an upload is never left orphaned by us.
           const { pieces } = claim.payload as Plan;
-          // Checked at preview on these same pieces; re-checked here, with no
-          // I/O, so a length refusal can never come after an upload.
-          const length = commentaryLength(commentaryOf(pieces));
-          if (length > MAX_POST_CHARS) throw tooLong(length);
 
           const mediaUrn = media ? await uploadMedia(media) : undefined;
           const urn = await createPost({
@@ -390,8 +393,12 @@ export function registerTools(
         // Preview. A mention that does not resolve stops here, before any token.
         const page = await getPage();
         const pieces = await composeText(segments, knownPage(page));
-        const length = commentaryLength(commentaryOf(pieces));
-        if (length > MAX_POST_CHARS) throw tooLong(length);
+        const shown = visibleText(pieces);
+        const length = charCount(shown);
+        if (length > MAX_POST_CHARS) throw tooLong(length, MAX_POST_CHARS);
+        // What LinkedIn validates is the commentary, markup and escapes
+        // included, in an undocumented unit: warn, do not refuse.
+        const sent = commentaryOf(pieces).length;
         const mentions = mentionsOf(pieces);
         const token = gate.issue('post', fp, { pieces } satisfies Plan);
         return ok(
@@ -411,10 +418,17 @@ export function registerTools(
                     : []),
                 ]
               : []),
-            `Length:    ${length} of ${MAX_POST_CHARS} characters, as LinkedIn receives it`,
+            `Length:    ${length} characters`,
+            ...(sent > MAX_POST_CHARS
+              ? [
+                  `WARNING:   as LinkedIn receives it (escapes and mention markup included) the ` +
+                    `post is ${sent} characters, over its ${MAX_POST_CHARS}. LinkedIn may refuse ` +
+                    'it at publish time; if it does, nothing is published. Shorten it to be safe.',
+                ]
+              : []),
             '',
             '──── text ────',
-            visibleText(pieces),
+            shown,
             '──────────────',
             ...(mentions.length
               ? ['', ...describeMentions(mentions, hasLittleReserved)]
@@ -514,8 +528,9 @@ export function registerTools(
           .string()
           .min(1)
           .describe(
-            'The comment text, exactly as it should appear, with any mention written ' +
-              '@[Name](target).',
+            `The comment text, exactly as it should appear (max ${MAX_COMMENT_CHARS} ` +
+              "characters, counted with each mention as LinkedIn's name for it), with any " +
+              'mention written @[Name](target).',
           ),
         confirm_token: z
           .string()
@@ -535,6 +550,9 @@ export function registerTools(
         }
 
         const segments = parseMentions(args.text);
+        // No I/O yet: a comment that cannot fit stops here.
+        const floor = lengthFloor(segments);
+        if (floor > MAX_COMMENT_CHARS) throw tooLong(floor, MAX_COMMENT_CHARS);
         const fp = fingerprint({
           organization,
           post: args.post_urn,
@@ -575,6 +593,12 @@ export function registerTools(
         // Preview. A mention that does not resolve stops here, before any token.
         const page = await getPage();
         const pieces = await composeText(segments, knownPage(page));
+        // Counted on the text with LinkedIn's names in place: a short typed
+        // name can expand past the limit.
+        const shown = visibleText(pieces);
+        const length = charCount(shown);
+        if (length > MAX_COMMENT_CHARS)
+          throw tooLong(length, MAX_COMMENT_CHARS);
         const mentions = mentionsOf(pieces);
         const token = gate.issue('comment', fp, { pieces } satisfies Plan);
         return ok(
@@ -592,7 +616,7 @@ export function registerTools(
               : []),
             '',
             '──── text ────',
-            visibleText(pieces),
+            shown,
             '──────────────',
             // Comments are plain text, not post markup: no reserved characters.
             ...(mentions.length ? ['', ...describeMentions(mentions)] : []),

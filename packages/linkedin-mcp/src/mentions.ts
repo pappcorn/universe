@@ -3,15 +3,21 @@
 //
 // ONE SYNTAX, for posts and comments alike:
 //   @[Display Name](urn:li:organization:<id>)
-//   @[Display Name](urn:li:organizationBrand:<id>)   (same as organization:<id>)
 //   @[Display Name](urn:li:person:<id>)
 //   @[Display Name](<a LinkedIn company or school page address>)
 // The page address can be pasted from a browser as is: any LinkedIn host
 // (www., m., a country prefix), with or without https://, a sub-page such as
 // /about/ or /posts/, a query string, or a trailing slash. A numeric
 // linkedin.com/company/<digits> is the organization's id, not a vanity name.
-// Anything else keeps being plain text, escaped exactly as before: a bare
-// "@handle" is never a mention.
+// Anything else shaped like @[Name](...) fails the call, naming the mention,
+// so a typo never degrades to plain text. The one exception is a link to
+// another website, @[Name](https://example.com/...), which stays literal text
+// as it always was. A bare "@handle" is never a mention.
+//
+// urn:li:organizationBrand:<id> is refused rather than rewritten. LinkedIn's
+// Organization Lookup docs say brand pages are organizations now and are
+// addressed by urn:li:organization:<id>; the legacy URN is not something the
+// connector should translate behind the human's back.
 //
 // WHY THE CONNECTOR, NOT THE HUMAN, PICKS AN ORGANIZATION'S NAME. LinkedIn only
 // turns a mention into a link when the text equals the entity's name as LinkedIn
@@ -33,7 +39,7 @@
 //     cannot be checked: LinkedIn matches any one of the member's names.
 //
 // Mentions are resolved once, at preview, with each distinct target looked up
-// once and all of them in parallel. What was resolved is stored with the
+// once, a few at a time. What was resolved is stored with the
 // confirm token (gate.ts) and published as is: confirming makes no lookup.
 
 import { LinkedInApiError, request } from './api';
@@ -63,9 +69,9 @@ export interface ResolvedMention {
   verified: boolean;
 }
 
-/** Text with every mention already resolved: what the body builders take. A
- *  text run never contains a mention (see composeText), so nothing unresolved
- *  can reach LinkedIn. */
+/** Text with every mention already resolved: what the body builders take.
+ *  composeText is the only producer, and a text run it emits never contains a
+ *  mention, so nothing unresolved can reach LinkedIn. */
 export type Piece = { text: string } | { mention: ResolvedMention };
 
 /** A mention problem. Always raised before anything is published. */
@@ -77,10 +83,12 @@ export class MentionError extends Error {
 }
 
 // "@[" name "](" target ")". The name holds no brackets or line breaks; the
-// target no whitespace or parentheses.
-const MENTION = /@\[([^[\]\n]+)\]\(([^()\s]+)\)/g;
+// target no parentheses or line breaks. Spaces are allowed so that a stray one
+// is caught and reported, not skipped.
+const MENTION = /@\[([^[\]\n]+)\]\(([^()\n]*)\)/g;
 
-const ORG_URN = /^urn:li:(?:organization|organizationBrand):(\d+)$/;
+const ORG_URN = /^urn:li:organization:(\d+)$/;
+const BRAND_URN = /^urn:li:organizationBrand:(\d+)$/;
 const PERSON_URN = /^urn:li:person:([A-Za-z0-9_-]+)$/;
 // Anchored at the start, so a LinkedIn address quoted inside another site's URL
 // is not mistaken for one. Any LinkedIn host; then optional sub-page, query or
@@ -90,7 +98,6 @@ const PAGE_URL = new RegExp(
   `${LINKEDIN_HOST}(company|school)\\/([^/?#\\s]+)(?:[/?#]\\S*)?$`,
   'i',
 );
-const LINKEDIN_URL = new RegExp(LINKEDIN_HOST, 'i');
 const PROFILE_URL = new RegExp(`${LINKEDIN_HOST}in\\/`, 'i');
 
 export type Target =
@@ -102,10 +109,42 @@ function describe(ref: MentionRef): string {
   return `The mention ${ref.raw}`;
 }
 
+const ACCEPTED =
+  'Accepted forms: the address of a LinkedIn company or school page ' +
+  '(https://www.linkedin.com/company/<vanity>/ or .../school/<vanity>/), ' +
+  'urn:li:organization:<id>, or urn:li:person:<id>.';
+
+/** A link to a website that is not LinkedIn: the one @[Name](...) that stays
+ *  literal text. */
+function isForeignUrl(t: string): boolean {
+  if (!/^https?:\/\/\S+$/i.test(t)) return false;
+  let host: string;
+  try {
+    host = new URL(t).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return !(
+    host === 'linkedin.com' ||
+    host.endsWith('.linkedin.com') ||
+    host === 'lnkd.in'
+  );
+}
+
+/** What a mention's target points at, or null for a link to another website
+ *  (which stays plain text). Throws for anything else that is not a target the
+ *  connector can mention. */
 export function classify(ref: MentionRef): Target | null {
   const t = ref.target;
   const org = ORG_URN.exec(t);
   if (org) return { kind: 'org-id', id: org[1] };
+  if (BRAND_URN.test(t)) {
+    throw new MentionError(
+      `${describe(ref)} uses a brand URN. LinkedIn now addresses brand pages as ` +
+        'organizations: use urn:li:organization:<the same id>, or the address of the ' +
+        `page. ${ACCEPTED} Nothing was published.`,
+    );
+  }
   if (PERSON_URN.test(t)) return { kind: 'person', urn: t };
   const page = PAGE_URL.exec(t);
   if (page) {
@@ -119,24 +158,21 @@ export function classify(ref: MentionRef): Target | null {
     if (/^\d+$/.test(vanity)) return { kind: 'org-id', id: vanity };
     return { kind: 'vanity', vanity };
   }
-  // Something that is clearly meant as a mention but is not one we can make
-  // must not quietly become plain text.
-  if (/^urn:li:/i.test(t) || LINKEDIN_URL.test(t)) {
-    if (PROFILE_URL.test(t)) {
-      throw new MentionError(
-        `${describe(ref)} points at a member's profile URL. LinkedIn does not let this app ` +
-          'look people up, so a person can only be mentioned by an explicit ' +
-          'urn:li:person:<id> (linkedin_list_comments shows the URNs of people who comment). ' +
-          'Nothing was published.',
-      );
-    }
+  if (isForeignUrl(t)) return null;
+  // Everything else shaped like a mention is one we cannot make, and it must
+  // not quietly become plain text.
+  if (PROFILE_URL.test(t)) {
     throw new MentionError(
-      `${describe(ref)} has a target this connector cannot mention. Use ` +
-        'urn:li:organization:<id>, urn:li:person:<id>, or the address of a LinkedIn company ' +
-        'or school page. Nothing was published.',
+      `${describe(ref)} points at a member's profile URL. LinkedIn does not let this app ` +
+        'look people up, so a person can only be mentioned by an explicit ' +
+        'urn:li:person:<id> (linkedin_list_comments shows the URNs of people who comment). ' +
+        'Nothing was published.',
     );
   }
-  return null;
+  throw new MentionError(
+    `${describe(ref)} is not a target this connector can mention. ${ACCEPTED} A link to ` +
+      'another website, @[Name](https://...), stays plain text. Nothing was published.',
+  );
 }
 
 /** Split text into plain-text runs and mentions. Throws on a mention-shaped
@@ -161,18 +197,6 @@ export function parseMentions(text: string): Segment[] {
   return out;
 }
 
-/** Pieces for a text that must not contain mentions. Throws if it does, so a
- *  caller can never send a mention's markup without resolving it. */
-export function plainPieces(text: string): Piece[] {
-  const segs = parseMentions(text);
-  if (segs.some((s) => 'mention' in s)) {
-    throw new MentionError(
-      'This text contains mentions that were not resolved. Nothing was published.',
-    );
-  }
-  return text ? [{ text }] : [];
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
 // Resolution
 // ──────────────────────────────────────────────────────────────────────────────
@@ -188,6 +212,7 @@ interface RawOrganization {
  *  costs no second call. */
 export interface KnownOrganization {
   id: string;
+  vanityName?: string;
   localizedName?: string;
   primaryOrganizationType?: string;
 }
@@ -288,9 +313,33 @@ function targetKey(t: Target): string {
   }
 }
 
+/** How many lookups run at once: parallel enough to keep a preview quick, few
+ *  enough not to burst a Development-tier app's call budget. */
+export const LOOKUP_CONCURRENCY = 3;
+
+async function mapLimited<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  );
+  return out;
+}
+
 /** Resolve the text's mentions and return it as pieces. Each distinct target
- *  is looked up once, all in parallel; `known` organizations cost no call. Any
- *  mention that does not resolve fails the whole text. */
+ *  is looked up once, at most LOOKUP_CONCURRENCY at a time; `known`
+ *  organizations (by id or vanity name) cost no call. Any mention that does
+ *  not resolve fails the whole text. */
 export async function composeText(
   segments: Segment[],
   known: KnownOrganization[] = [],
@@ -308,16 +357,25 @@ export async function composeText(
   }
 
   const seeded = new Map(known.map((k) => [k.id, k]));
-  const entries = await Promise.all(
-    [...targets].map(async ([key, { target, ref }]) => {
+  const seededByVanity = new Map(
+    known
+      .filter((k) => k.vanityName)
+      .map((k) => [(k.vanityName as string).toLowerCase(), k]),
+  );
+  const entries = await mapLimited(
+    [...targets],
+    LOOKUP_CONCURRENCY,
+    async ([key, { target, ref }]) => {
       let entity: Entity;
+      const k =
+        target.kind === 'org-id'
+          ? seeded.get(target.id)
+          : target.kind === 'vanity'
+            ? seededByVanity.get(target.vanity.toLowerCase())
+            : undefined;
       if (target.kind === 'person') {
         entity = { urn: target.urn, kind: 'person' };
-      } else if (
-        target.kind === 'org-id' &&
-        seeded.get(target.id)?.localizedName
-      ) {
-        const k = seeded.get(target.id) as KnownOrganization;
+      } else if (k?.localizedName) {
         entity = orgEntity(
           {
             id: Number(k.id),
@@ -332,7 +390,7 @@ export async function composeText(
         entity = await byVanity(target.vanity, ref);
       }
       return [key, entity] as const;
-    }),
+    },
   );
   const entities = new Map(entries);
 
@@ -384,7 +442,8 @@ export function postCommentary(
   for (const p of pieces) {
     if ('mention' in p) {
       out += `@[${escapeName(p.mention.name)}](${p.mention.urn})`;
-      prev = Array.from(p.mention.name).pop() ?? prev;
+      // What LinkedIn parses right before the next run is the markup's ")".
+      prev = ')';
     } else {
       out += escape(p.text, prev);
       prev = Array.from(p.text).pop() ?? prev;

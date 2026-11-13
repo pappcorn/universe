@@ -100,9 +100,12 @@ them so they appear exactly as written. Two exceptions:
 - **Mentions work, in one syntax.** See below. A bare `@handle` stays plain text.
 
 Posts are capped at 3,000 characters, LinkedIn's limit, counted on the text as
-LinkedIn receives it: escapes and mention markup included, in UTF-16 code units
-(an emoji can count as 2). LinkedIn does not say which unit it counts, so the
-connector takes the stricter one.
+readers see it (a mention counts as the name it shows). LinkedIn validates the
+text it receives, escapes and mention markup included, so when that is longer
+than 3,000 the preview warns that LinkedIn may refuse the post; if it does,
+nothing is published. Comments are capped at 1,250 characters, the limit of
+LinkedIn's own interface, counted the same way: with each mention as
+LinkedIn's name for it, which can be longer than what you typed.
 
 ### Mentions
 
@@ -125,6 +128,14 @@ LinkedIn host (`www.`, `m.`, a country prefix), a sub-page such as `/about/` or
 `/posts/`, a query string such as `?viewAsMember=true`, a trailing slash. The
 connector keeps only the vanity name.
 
+Anything else written as `@[Name](…)` fails the call, naming the mention and
+the accepted forms, so a typo such as `@[Acme](acme)` or a stray space never
+turns into plain text. The one exception is a link to another website,
+`@[Name](https://example.com/…)`, which stays plain text as it always did. A
+legacy `urn:li:organizationBrand:<id>` is refused too: LinkedIn addresses brand
+pages as organizations now, so use `urn:li:organization:<id>` or the page
+address.
+
 - **The connector picks an organization's name, not you.** LinkedIn only turns a
   mention into a link when the text is the organization's full name exactly as
   LinkedIn has it; anything else silently shows as plain text. So every
@@ -146,8 +157,9 @@ connector keeps only the vanity name.
 - **The preview lists every mention** (name, kind, URN). What it resolved is
   kept with the confirm token, and confirming publishes exactly that: no new
   lookup, so a wrong or expired token is refused without calling LinkedIn.
-- **Each distinct target costs one API call**, at preview, all in parallel. A
-  mention of your own Page costs nothing extra.
+- **Each distinct target costs one API call**, at preview, at most three at a
+  time. A mention of your own Page, by URN or by its address, costs nothing
+  extra.
 - **A name with reserved characters gets a warning.** If an organization's name
   contains a character post markup reserves, such as `(` or `_`, the connector
   escapes it, but whether LinkedIn still matches an escaped name is not

@@ -25,8 +25,15 @@ All notable changes to `@pappcorn/linkedin-mcp`. This project follows
 - **What the preview resolved is kept with the confirm token.** Confirming
   redeems the token first, so a wrong or expired one is refused without any
   call to LinkedIn, and then publishes exactly the mentions that were shown,
-  with no new lookup. Each distinct target is looked up once, in parallel, and
-  a mention of your own Page costs no extra call.
+  with no new lookup. Each distinct target is looked up once, at most three at
+  a time, and a mention of your own Page, by URN or by its address, costs no
+  extra call.
+- **A 1,250-character limit for comments**, the limit of LinkedIn's own
+  interface, checked in the preview on the text with each mention expanded to
+  LinkedIn's name for it.
+- **The preview warns when a post's commentary, as LinkedIn receives it, is
+  over 3,000 characters** (escapes and mention markup included), since
+  LinkedIn may refuse it at publish time. It is a warning, not a refusal.
 
 ### Changed
 
@@ -35,13 +42,13 @@ All notable changes to `@pappcorn/linkedin-mcp`. This project follows
   answers 200 with no results), an organization id the authorizing member does
   not administer, including a numeric `linkedin.com/company/<id>` address
   (LinkedIn answers 403 to any other id), a member's profile URL (LinkedIn
-  offers no lookup of people), and any other LinkedIn target the connector
-  cannot mention. Text such as `@[x](https://example.com)` or a bare `@handle`
-  stays plain text, as before.
-- **The 3,000-character limit is checked on the commentary LinkedIn
-  receives**, escapes and mention markup included, in UTF-16 code units, the
-  stricter of the two possible units. It is checked first with no I/O on the
-  text around the mentions, and never after an upload.
+  offers no lookup of people), a legacy `urn:li:organizationBrand:<id>`, and
+  anything else written as `@[Name](…)` that is not an accepted target. Only a
+  link to another website, `@[x](https://example.com)`, and a bare `@handle`
+  stay plain text, as before.
+- **Token renewal is single-flight.** Requests that run at the same time and
+  all hit a 401 share one renewal and one cache write, and the token cache is
+  written atomically.
 
 ## 0.1.0
 

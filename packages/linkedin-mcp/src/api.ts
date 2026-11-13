@@ -116,10 +116,12 @@ export async function request<T = unknown>(
     });
   };
 
-  let res = await send(await getAccessToken());
+  const token = await getAccessToken();
+  let res = await send(token);
   // One renewal attempt on 401: LinkedIn can revoke a token before its stated
-  // expiry. getAccessToken(true) fails cleanly when there is nothing to renew.
-  if (res.status === 401) res = await send(await getAccessToken(true));
+  // expiry. getAccessToken(true) fails cleanly when there is nothing to renew,
+  // and renews once however many requests were refused at the same time.
+  if (res.status === 401) res = await send(await getAccessToken(true, token));
   if (!res.ok) throw await errorFrom(res);
 
   const text = await res.text();

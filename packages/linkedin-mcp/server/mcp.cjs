@@ -36543,6 +36543,7 @@ var EMPTY_COMPLETION_RESULT = {
 
 // src/config.ts
 var import_node_crypto = require("node:crypto");
+var import_node_crypto2 = require("node:crypto");
 var import_node_fs = require("node:fs");
 var import_node_os = require("node:os");
 var DEFAULT_API_VERSION = "202610";
@@ -36671,14 +36672,21 @@ function writeCache(creds, access_token, expires_at) {
   const dir = cacheDir();
   (0, import_node_fs.mkdirSync)(dir, { recursive: true });
   const p = cachePath(creds);
-  (0, import_node_fs.writeFileSync)(
-    p,
-    JSON.stringify({ access_token, expires_at }),
-    { mode: 384 }
-  );
+  const tmp = `${p}.${process.pid}.${(0, import_node_crypto2.randomBytes)(4).toString("hex")}.tmp`;
   try {
-    (0, import_node_fs.chmodSync)(p, 384);
-  } catch {
+    (0, import_node_fs.writeFileSync)(
+      tmp,
+      JSON.stringify({ access_token, expires_at }),
+      { mode: 384 }
+    );
+    try {
+      (0, import_node_fs.chmodSync)(tmp, 384);
+    } catch {
+    }
+    (0, import_node_fs.renameSync)(tmp, p);
+  } catch (err) {
+    (0, import_node_fs.rmSync)(tmp, { force: true });
+    throw err;
   }
 }
 function nowSeconds() {
@@ -36722,8 +36730,22 @@ async function refresh(c) {
   writeCache(c, data.access_token, nowSeconds() + (data.expires_in ?? 86400));
   return data.access_token;
 }
-async function getAccessToken(forceRefresh = false) {
+var inflight = null;
+function renewOnce(c) {
+  if (!inflight) {
+    inflight = refresh(c).finally(() => {
+      inflight = null;
+    });
+  }
+  return inflight;
+}
+async function getAccessToken(forceRefresh = false, rejected) {
   const { creds } = loadConfig();
+  if (forceRefresh && canRefresh(creds)) {
+    if (inflight) return inflight;
+    const renewed = readCache(creds);
+    if (renewed && renewed !== rejected) return renewed;
+  }
   if (!forceRefresh) {
     const fromCache = canRefresh(creds) ? readCache(creds) : null;
     if (fromCache) return fromCache;
@@ -36731,7 +36753,7 @@ async function getAccessToken(forceRefresh = false) {
       return creds.access_token;
     }
   }
-  if (canRefresh(creds)) return refresh(creds);
+  if (canRefresh(creds)) return renewOnce(creds);
   if (forceRefresh) {
     throw new LinkedInAccessError(
       "LinkedIn rejected the access token (401) and there is no refresh token to renew it. Run the setup script again to re-authorize."
@@ -36746,7 +36768,7 @@ function canRenew() {
 }
 
 // src/core.ts
-var import_node_crypto2 = require("node:crypto");
+var import_node_crypto3 = require("node:crypto");
 var import_node_fs2 = require("node:fs");
 var import_node_os2 = require("node:os");
 var import_node_path = require("node:path");
@@ -36801,9 +36823,9 @@ async function errorFrom(res) {
 async function request(method, path, opts = {}) {
   const { apiUrl, apiVersion } = loadConfig();
   const url2 = `${apiUrl}/rest/${path}${opts.query ? `?${opts.query}` : ""}`;
-  const send = async (token) => {
+  const send = async (token2) => {
     const headers = {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${token2}`,
       "LinkedIn-Version": apiVersion,
       "X-Restli-Protocol-Version": "2.0.0"
     };
@@ -36815,8 +36837,9 @@ async function request(method, path, opts = {}) {
       body: opts.body !== void 0 ? JSON.stringify(opts.body) : void 0
     });
   };
-  let res = await send(await getAccessToken());
-  if (res.status === 401) res = await send(await getAccessToken(true));
+  const token = await getAccessToken();
+  let res = await send(token);
+  if (res.status === 401) res = await send(await getAccessToken(true, token));
   if (!res.ok) throw await errorFrom(res);
   const text = await res.text();
   let body = {};
@@ -36868,23 +36891,39 @@ var MentionError = class extends Error {
     this.name = "MentionError";
   }
 };
-var MENTION = /@\[([^[\]\n]+)\]\(([^()\s]+)\)/g;
-var ORG_URN = /^urn:li:(?:organization|organizationBrand):(\d+)$/;
+var MENTION = /@\[([^[\]\n]+)\]\(([^()\n]*)\)/g;
+var ORG_URN = /^urn:li:organization:(\d+)$/;
+var BRAND_URN = /^urn:li:organizationBrand:(\d+)$/;
 var PERSON_URN = /^urn:li:person:([A-Za-z0-9_-]+)$/;
 var LINKEDIN_HOST = String.raw`^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\/`;
 var PAGE_URL = new RegExp(
   `${LINKEDIN_HOST}(company|school)\\/([^/?#\\s]+)(?:[/?#]\\S*)?$`,
   "i"
 );
-var LINKEDIN_URL = new RegExp(LINKEDIN_HOST, "i");
 var PROFILE_URL = new RegExp(`${LINKEDIN_HOST}in\\/`, "i");
 function describe3(ref) {
   return `The mention ${ref.raw}`;
+}
+var ACCEPTED = "Accepted forms: the address of a LinkedIn company or school page (https://www.linkedin.com/company/<vanity>/ or .../school/<vanity>/), urn:li:organization:<id>, or urn:li:person:<id>.";
+function isForeignUrl(t) {
+  if (!/^https?:\/\/\S+$/i.test(t)) return false;
+  let host;
+  try {
+    host = new URL(t).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return !(host === "linkedin.com" || host.endsWith(".linkedin.com") || host === "lnkd.in");
 }
 function classify(ref) {
   const t = ref.target;
   const org = ORG_URN.exec(t);
   if (org) return { kind: "org-id", id: org[1] };
+  if (BRAND_URN.test(t)) {
+    throw new MentionError(
+      `${describe3(ref)} uses a brand URN. LinkedIn now addresses brand pages as organizations: use urn:li:organization:<the same id>, or the address of the page. ${ACCEPTED} Nothing was published.`
+    );
+  }
   if (PERSON_URN.test(t)) return { kind: "person", urn: t };
   const page = PAGE_URL.exec(t);
   if (page) {
@@ -36896,17 +36935,15 @@ function classify(ref) {
     if (/^\d+$/.test(vanity)) return { kind: "org-id", id: vanity };
     return { kind: "vanity", vanity };
   }
-  if (/^urn:li:/i.test(t) || LINKEDIN_URL.test(t)) {
-    if (PROFILE_URL.test(t)) {
-      throw new MentionError(
-        `${describe3(ref)} points at a member's profile URL. LinkedIn does not let this app look people up, so a person can only be mentioned by an explicit urn:li:person:<id> (linkedin_list_comments shows the URNs of people who comment). Nothing was published.`
-      );
-    }
+  if (isForeignUrl(t)) return null;
+  if (PROFILE_URL.test(t)) {
     throw new MentionError(
-      `${describe3(ref)} has a target this connector cannot mention. Use urn:li:organization:<id>, urn:li:person:<id>, or the address of a LinkedIn company or school page. Nothing was published.`
+      `${describe3(ref)} points at a member's profile URL. LinkedIn does not let this app look people up, so a person can only be mentioned by an explicit urn:li:person:<id> (linkedin_list_comments shows the URNs of people who comment). Nothing was published.`
     );
   }
-  return null;
+  throw new MentionError(
+    `${describe3(ref)} is not a target this connector can mention. ${ACCEPTED} A link to another website, @[Name](https://...), stays plain text. Nothing was published.`
+  );
 }
 function parseMentions(text) {
   const out = [];
@@ -36999,6 +37036,21 @@ function targetKey(t) {
       return `vanity:${t.vanity.toLowerCase()}`;
   }
 }
+var LOOKUP_CONCURRENCY = 3;
+async function mapLimited(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker)
+  );
+  return out;
+}
 async function composeText(segments, known = []) {
   const targets = /* @__PURE__ */ new Map();
   const keyOf = /* @__PURE__ */ new Map();
@@ -37012,13 +37064,18 @@ async function composeText(segments, known = []) {
     if (!targets.has(key)) targets.set(key, { target, ref: s.mention });
   }
   const seeded = new Map(known.map((k) => [k.id, k]));
-  const entries = await Promise.all(
-    [...targets].map(async ([key, { target, ref }]) => {
+  const seededByVanity = new Map(
+    known.filter((k) => k.vanityName).map((k) => [k.vanityName.toLowerCase(), k])
+  );
+  const entries = await mapLimited(
+    [...targets],
+    LOOKUP_CONCURRENCY,
+    async ([key, { target, ref }]) => {
       let entity;
+      const k = target.kind === "org-id" ? seeded.get(target.id) : target.kind === "vanity" ? seededByVanity.get(target.vanity.toLowerCase()) : void 0;
       if (target.kind === "person") {
         entity = { urn: target.urn, kind: "person" };
-      } else if (target.kind === "org-id" && seeded.get(target.id)?.localizedName) {
-        const k = seeded.get(target.id);
+      } else if (k?.localizedName) {
         entity = orgEntity(
           {
             id: Number(k.id),
@@ -37033,7 +37090,7 @@ async function composeText(segments, known = []) {
         entity = await byVanity(target.vanity, ref);
       }
       return [key, entity];
-    })
+    }
   );
   const entities = new Map(entries);
   return segments.map((s) => {
@@ -37066,7 +37123,7 @@ function postCommentary(pieces, escape2, escapeName) {
   for (const p of pieces) {
     if ("mention" in p) {
       out += `@[${escapeName(p.mention.name)}](${p.mention.urn})`;
-      prev = Array.from(p.mention.name).pop() ?? prev;
+      prev = ")";
     } else {
       out += escape2(p.text, prev);
       prev = Array.from(p.text).pop() ?? prev;
@@ -37117,8 +37174,9 @@ function describeMentions(mentions, reserved) {
 
 // src/core.ts
 var MAX_POST_CHARS = 3e3;
-function commentaryLength(commentary) {
-  return commentary.length;
+var MAX_COMMENT_CHARS = 1250;
+function charCount(text) {
+  return Array.from(text).length;
 }
 var IMAGE_TYPES = {
   ".jpg": "JPG",
@@ -37214,7 +37272,7 @@ function inspectMedia(kind, path) {
     name: (0, import_node_path.basename)(path),
     type,
     bytes: data.length,
-    sha256: (0, import_node_crypto2.createHash)("sha256").update(data).digest("hex"),
+    sha256: (0, import_node_crypto3.createHash)("sha256").update(data).digest("hex"),
     data
   };
 }
@@ -37474,10 +37532,10 @@ function logAction(entry) {
 }
 
 // src/gate.ts
-var import_node_crypto3 = require("node:crypto");
+var import_node_crypto4 = require("node:crypto");
 var TOKEN_TTL_MS = 15 * 60 * 1e3;
 function fingerprint(value) {
-  return (0, import_node_crypto3.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
+  return (0, import_node_crypto4.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
 }
 var ConfirmationGate = class {
   constructor(now = Date.now) {
@@ -37488,7 +37546,7 @@ var ConfirmationGate = class {
   /** `payload` is what the preview resolved and the publish must reuse. */
   issue(action, fp, payload) {
     this.sweep();
-    const token = (0, import_node_crypto3.randomBytes)(12).toString("hex");
+    const token = (0, import_node_crypto4.randomBytes)(12).toString("hex");
     this.pending.set(token, {
       action,
       fingerprint: fp,
@@ -37497,12 +37555,9 @@ var ConfirmationGate = class {
     });
     return token;
   }
-  /** Spend a token. Any presented token is consumed whatever the outcome, so a
-   *  token that failed once (wrong content, wrong tool) cannot be retried. */
-  redeem(action, token, fp) {
-    return this.claim(action, token, fp).verdict;
-  }
-  /** redeem(), also handing back the preview's payload when the token is good. */
+  /** Spend a token, handing back the preview's payload when it is good. Any
+   *  presented token is consumed whatever the outcome, so a token that failed
+   *  once (wrong content, wrong tool) cannot be retried. */
   claim(action, token, fp) {
     const p = this.pending.get(token);
     if (!p) return { verdict: "unknown" };
@@ -37540,19 +37595,21 @@ var iso = (ms) => ms ? new Date(ms).toISOString() : "(unknown)";
 var indent = (s) => s.replace(/\n/g, "\n    ");
 var CONFIRM_INSTRUCTIONS = "This is a PREVIEW. Nothing has been published. Show the person you work for exactly what is above, and get an explicit yes. Then call this tool again with the SAME arguments plus confirm_token. Do not confirm on their behalf. If they change anything, preview again.";
 var OUTWARD = "OUTWARD-FACING: it publishes AS THE ORGANIZATION PAGE, visible to the public and to every follower, and this connector cannot delete or edit it afterwards. Two-phase: called without confirm_token it publishes nothing and returns a preview plus a single-use confirm_token; show the preview to the human and call again with the same arguments and the token ONLY after their explicit yes. Never confirm on your own.";
-var MENTIONS = "To tag an organization or a person, write @[Name](target) in the text. The target is the address of a LinkedIn company or school page (as pasted from a browser, e.g. https://www.linkedin.com/company/<vanity>/), urn:li:organization:<id> (only for organizations the authorizing member administers) or urn:li:person:<id> (a person cannot be looked up by name or profile URL; linkedin_list_comments shows commenters' URNs). The connector looks organizations up and publishes LinkedIn's exact name for them, whatever was typed; the preview lists every mention. A mention that does not resolve fails the whole call. A bare @handle stays plain text.";
+var MENTIONS = "To tag an organization or a person, write @[Name](target) in the text. The target is the address of a LinkedIn company or school page (as pasted from a browser, e.g. https://www.linkedin.com/company/<vanity>/), urn:li:organization:<id> (only for organizations the authorizing member administers) or urn:li:person:<id> (a person cannot be looked up by name or profile URL; linkedin_list_comments shows commenters' URNs). The connector looks organizations up and publishes LinkedIn's exact name for them, whatever was typed; the preview lists every mention. A mention that does not resolve fails the whole call, as does any other @[Name](...) except a link to another website, which stays plain text. A bare @handle stays plain text.";
 var loggedMentions = (m) => m.length ? m.map(({ urn, name }) => ({ urn, name })) : void 0;
 var knownPage = (page) => [
   {
     id: page.id,
+    vanityName: page.vanityName,
     localizedName: page.name,
     primaryOrganizationType: page.primaryOrganizationType
   }
 ];
-function tooLong(length) {
-  return new Error(
-    `The post is ${length} characters as LinkedIn receives it (escapes and mention markup included); LinkedIn allows ${MAX_POST_CHARS}.`
-  );
+function tooLong(length, max) {
+  return new Error(`The text is ${length} characters; LinkedIn allows ${max}.`);
+}
+function lengthFloor(segments) {
+  return charCount(plainRuns(segments).join("")) + segments.filter((x) => "mention" in x).length;
 }
 function formatStats(s) {
   const n = (v) => v === void 0 ? "0" : String(v);
@@ -37671,10 +37728,8 @@ function registerTools(server, gate = new ConfirmationGate()) {
           throw new Error("document_title needs document_path.");
         }
         const segments = parseMentions(text);
-        const floor = commentaryLength(
-          plainRuns(segments).map((t) => escapeLittle(t)).join("")
-        );
-        if (floor > MAX_POST_CHARS) throw tooLong(floor);
+        const floor = lengthFloor(segments);
+        if (floor > MAX_POST_CHARS) throw tooLong(floor, MAX_POST_CHARS);
         const media = args.image_path ? inspectMedia("image", args.image_path) : args.document_path ? inspectMedia("document", args.document_path) : void 0;
         const title = media?.kind === "document" ? args.document_title ?? media.name : void 0;
         const fp = fingerprint({
@@ -37691,8 +37746,6 @@ function registerTools(server, gate = new ConfirmationGate()) {
           const claim2 = gate.claim("post", args.confirm_token, fp);
           if (claim2.verdict !== "ok") return ok(refusal(claim2.verdict));
           const { pieces: pieces2 } = claim2.payload;
-          const length2 = commentaryLength(commentaryOf(pieces2));
-          if (length2 > MAX_POST_CHARS) throw tooLong(length2);
           const mediaUrn = media ? await uploadMedia(media) : void 0;
           const urn = await createPost({
             pieces: pieces2,
@@ -37722,8 +37775,10 @@ function registerTools(server, gate = new ConfirmationGate()) {
         }
         const page = await getPage();
         const pieces = await composeText(segments, knownPage(page));
-        const length = commentaryLength(commentaryOf(pieces));
-        if (length > MAX_POST_CHARS) throw tooLong(length);
+        const shown = visibleText(pieces);
+        const length = charCount(shown);
+        if (length > MAX_POST_CHARS) throw tooLong(length, MAX_POST_CHARS);
+        const sent = commentaryOf(pieces).length;
         const mentions = mentionsOf(pieces);
         const token = gate.issue("post", fp, { pieces });
         return ok(
@@ -37737,10 +37792,13 @@ function registerTools(server, gate = new ConfirmationGate()) {
               ...title ? [`Title:     ${title}`] : [],
               ...args.image_alt_text ? [`Alt text:  ${args.image_alt_text}`] : []
             ] : [],
-            `Length:    ${length} of ${MAX_POST_CHARS} characters, as LinkedIn receives it`,
+            `Length:    ${length} characters`,
+            ...sent > MAX_POST_CHARS ? [
+              `WARNING:   as LinkedIn receives it (escapes and mention markup included) the post is ${sent} characters, over its ${MAX_POST_CHARS}. LinkedIn may refuse it at publish time; if it does, nothing is published. Shorten it to be safe.`
+            ] : [],
             "",
             "\u2500\u2500\u2500\u2500 text \u2500\u2500\u2500\u2500",
-            visibleText(pieces),
+            shown,
             "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
             ...mentions.length ? ["", ...describeMentions(mentions, hasLittleReserved)] : [],
             "",
@@ -37797,7 +37855,7 @@ function registerTools(server, gate = new ConfirmationGate()) {
           "To reply to a comment, its urn:li:comment:(...) from linkedin_list_comments. Omit for a top-level comment."
         ),
         text: external_exports.string().min(1).describe(
-          "The comment text, exactly as it should appear, with any mention written @[Name](target)."
+          `The comment text, exactly as it should appear (max ${MAX_COMMENT_CHARS} characters, counted with each mention as LinkedIn's name for it), with any mention written @[Name](target).`
         ),
         confirm_token: external_exports.string().optional().describe(
           "Omit on the first call. Pass the token from the preview ONLY after the human said yes."
@@ -37813,6 +37871,8 @@ function registerTools(server, gate = new ConfirmationGate()) {
           assertReplyMatchesPost(args.post_urn, args.parent_comment_urn);
         }
         const segments = parseMentions(args.text);
+        const floor = lengthFloor(segments);
+        if (floor > MAX_COMMENT_CHARS) throw tooLong(floor, MAX_COMMENT_CHARS);
         const fp = fingerprint({
           organization,
           post: args.post_urn,
@@ -37847,6 +37907,10 @@ function registerTools(server, gate = new ConfirmationGate()) {
         }
         const page = await getPage();
         const pieces = await composeText(segments, knownPage(page));
+        const shown = visibleText(pieces);
+        const length = charCount(shown);
+        if (length > MAX_COMMENT_CHARS)
+          throw tooLong(length, MAX_COMMENT_CHARS);
         const mentions = mentionsOf(pieces);
         const token = gate.issue("comment", fp, { pieces });
         return ok(
@@ -37862,7 +37926,7 @@ function registerTools(server, gate = new ConfirmationGate()) {
             ] : [],
             "",
             "\u2500\u2500\u2500\u2500 text \u2500\u2500\u2500\u2500",
-            visibleText(pieces),
+            shown,
             "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
             // Comments are plain text, not post markup: no reserved characters.
             ...mentions.length ? ["", ...describeMentions(mentions)] : [],

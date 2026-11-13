@@ -42,11 +42,14 @@
 // No credential field is ever printed, logged, or returned by any tool.
 
 import { createHash } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import {
   chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
@@ -264,15 +267,24 @@ function writeCache(
   const dir = cacheDir();
   mkdirSync(dir, { recursive: true });
   const p = cachePath(creds);
-  writeFileSync(
-    p,
-    JSON.stringify({ access_token, expires_at } satisfies CachedToken),
-    { mode: 0o600 },
-  );
+  // Write a private temp file, then rename it over the cache: a reader never
+  // sees a half-written token, and two writers never interleave.
+  const tmp = `${p}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
   try {
-    chmodSync(p, 0o600);
-  } catch {
-    // best-effort
+    writeFileSync(
+      tmp,
+      JSON.stringify({ access_token, expires_at } satisfies CachedToken),
+      { mode: 0o600 },
+    );
+    try {
+      chmodSync(tmp, 0o600);
+    } catch {
+      // best-effort
+    }
+    renameSync(tmp, p);
+  } catch (err) {
+    rmSync(tmp, { force: true });
+    throw err;
   }
 }
 
@@ -335,10 +347,35 @@ async function refresh(c: LinkedInCredentials): Promise<string> {
   return data.access_token;
 }
 
+// One renewal at a time. Requests that run in parallel (mention lookups) and
+// all hit a 401 share this promise: one call to LinkedIn, one cache write.
+let inflight: Promise<string> | null = null;
+
+function renewOnce(c: LinkedInCredentials): Promise<string> {
+  if (!inflight) {
+    inflight = refresh(c).finally(() => {
+      inflight = null;
+    });
+  }
+  return inflight;
+}
+
 /** A usable access token: the cached renewal, the stored token while it is
- *  valid, or a fresh renewal. `forceRefresh` is for the one retry after a 401. */
-export async function getAccessToken(forceRefresh = false): Promise<string> {
+ *  valid, or a fresh renewal. `forceRefresh` is for the one retry after a 401;
+ *  `rejected` is the token LinkedIn refused, so a request whose 401 arrives
+ *  after another one already renewed it takes the new token instead of
+ *  renewing again. */
+export async function getAccessToken(
+  forceRefresh = false,
+  rejected?: string,
+): Promise<string> {
   const { creds } = loadConfig();
+
+  if (forceRefresh && canRefresh(creds)) {
+    if (inflight) return inflight;
+    const renewed = readCache(creds);
+    if (renewed && renewed !== rejected) return renewed;
+  }
 
   if (!forceRefresh) {
     const fromCache = canRefresh(creds) ? readCache(creds) : null;
@@ -352,7 +389,7 @@ export async function getAccessToken(forceRefresh = false): Promise<string> {
     }
   }
 
-  if (canRefresh(creds)) return refresh(creds);
+  if (canRefresh(creds)) return renewOnce(creds);
 
   if (forceRefresh) {
     throw new LinkedInAccessError(

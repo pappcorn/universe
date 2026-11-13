@@ -13,9 +13,9 @@ describe('ConfirmationGate', () => {
   it('redeems a token once, for the content it was issued for', () => {
     const gate = new ConfirmationGate();
     const t = gate.issue('post', fp);
-    assert.equal(gate.redeem('post', t, fp), 'ok');
+    assert.equal(gate.claim('post', t, fp).verdict, 'ok');
     assert.equal(
-      gate.redeem('post', t, fp),
+      gate.claim('post', t, fp).verdict,
       'unknown',
       'a token is single-use',
     );
@@ -40,18 +40,18 @@ describe('ConfirmationGate', () => {
 
   it('refuses a token never issued', () => {
     const gate = new ConfirmationGate();
-    assert.equal(gate.redeem('post', 'deadbeef', fp), 'unknown');
+    assert.equal(gate.claim('post', 'deadbeef', fp).verdict, 'unknown');
   });
 
   it('refuses changed content and spends the token', () => {
     const gate = new ConfirmationGate();
     const t = gate.issue('post', fp);
     assert.equal(
-      gate.redeem('post', t, fingerprint({ text: 'chao' })),
+      gate.claim('post', t, fingerprint({ text: 'chao' })).verdict,
       'mismatch',
     );
     assert.equal(
-      gate.redeem('post', t, fp),
+      gate.claim('post', t, fp).verdict,
       'unknown',
       'a failed redeem burns it',
     );
@@ -60,7 +60,7 @@ describe('ConfirmationGate', () => {
   it('refuses a token issued for the other action', () => {
     const gate = new ConfirmationGate();
     const t = gate.issue('comment', fp);
-    assert.equal(gate.redeem('post', t, fp), 'mismatch');
+    assert.equal(gate.claim('post', t, fp).verdict, 'mismatch');
   });
 
   it('refuses an expired token', () => {
@@ -68,6 +68,6 @@ describe('ConfirmationGate', () => {
     const gate = new ConfirmationGate(() => now);
     const t = gate.issue('post', fp);
     now += TOKEN_TTL_MS + 1;
-    assert.equal(gate.redeem('post', t, fp), 'expired');
+    assert.equal(gate.claim('post', t, fp).verdict, 'expired');
   });
 });

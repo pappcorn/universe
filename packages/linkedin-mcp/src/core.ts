@@ -42,18 +42,22 @@ import { commentMessage, postCommentary, type Piece } from './mentions';
 // Limits
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** LinkedIn's limit for a post's commentary. The API answers
- *  FIELD_LENGTH_TOO_LONG past it; checking here gives the human a clear error
- *  at preview time instead of at publish time. It is checked on the commentary
- *  as sent — escapes and mention markup included, since that is the field
- *  LinkedIn validates — and in UTF-16 code units, which is never fewer than
- *  characters: LinkedIn does not say which unit it counts, so the connector
- *  takes the stricter one. */
+/** LinkedIn's limit for a post. Counted as in 0.1.0: characters (code points)
+ *  of the text as readers see it, a mention counting as the name it shows.
+ *  Checking here gives the human a clear error at preview time instead of at
+ *  publish time. LinkedIn validates the commentary it receives, escapes and
+ *  mention markup included, in a unit it does not document: when that is
+ *  longer than this limit, the preview warns that LinkedIn may refuse the post
+ *  (FIELD_LENGTH_TOO_LONG), but does not refuse it here. */
 export const MAX_POST_CHARS = 3000;
 
-/** The length MAX_POST_CHARS is compared with. */
-export function commentaryLength(commentary: string): number {
-  return commentary.length;
+/** LinkedIn's limit for a comment in its own interface, counted the same way
+ *  as MAX_POST_CHARS, on the text with mentions expanded to their names. */
+export const MAX_COMMENT_CHARS = 1250;
+
+/** Characters, as MAX_POST_CHARS and MAX_COMMENT_CHARS count them. */
+export function charCount(text: string): number {
+  return Array.from(text).length;
 }
 
 export const IMAGE_TYPES: Record<string, string> = {
@@ -366,9 +370,8 @@ export async function listPosts(count = 10, start = 0): Promise<PostSummary[]> {
 }
 
 export interface NewPost {
-  /** The text the human approved, with its mentions resolved (mentions.ts:
-   *  composeText, or plainPieces for text without any). Escaped here, not
-   *  before. */
+  /** The text the human approved, with its mentions resolved, as
+   *  mentions.ts:composeText returns it. Escaped here, not before. */
   pieces: Piece[];
   media?: {
     urn: string;
