@@ -1,7 +1,7 @@
 {
   "name": "linkedin-mcp",
   "displayName": "LinkedIn Pages",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Publish to your organization's LinkedIn Page (text, image, PDF document), read and answer comments as the Page, and read basic Page analytics, through LinkedIn's official Community Management API. Every post and comment is previewed and confirmed. Requires your own LinkedIn app approved for that API. Your credentials stay on your machine.",
   "author": { "name": "PappCorn" },
   "homepage": "https://github.com/pappcorn/universe/tree/main/packages/linkedin-mcp",

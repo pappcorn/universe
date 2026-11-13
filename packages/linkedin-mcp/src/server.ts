@@ -8,7 +8,7 @@ import { registerTools } from './tools';
 export function buildServer(): McpServer {
   const server = new McpServer({
     name: 'linkedin',
-    version: '0.1.0',
+    version: '0.2.0',
   });
   registerTools(server);
   return server;

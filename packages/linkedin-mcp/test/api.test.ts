@@ -82,6 +82,56 @@ describe('request', () => {
     }
   });
 
+  it('renews once when parallel requests all hit 401', async () => {
+    delete process.env.LINKEDIN_ACCESS_TOKEN;
+    const p = join(files.dir, 'parallel.json');
+    writeFileSync(
+      p,
+      JSON.stringify({
+        client_id: 'cid',
+        client_secret: 's',
+        access_token: 'revoked-early',
+        access_token_expires_at: Math.floor(Date.now() / 1000) + 86400,
+        refresh_token: 'r',
+        organization: 'urn:li:organization:1',
+      }),
+    );
+    process.env.LINKEDIN_MCP_CREDENTIALS = p;
+    const li = fakeLinkedIn((c) => {
+      if (c.url.includes('/oauth/v2/accessToken'))
+        return { json: { access_token: 'fresh', expires_in: 100 } };
+      return c.headers.Authorization === 'Bearer fresh'
+        ? { json: { ok: 1 } }
+        : { status: 401, json: {} };
+    });
+    try {
+      const results = await Promise.all(
+        Array.from({ length: 6 }, (_, i) =>
+          request<{ ok: number }>('GET', `x${i}`),
+        ),
+      );
+      assert.deepEqual(
+        results.map((r) => r.body.ok),
+        [1, 1, 1, 1, 1, 1],
+      );
+      assert.equal(
+        li.calls.filter((c) => c.url.includes('/oauth/v2/accessToken')).length,
+        1,
+        'six 401s, one renewal',
+      );
+      // A request refused with the old token after the renewal finished takes
+      // the renewed token instead of renewing again.
+      const late = await request<{ ok: number }>('GET', 'late');
+      assert.equal(late.body.ok, 1);
+      assert.equal(
+        li.calls.filter((c) => c.url.includes('/oauth/v2/accessToken')).length,
+        1,
+      );
+    } finally {
+      li.restore();
+    }
+  });
+
   it("surfaces LinkedIn's error with a hint, never the token", async () => {
     const li = fakeLinkedIn(() => ({
       status: 403,

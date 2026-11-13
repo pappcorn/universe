@@ -94,12 +94,81 @@ assistant post, and when?" always has an answer. It never leaves your machine.
 
 Post text is sent as plain text. LinkedIn parses post text in its own markup,
 where characters such as `( ) [ ] _ * @ #` are reserved; the connector escapes
-them so they appear exactly as written. Two consequences:
+them so they appear exactly as written. Two exceptions:
 
 - **Hashtags work.** A `#` that starts a word stays a hashtag.
-- **Mentions do not.** `@` is always escaped, so v1 never tags anyone.
+- **Mentions work, in one syntax.** See below. A bare `@handle` stays plain text.
 
-Posts are capped at 3,000 characters, LinkedIn's limit.
+Posts are capped at 3,000 characters, LinkedIn's limit, counted on the text as
+readers see it (a mention counts as the name it shows). LinkedIn validates the
+text it receives, escapes and mention markup included, so when that is longer
+than 3,000 the preview warns that LinkedIn may refuse the post; if it does,
+nothing is published. Comments are capped at 1,250 characters, the limit of
+LinkedIn's own interface, counted the same way: with each mention as
+LinkedIn's name for it, which can be longer than what you typed.
+
+### Mentions
+
+To tag an organization or a person in a post or a comment, write
+`@[Name](target)`:
+
+| Target                                                               | Tags                               | Name published                    |
+| -------------------------------------------------------------------- | ---------------------------------- | --------------------------------- |
+| a company page address, `…linkedin.com/company/<vanity>…`            | a company or brand                 | LinkedIn's name for it, looked up |
+| a school page address, `…linkedin.com/school/<vanity>…`              | a school                           | LinkedIn's name for it, looked up |
+| `urn:li:organization:<id>`, or a numeric `linkedin.com/company/<id>` | an organization **you administer** | LinkedIn's name for it, looked up |
+| `urn:li:person:<id>`                                                 | a member                           | the name you wrote, unchecked     |
+
+```text
+Thanks to @[Acme](https://www.linkedin.com/company/acme/) for hosting us.
+```
+
+A page address can be pasted from the browser as it is: `https://` or not, any
+LinkedIn host (`www.`, `m.`, a country prefix), a sub-page such as `/about/` or
+`/posts/`, a query string such as `?viewAsMember=true`, a trailing slash. The
+connector keeps only the vanity name.
+
+Anything else written as `@[Name](…)` fails the call, naming the mention and
+the accepted forms, so a typo such as `@[Acme](acme)` or a stray space never
+turns into plain text. The one exception is a link to another website,
+`@[Name](https://example.com/…)`, which stays plain text as it always did. A
+legacy `urn:li:organizationBrand:<id>` is refused too: LinkedIn addresses brand
+pages as organizations now, so use `urn:li:organization:<id>` or the page
+address.
+
+- **The connector picks an organization's name, not you.** LinkedIn only turns a
+  mention into a link when the text is the organization's full name exactly as
+  LinkedIn has it; anything else silently shows as plain text. So every
+  organization is looked up, and LinkedIn's `localizedName` is what gets
+  published. The preview shows it next to what you wrote. It may not be the
+  name you use: a school can be listed as "University of Somewhere - Campus"
+  while everyone says "USomewhere".
+- **Use the page's vanity address for organizations you don't administer.**
+  LinkedIn only lets this kind of app look an organization up by id when the
+  authorizing member administers it; any other id, including a numeric page
+  address, is refused, and the call fails with a pointer to the vanity form.
+- **People need their URN.** LinkedIn does not let this kind of app look a
+  member up by name or profile URL, so a profile link is refused. The person
+  URNs you can see are those of people who commented or reacted on the Page's
+  posts (`linkedin_list_comments` shows them). The name is not checked: it
+  links only if it is the member's first, last or full name as on their profile.
+- **A mention that does not resolve fails the whole call**, naming the mention.
+  Nothing is published, and nothing falls back to plain text.
+- **The preview lists every mention** (name, kind, URN). What it resolved is
+  kept with the confirm token, and confirming publishes exactly that: no new
+  lookup, so a wrong or expired token is refused without calling LinkedIn.
+- **Each distinct target costs one API call**, at preview, at most three at a
+  time. A mention of your own Page, by URN or by its address, costs nothing
+  extra.
+- **A name with reserved characters gets a warning.** If an organization's name
+  contains a character post markup reserves, such as `(` or `_`, the connector
+  escapes it, but whether LinkedIn still matches an escaped name is not
+  verified: the preview warns that the tag may show as plain text. Comments
+  have no markup and get no warning.
+
+In a comment, the name appears in the text and the tag is attached to it; in a
+post, it is written in LinkedIn's post markup. Either way, readers see the name
+as a link.
 
 ## Media
 
@@ -125,13 +194,13 @@ Standard tier, where they ask which commenter fields your app displays.
 The setup script requests five scopes, all part of the Community Management
 API:
 
-| Scope                        | Why                                                   |
-| ---------------------------- | ----------------------------------------------------- |
-| `w_organization_social`      | Publish posts as the Page                             |
-| `r_organization_social`      | Read the Page's posts                                 |
-| `w_organization_social_feed` | Comment and reply as the Page                         |
-| `r_organization_social_feed` | Read comments (LinkedIn answers 403 without it)       |
-| `rw_organization_admin`      | Find the Pages you administer, and the Page analytics |
+| Scope                        | Why                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------ |
+| `w_organization_social`      | Publish posts as the Page                                                            |
+| `r_organization_social`      | Read the Page's posts                                                                |
+| `w_organization_social_feed` | Comment and reply as the Page                                                        |
+| `r_organization_social_feed` | Read comments (LinkedIn answers 403 without it)                                      |
+| `rw_organization_admin`      | Find the Pages you administer, the Page analytics, and the organizations you mention |
 
 The consent screen lists them. If your app's Auth tab shows different scope
 names, pass `--scopes "…"` to the setup script.
@@ -183,8 +252,9 @@ revoked in LinkedIn**. See
 
 ## Not in v1
 
-Mentions, video, multi-image posts, polls, scheduling, reactions, editing and
-deleting, time-bound analytics, and posting as a person.
+Video, multi-image posts, polls, scheduling, reactions, editing and deleting,
+time-bound analytics, posting as a person, and mentioning a person by name or
+profile URL (LinkedIn does not offer that lookup to this kind of app).
 
 ## Development
 

@@ -9,6 +9,9 @@
 // identity check. The two that publish go through the confirmation gate
 // (gate.ts) — a preview first, a single-use token second. Nothing deletes or
 // edits, and nothing runs on its own: the connector acts only when asked.
+// Mentions (mentions.ts) are resolved for the preview, listed in it, and stored
+// with the confirm token, so the publish sends exactly who the human saw tagged
+// and confirming makes no lookup.
 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -26,6 +29,11 @@ import {
   listPosts,
   logAction,
   MAX_POST_CHARS,
+  MAX_COMMENT_CHARS,
+  charCount,
+  commentaryOf,
+  hasLittleReserved,
+  type PageInfo,
   pageStats,
   postUrl,
   uploadMedia,
@@ -33,6 +41,17 @@ import {
   type ShareStats,
 } from './core';
 import { ConfirmationGate, fingerprint, refusal } from './gate';
+import {
+  composeText,
+  describeMentions,
+  mentionsOf,
+  parseMentions,
+  plainRuns,
+  visibleText,
+  type KnownOrganization,
+  type Piece,
+  type ResolvedMention,
+} from './mentions';
 
 type TextResult = { content: Array<{ type: 'text'; text: string }> };
 
@@ -60,6 +79,51 @@ const OUTWARD =
   'without confirm_token it publishes nothing and returns a preview plus a single-use ' +
   'confirm_token; show the preview to the human and call again with the same arguments and ' +
   'the token ONLY after their explicit yes. Never confirm on your own.';
+
+const MENTIONS =
+  'To tag an organization or a person, write @[Name](target) in the text. The target is the ' +
+  'address of a LinkedIn company or school page (as pasted from a browser, e.g. ' +
+  'https://www.linkedin.com/company/<vanity>/), urn:li:organization:<id> (only for ' +
+  'organizations the authorizing member administers) or urn:li:person:<id> (a person cannot ' +
+  "be looked up by name or profile URL; linkedin_list_comments shows commenters' URNs). The " +
+  "connector looks organizations up and publishes LinkedIn's exact name for them, whatever " +
+  'was typed; the preview lists every mention. A mention that does not resolve fails the ' +
+  'whole call, as does any other @[Name](...) except a link to another website, which stays ' +
+  'plain text. A bare @handle stays plain text.';
+
+/** Mentions as the local log records them: who got tagged, under what name. */
+const loggedMentions = (m: ResolvedMention[]) =>
+  m.length ? m.map(({ urn, name }) => ({ urn, name })) : undefined;
+
+/** What a preview resolved, stored with its confirm token (gate.ts). */
+interface Plan {
+  pieces: Piece[];
+}
+
+/** The Page itself, already fetched for the preview: mentioning it costs no
+ *  second call. */
+const knownPage = (page: PageInfo): KnownOrganization[] => [
+  {
+    id: page.id,
+    vanityName: page.vanityName,
+    localizedName: page.name,
+    primaryOrganizationType: page.primaryOrganizationType,
+  },
+];
+
+function tooLong(length: number, max: number): Error {
+  return new Error(`The text is ${length} characters; LinkedIn allows ${max}.`);
+}
+
+/** A floor on the length of the text as readers see it, with no I/O: the text
+ *  around the mentions, plus one character per mention (a name is never
+ *  empty). */
+function lengthFloor(segments: ReturnType<typeof parseMentions>): number {
+  return (
+    charCount(plainRuns(segments).join('')) +
+    segments.filter((x) => 'mention' in x).length
+  );
+}
 
 function formatStats(s: ShareStats): string {
   const n = (v?: number) => (v === undefined ? '0' : String(v));
@@ -201,13 +265,15 @@ export function registerTools(
         'Publish a post on the organization Page: text only, text + one image, or text + one ' +
         'document (a PDF shows as a swipeable carousel). ' +
         OUTWARD +
-        ' Text is sent as plain text: #hashtags work, @mentions are not supported.',
+        ' Text is sent as plain text: #hashtags work. ' +
+        MENTIONS,
       inputSchema: {
         text: z
           .string()
           .min(1)
           .describe(
-            `The post text, exactly as it should appear (max ${MAX_POST_CHARS} characters).`,
+            `The post text, exactly as it should appear (max ${MAX_POST_CHARS} characters), ` +
+              'with any mention written @[Name](target).',
           ),
         image_path: z
           .string()
@@ -243,11 +309,6 @@ export function registerTools(
       try {
         const { organization } = loadConfig();
         const text = args.text;
-        if (Array.from(text).length > MAX_POST_CHARS) {
-          throw new Error(
-            `The text is ${Array.from(text).length} characters; LinkedIn allows ${MAX_POST_CHARS}.`,
-          );
-        }
         if (args.image_path && args.document_path) {
           throw new Error('Attach an image OR a document, not both.');
         }
@@ -257,6 +318,12 @@ export function registerTools(
         if (args.document_title && !args.document_path) {
           throw new Error('document_title needs document_path.');
         }
+        // No I/O yet: a post that cannot fit, whatever its mentions resolve
+        // to, stops here.
+        const segments = parseMentions(text);
+        const floor = lengthFloor(segments);
+        if (floor > MAX_POST_CHARS) throw tooLong(floor, MAX_POST_CHARS);
+
         const media = args.image_path
           ? inspectMedia('image', args.image_path)
           : args.document_path
@@ -280,71 +347,95 @@ export function registerTools(
             : null,
         });
 
-        if (!args.confirm_token) {
-          const page = await getPage();
-          const token = gate.issue('post', fp);
+        if (args.confirm_token) {
+          // The token first: a bad one is refused with no network call.
+          const claim = gate.claim<Plan>('post', args.confirm_token, fp);
+          if (claim.verdict !== 'ok') return ok(refusal(claim.verdict));
+          // The length was checked at preview, on these same pieces: nothing
+          // below refuses on length, so an upload is never left orphaned by us.
+          const { pieces } = claim.payload as Plan;
+
+          const mediaUrn = media ? await uploadMedia(media) : undefined;
+          const urn = await createPost({
+            pieces,
+            media:
+              media && mediaUrn
+                ? {
+                    urn: mediaUrn,
+                    kind: media.kind,
+                    altText: args.image_alt_text,
+                    title,
+                  }
+                : undefined,
+          });
+          const log = logAction({
+            action: 'post',
+            organization,
+            urn,
+            text,
+            media: media
+              ? { kind: media.kind, name: media.name, sha256: media.sha256 }
+              : undefined,
+            mentions: loggedMentions(mentionsOf(pieces)),
+          });
           return ok(
             [
-              'PREVIEW — post on LinkedIn',
-              '',
-              `As:        ${page.name ?? page.urn} (${page.urn})`,
-              'Audience:  public, main feed',
-              ...(media
-                ? [
-                    `Attached:  ${media.kind} ${media.name} (${media.type}, ${(
-                      media.bytes / 1024
-                    ).toFixed(0)} KB)`,
-                    ...(title ? [`Title:     ${title}`] : []),
-                    ...(args.image_alt_text
-                      ? [`Alt text:  ${args.image_alt_text}`]
-                      : []),
-                  ]
-                : []),
-              `Length:    ${Array.from(text).length} characters`,
-              '',
-              '──── text ────',
-              text,
-              '──────────────',
-              '',
-              CONFIRM_INSTRUCTIONS,
-              `confirm_token: ${token}`,
+              `PUBLISHED as ${organization}`,
+              `post: ${urn}`,
+              `link: ${postUrl(urn)}`,
+              log.logged
+                ? `logged to ${log.path}`
+                : `(not logged locally: ${log.error})`,
             ].join('\n'),
           );
         }
 
-        const verdict = gate.redeem('post', args.confirm_token, fp);
-        if (verdict !== 'ok') return ok(refusal(verdict));
-
-        const mediaUrn = media ? await uploadMedia(media) : undefined;
-        const urn = await createPost({
-          text,
-          media:
-            media && mediaUrn
-              ? {
-                  urn: mediaUrn,
-                  kind: media.kind,
-                  altText: args.image_alt_text,
-                  title,
-                }
-              : undefined,
-        });
-        const log = logAction({
-          action: 'post',
-          organization,
-          urn,
-          text,
-          media: media
-            ? { kind: media.kind, name: media.name, sha256: media.sha256 }
-            : undefined,
-        });
+        // Preview. A mention that does not resolve stops here, before any token.
+        const page = await getPage();
+        const pieces = await composeText(segments, knownPage(page));
+        const shown = visibleText(pieces);
+        const length = charCount(shown);
+        if (length > MAX_POST_CHARS) throw tooLong(length, MAX_POST_CHARS);
+        // What LinkedIn validates is the commentary, markup and escapes
+        // included, in an undocumented unit: warn, do not refuse.
+        const sent = commentaryOf(pieces).length;
+        const mentions = mentionsOf(pieces);
+        const token = gate.issue('post', fp, { pieces } satisfies Plan);
         return ok(
           [
-            `PUBLISHED as ${organization}`,
-            `post: ${urn}`,
-            `link: ${postUrl(urn)}`,
-            log.logged
-              ? `logged to ${log.path}`
-              : `(not logged locally: ${log.error})`,
+            'PREVIEW — post on LinkedIn',
+            '',
+            `As:        ${page.name ?? page.urn} (${page.urn})`,
+            'Audience:  public, main feed',
+            ...(media
+              ? [
+                  `Attached:  ${media.kind} ${media.name} (${media.type}, ${(
+                    media.bytes / 1024
+                  ).toFixed(0)} KB)`,
+                  ...(title ? [`Title:     ${title}`] : []),
+                  ...(args.image_alt_text
+                    ? [`Alt text:  ${args.image_alt_text}`]
+                    : []),
+                ]
+              : []),
+            `Length:    ${length} characters`,
+            ...(sent > MAX_POST_CHARS
+              ? [
+                  `WARNING:   as LinkedIn receives it (escapes and mention markup included) the ` +
+                    `post is ${sent} characters, over its ${MAX_POST_CHARS}. LinkedIn may refuse ` +
+                    'it at publish time; if it does, nothing is published. Shorten it to be safe.',
+                ]
+              : []),
+            '',
+            '──── text ────',
+            shown,
+            '──────────────',
+            ...(mentions.length
+              ? ['', ...describeMentions(mentions, hasLittleReserved)]
+              : []),
+            '',
+            CONFIRM_INSTRUCTIONS,
+            `confirm_token: ${token}`,
           ].join('\n'),
         );
       } catch (err) {
@@ -419,7 +510,9 @@ export function registerTools(
     {
       description:
         "Comment on one of the Page's posts AS THE PAGE, or reply to a comment on it. " +
-        OUTWARD,
+        OUTWARD +
+        ' ' +
+        MENTIONS,
       inputSchema: {
         post_urn: z
           .string()
@@ -434,7 +527,11 @@ export function registerTools(
         text: z
           .string()
           .min(1)
-          .describe('The comment text, exactly as it should appear.'),
+          .describe(
+            `The comment text, exactly as it should appear (max ${MAX_COMMENT_CHARS} ` +
+              "characters, counted with each mention as LinkedIn's name for it), with any " +
+              'mention written @[Name](target).',
+          ),
         confirm_token: z
           .string()
           .optional()
@@ -452,6 +549,10 @@ export function registerTools(
           assertReplyMatchesPost(args.post_urn, args.parent_comment_urn);
         }
 
+        const segments = parseMentions(args.text);
+        // No I/O yet: a comment that cannot fit stops here.
+        const floor = lengthFloor(segments);
+        if (floor > MAX_COMMENT_CHARS) throw tooLong(floor, MAX_COMMENT_CHARS);
         const fp = fingerprint({
           organization,
           post: args.post_urn,
@@ -459,56 +560,69 @@ export function registerTools(
           text: args.text,
         });
 
-        if (!args.confirm_token) {
-          const page = await getPage();
-          const token = gate.issue('comment', fp);
+        if (args.confirm_token) {
+          // The token first: a bad one is refused with no network call.
+          const claim = gate.claim<Plan>('comment', args.confirm_token, fp);
+          if (claim.verdict !== 'ok') return ok(refusal(claim.verdict));
+          const { pieces } = claim.payload as Plan;
+          const urn = await createComment({
+            postUrn: args.post_urn,
+            parentCommentUrn: args.parent_comment_urn,
+            pieces,
+          });
+          const log = logAction({
+            action: 'comment',
+            organization,
+            urn,
+            text: args.text,
+            target: args.parent_comment_urn ?? args.post_urn,
+            mentions: loggedMentions(mentionsOf(pieces)),
+          });
           return ok(
             [
-              `PREVIEW — ${args.parent_comment_urn ? 'reply' : 'comment'} on LinkedIn`,
-              '',
-              `As:        ${page.name ?? page.urn} (${page.urn})`,
-              `On post:   ${args.post_urn}`,
-              `           ${postUrl(args.post_urn)}`,
-              ...(args.parent_comment_urn
-                ? [
-                    `Reply to:  ${args.parent_comment_urn}`,
-                    "           (it lands in this comment's thread)",
-                  ]
-                : []),
-              '',
-              '──── text ────',
-              args.text,
-              '──────────────',
-              '',
-              CONFIRM_INSTRUCTIONS,
-              `confirm_token: ${token}`,
+              `PUBLISHED as ${organization}`,
+              `comment: ${urn}`,
+              `on: ${postUrl(args.post_urn)}`,
+              log.logged
+                ? `logged to ${log.path}`
+                : `(not logged locally: ${log.error})`,
             ].join('\n'),
           );
         }
 
-        const verdict = gate.redeem('comment', args.confirm_token, fp);
-        if (verdict !== 'ok') return ok(refusal(verdict));
-
-        const urn = await createComment({
-          postUrn: args.post_urn,
-          parentCommentUrn: args.parent_comment_urn,
-          text: args.text,
-        });
-        const log = logAction({
-          action: 'comment',
-          organization,
-          urn,
-          text: args.text,
-          target: args.parent_comment_urn ?? args.post_urn,
-        });
+        // Preview. A mention that does not resolve stops here, before any token.
+        const page = await getPage();
+        const pieces = await composeText(segments, knownPage(page));
+        // Counted on the text with LinkedIn's names in place: a short typed
+        // name can expand past the limit.
+        const shown = visibleText(pieces);
+        const length = charCount(shown);
+        if (length > MAX_COMMENT_CHARS)
+          throw tooLong(length, MAX_COMMENT_CHARS);
+        const mentions = mentionsOf(pieces);
+        const token = gate.issue('comment', fp, { pieces } satisfies Plan);
         return ok(
           [
-            `PUBLISHED as ${organization}`,
-            `comment: ${urn}`,
-            `on: ${postUrl(args.post_urn)}`,
-            log.logged
-              ? `logged to ${log.path}`
-              : `(not logged locally: ${log.error})`,
+            `PREVIEW — ${args.parent_comment_urn ? 'reply' : 'comment'} on LinkedIn`,
+            '',
+            `As:        ${page.name ?? page.urn} (${page.urn})`,
+            `On post:   ${args.post_urn}`,
+            `           ${postUrl(args.post_urn)}`,
+            ...(args.parent_comment_urn
+              ? [
+                  `Reply to:  ${args.parent_comment_urn}`,
+                  "           (it lands in this comment's thread)",
+                ]
+              : []),
+            '',
+            '──── text ────',
+            shown,
+            '──────────────',
+            // Comments are plain text, not post markup: no reserved characters.
+            ...(mentions.length ? ['', ...describeMentions(mentions)] : []),
+            '',
+            CONFIRM_INSTRUCTIONS,
+            `confirm_token: ${token}`,
           ].join('\n'),
         );
       } catch (err) {

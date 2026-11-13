@@ -113,7 +113,8 @@ should see these five, which the setup script requests:
   Page's posts.
 - `w_organization_social_feed` and `r_organization_social_feed`: comment as the
   Page, and read comments.
-- `rw_organization_admin`: find the Pages you administer, and read analytics.
+- `rw_organization_admin`: find the Pages you administer, read analytics, and
+  look up the organizations a post or comment mentions.
 
 If the names differ, note them for `--scopes`.
 
@@ -187,6 +188,12 @@ them: the preview makes the assistant show its work, and that prompt is what
 makes the final yes yours. For a first test, a plain post you are happy to leave up is
 the safest choice; the connector cannot delete it.
 
+To tag another organization, write `@[Name](<its page address>)` in the text,
+pasting the address of its LinkedIn company or school page from the browser as
+it is. The preview shows the name LinkedIn
+has for it, which is the one that gets published. The full syntax is in the
+connector's README, under "Mentions".
+
 ---
 
 ## Tokens, and how long this lasts
@@ -229,19 +236,21 @@ so record carefully.
 
 ## Troubleshooting
 
-| Symptom                                       | Cause and fix                                                                                                                      |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| LinkedIn says the redirect URI does not match | The URL in the Auth tab differs from `http://localhost:8919/callback`, even by a slash. Fix it there, or use `--port` to match it. |
-| LinkedIn says the scope is invalid            | Your app was not granted one of the scopes. Check the Auth tab's scope list and pass `--scopes "…"` with the names it shows.       |
-| `cannot listen on localhost:8919`             | Another program holds the port. Free it, or register another port and pass `--port`.                                               |
-| `you administer no Pages`                     | You logged in with an account that is not an ADMINISTRATOR of the Page. Use the right account; Page "content admin" is not enough. |
-| Reading comments answers `HTTP 403`           | The credential was authorized without `r_organization_social_feed`. Re-run Step 6 with the default scopes.                         |
-| A tool answers `HTTP 403`                     | Missing scope, or the authorizing account lost its admin role. Re-run the setup as a current Page admin.                           |
-| The browser cannot connect to `localhost`     | You approved on another device. See [Approving on another device](#approving-on-another-device).                                   |
-| `you administer 2 Pages`                      | Nothing was saved. Re-run with `--organization <id>`, using an id from the list, and authorize again.                              |
-| A tool answers `HTTP 426`                     | LinkedIn sunset the API version the connector sends. Update the connector, or set `LINKEDIN_API_VERSION` to a current `YYYYMM`.    |
-| A tool answers `HTTP 429`                     | Development-tier call budget used up for now. Wait and retry later.                                                                |
-| `The access token expired … no refresh token` | Your credential holds no refresh token, so it cannot renew. Re-run Step 6.                                                         |
+| Symptom                                                | Cause and fix                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LinkedIn says the redirect URI does not match          | The URL in the Auth tab differs from `http://localhost:8919/callback`, even by a slash. Fix it there, or use `--port` to match it.                                                                                                                                                        |
+| LinkedIn says the scope is invalid                     | Your app was not granted one of the scopes. Check the Auth tab's scope list and pass `--scopes "…"` with the names it shows.                                                                                                                                                              |
+| `cannot listen on localhost:8919`                      | Another program holds the port. Free it, or register another port and pass `--port`.                                                                                                                                                                                                      |
+| `you administer no Pages`                              | You logged in with an account that is not an ADMINISTRATOR of the Page. Use the right account; Page "content admin" is not enough.                                                                                                                                                        |
+| Reading comments answers `HTTP 403`                    | The credential was authorized without `r_organization_social_feed`. Re-run Step 6 with the default scopes.                                                                                                                                                                                |
+| A tool answers `HTTP 403`                              | Missing scope, or the authorizing account lost its admin role. Re-run the setup as a current Page admin.                                                                                                                                                                                  |
+| The browser cannot connect to `localhost`              | You approved on another device. See [Approving on another device](#approving-on-another-device).                                                                                                                                                                                          |
+| `you administer 2 Pages`                               | Nothing was saved. Re-run with `--organization <id>`, using an id from the list, and authorize again.                                                                                                                                                                                     |
+| A tool answers `HTTP 426`                              | LinkedIn sunset the API version the connector sends. Update the connector, or set `LINKEDIN_API_VERSION` to a current `YYYYMM`.                                                                                                                                                           |
+| A tool answers `HTTP 429`                              | Development-tier call budget used up for now. Wait and retry later.                                                                                                                                                                                                                       |
+| `The access token expired … no refresh token`          | Your credential holds no refresh token, so it cannot renew. Re-run Step 6.                                                                                                                                                                                                                |
+| A mention `does not resolve`                           | The page address is wrong, or it is an organization id (`urn:li:organization:<id>`, or a numeric `linkedin.com/company/<id>` address) that you do not administer. Use the page's vanity address, `@[Name](https://www.linkedin.com/company/<vanity>/)`, pasted from the browser as it is. |
+| A mention `is not a target this connector can mention` | The text between the parentheses is not a LinkedIn page address or URN, or has a stray space. Paste the page address from the browser as it is.                                                                                                                                           |
 
 ## Where the files live, and revoking access
 
