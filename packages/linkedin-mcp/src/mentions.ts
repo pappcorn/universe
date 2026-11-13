@@ -77,6 +77,10 @@ const ORG_URN = /^urn:li:(?:organization|organizationBrand):(\d+)$/;
 const PERSON_URN = /^urn:li:person:([A-Za-z0-9_-]+)$/;
 const VANITY_URL =
   /^(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/(company|school)\/([^/?#\s]+)\/?$/i;
+// Any address on a LinkedIn host, and a member's profile on one. Anchored, so a
+// LinkedIn address quoted inside another site's URL is not mistaken for one.
+const LINKEDIN_URL = /^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\//i;
+const PROFILE_URL = /^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\/in\//i;
 
 type Target =
   | { kind: 'org-id'; id: string }
@@ -108,8 +112,8 @@ function classify(ref: MentionRef): Target | null {
   }
   // Something that is clearly meant as a mention but is not one we can make
   // must not quietly become plain text.
-  if (/^urn:li:/i.test(t) || /linkedin\.com\//i.test(t)) {
-    if (/linkedin\.com\/in\//i.test(t)) {
+  if (/^urn:li:/i.test(t) || LINKEDIN_URL.test(t)) {
+    if (PROFILE_URL.test(t)) {
       throw new MentionError(
         `${describe(ref)} points at a member's profile URL. LinkedIn does not let this app ` +
           'look people up, so a person can only be mentioned by an explicit ' +
@@ -205,10 +209,12 @@ async function byVanity(vanity: string, ref: MentionRef): Promise<Entity> {
   } catch (err) {
     throw wrap(err, ref);
   }
-  const els = res.body.elements ?? [];
-  const hit =
-    els.find((e) => e.vanityName?.toLowerCase() === vanity.toLowerCase()) ??
-    els[0];
+  // Only an exact (case-insensitive) vanity match counts. Anything else — no
+  // results, or results that are not this vanity — fails rather than tagging
+  // whichever organization LinkedIn happened to list first.
+  const hit = (res.body.elements ?? []).find(
+    (e) => e.vanityName?.toLowerCase() === vanity.toLowerCase(),
+  );
   if (!hit) {
     throw new MentionError(
       `${describe(ref)} does not resolve: LinkedIn has no organization with the vanity name ` +

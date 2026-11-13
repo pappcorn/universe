@@ -36920,6 +36920,8 @@ var MENTION = /@\[([^[\]\n]+)\]\(([^()\s]+)\)/g;
 var ORG_URN = /^urn:li:(?:organization|organizationBrand):(\d+)$/;
 var PERSON_URN = /^urn:li:person:([A-Za-z0-9_-]+)$/;
 var VANITY_URL = /^(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/(company|school)\/([^/?#\s]+)\/?$/i;
+var LINKEDIN_URL = /^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\//i;
+var PROFILE_URL = /^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\/in\//i;
 function describe3(ref) {
   return `The mention ${ref.raw}`;
 }
@@ -36941,8 +36943,8 @@ function classify(ref) {
       vanity
     };
   }
-  if (/^urn:li:/i.test(t) || /linkedin\.com\//i.test(t)) {
-    if (/linkedin\.com\/in\//i.test(t)) {
+  if (/^urn:li:/i.test(t) || LINKEDIN_URL.test(t)) {
+    if (PROFILE_URL.test(t)) {
       throw new MentionError(
         `${describe3(ref)} points at a member's profile URL. LinkedIn does not let this app look people up, so a person can only be mentioned by an explicit urn:li:person:<id> (linkedin_list_comments shows the URNs of people who comment). Nothing was published.`
       );
@@ -37008,8 +37010,9 @@ async function byVanity(vanity, ref) {
   } catch (err) {
     throw wrap(err, ref);
   }
-  const els = res.body.elements ?? [];
-  const hit = els.find((e) => e.vanityName?.toLowerCase() === vanity.toLowerCase()) ?? els[0];
+  const hit = (res.body.elements ?? []).find(
+    (e) => e.vanityName?.toLowerCase() === vanity.toLowerCase()
+  );
   if (!hit) {
     throw new MentionError(
       `${describe3(ref)} does not resolve: LinkedIn has no organization with the vanity name "${vanity}". Check the address of its LinkedIn page. Nothing was published.`

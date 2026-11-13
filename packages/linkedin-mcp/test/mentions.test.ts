@@ -65,6 +65,14 @@ const li = fakeLinkedIn((c) => {
   }
   if (u.pathname === '/rest/organizations' && c.method === 'GET') {
     const v = u.searchParams.get('vanityName') ?? '';
+    if (v === 'renamed-org') {
+      // Results that are not the vanity asked for must not be used.
+      return {
+        json: {
+          elements: [{ ...ORGS['example-corp'], vanityName: 'example-corp' }],
+        },
+      };
+    }
     const o = ORGS[v.toLowerCase()];
     return {
       json: {
@@ -165,6 +173,11 @@ describe('parseMentions', () => {
         /@\[Jane\]\(linkedin\.com\/in\/jane-doe\)/.test(e.message) &&
         /urn:li:person/.test(e.message),
     );
+  });
+
+  it('does not take a LinkedIn address quoted inside another URL for one', () => {
+    const t = '@[x](https://example.com/?u=linkedin.com/in/jane)';
+    assert.deepEqual(parseMentions(t), [{ text: t }]);
   });
 
   it('refuses a LinkedIn target it cannot mention', () => {
@@ -294,6 +307,16 @@ describe('MentionResolver', () => {
         e instanceof MentionError &&
         /@\[Nope\]\(linkedin\.com\/company\/no-such-org\)/.test(e.message) &&
         /no-such-org/.test(e.message),
+    );
+  });
+
+  it('refuses results that are not the vanity asked for', async () => {
+    await assert.rejects(
+      new MentionResolver().resolve(
+        mentionRefs(parseMentions('@[R](linkedin.com/company/renamed-org)')),
+      ),
+      (e: Error) =>
+        e instanceof MentionError && /"renamed-org"/.test(e.message),
     );
   });
 
