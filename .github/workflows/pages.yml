@@ -43,7 +43,7 @@ jobs:
       # committed bundle on main, the same file a plugin install runs, so this
       # link always matches what the catalog ships. Versioned copies live on
       # each connector's GitHub Release (release.yml).
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 22
       - name: Build the Desktop extensions
