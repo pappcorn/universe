@@ -41,8 +41,7 @@
 //
 // No credential field is ever printed, logged, or returned by any tool.
 
-import { createHash } from 'node:crypto';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import {
   chmodSync,
   existsSync,

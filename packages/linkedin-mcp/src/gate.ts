@@ -64,19 +64,25 @@ export class ConfirmationGate {
 
   /** Spend a token, handing back the preview's payload when it is good. Any
    *  presented token is consumed whatever the outcome, so a token that failed
-   *  once (wrong content, wrong tool) cannot be retried. */
+   *  once (wrong content, wrong tool) cannot be retried.
+   *
+   *  `fp` is the fingerprint of the content now, or a function that computes
+   *  it from the stored payload: that is how a fingerprint which covers what
+   *  the preview resolved (the mentions) is checked without resolving again. */
   claim<T = unknown>(
     action: GateAction,
     token: string,
-    fp: string,
+    fp: string | ((payload: T) => string),
   ): { verdict: RedeemResult; payload?: T } {
     const p = this.pending.get(token);
     if (!p) return { verdict: 'unknown' };
     this.pending.delete(token);
     if (p.expiresAt <= this.now()) return { verdict: 'expired' };
-    if (p.action !== action || p.fingerprint !== fp)
-      return { verdict: 'mismatch' };
-    return { verdict: 'ok', payload: p.payload as T };
+    if (p.action !== action) return { verdict: 'mismatch' };
+    const payload = p.payload as T;
+    const now = typeof fp === 'function' ? fp(payload) : fp;
+    if (p.fingerprint !== now) return { verdict: 'mismatch' };
+    return { verdict: 'ok', payload };
   }
 
   private sweep(): void {

@@ -13,9 +13,18 @@
 //   5. Each distinct target is looked up once.
 
 import assert from 'node:assert/strict';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { after, beforeEach, describe, it } from 'node:test';
 
-import { captureTools, fakeLinkedIn, isolate, ORG, tokenIn } from './helpers';
+import {
+  captureTools,
+  fakeLinkedIn,
+  isolate,
+  ORG,
+  tempDir,
+  tokenIn,
+} from './helpers';
 
 const cleanup = isolate();
 after(cleanup);
@@ -40,7 +49,10 @@ import {
   type Piece,
   type ResolvedMention,
 } from '../src/mentions';
-import { registerTools } from '../src/tools';
+import { contentFingerprint, registerTools } from '../src/tools';
+
+const files = tempDir();
+after(files.cleanup);
 
 // Illustrative organizations; ids are made up.
 const ORGS: Record<
@@ -61,6 +73,11 @@ const ORGS: Record<
     id: 3003,
     localizedName: 'Paren Co (Latam)',
     primaryOrganizationType: 'NONE',
+  },
+  'example-cloud': {
+    id: 4004,
+    localizedName: 'Example Cloud',
+    primaryOrganizationType: 'BRAND',
   },
 };
 
@@ -183,6 +200,12 @@ describe('classify — the target forms', () => {
     ],
     ['http://linkedin.com/school/example-university#top', 'example-university'],
     ['https://www.linkedin.com/company/caf%C3%A9-co/', 'café-co'],
+    ['linkedin.com/showcase/example-cloud', 'example-cloud'],
+    [
+      'https://www.linkedin.com/showcase/example-cloud/posts/?feedView=all',
+      'example-cloud',
+    ],
+    ['https://m.linkedin.com/showcase/example-cloud', 'example-cloud'],
   ] as const) {
     it(`reads ${target} as the vanity "${vanity}"`, () => {
       assert.deepEqual(classify(ref(target)), { kind: 'vanity', vanity });
@@ -194,6 +217,21 @@ describe('classify — the target forms', () => {
       classify(ref('https://www.linkedin.com/company/1234567/')),
       { kind: 'org-id', id: '1234567' },
     );
+  });
+
+  it('writes ids canonically, without leading zeros', () => {
+    assert.deepEqual(classify(ref('urn:li:organization:01234567')), {
+      kind: 'org-id',
+      id: '1234567',
+    });
+    assert.deepEqual(classify(ref('linkedin.com/company/0042')), {
+      kind: 'org-id',
+      id: '42',
+    });
+    assert.deepEqual(classify(ref('urn:li:organization:0')), {
+      kind: 'org-id',
+      id: '0',
+    });
   });
 
   it('reads organization and person URNs', () => {
@@ -231,7 +269,7 @@ describe('parseMentions', () => {
 
   it('refuses a LinkedIn target it cannot mention', () => {
     assert.throws(
-      () => parseMentions('@[X](linkedin.com/showcase/x)'),
+      () => parseMentions('@[X](linkedin.com/feed/update/x)'),
       MentionError,
     );
     assert.throws(() => parseMentions('@[X](urn:li:group:9)'), MentionError);
@@ -270,13 +308,78 @@ describe('parseMentions', () => {
     });
   }
 
+  for (const [nearMiss, raw, why] of [
+    [
+      'Gracias @[Acme] (linkedin.com/company/acme)!',
+      '@[Acme] (linkedin.com/company/acme)',
+      'a space between "]" and "("',
+    ],
+    [
+      'Gracias @[Acme]\t(https://example.com)',
+      '@[Acme]\t(https://example.com)',
+      'a space between "]" and "("',
+    ],
+    [
+      'Gracias @ [Acme](linkedin.com/company/acme)!',
+      '@ [Acme](linkedin.com/company/acme)',
+      'a space between "@" and "["',
+    ],
+    [
+      'Gracias @[Acme](linkedin.com/company/acme y nada más',
+      '@[Acme](linkedin.com/company/acme y nada más',
+      'no closing ")"',
+    ],
+    [
+      'Gracias @[Acme](linkedin.com/company/acme\nsegunda línea)',
+      '@[Acme](linkedin.com/company/acme',
+      'no closing ")"',
+    ],
+  ] as const) {
+    it(`refuses the near miss ${JSON.stringify(raw)}`, () => {
+      assert.throws(
+        () => parseMentions(nearMiss),
+        (e: Error) =>
+          e instanceof MentionError &&
+          e.message.includes(`The mention ${raw} has ${why}`) &&
+          /Accepted forms:/.test(e.message),
+      );
+    });
+  }
+
   it('keeps a link to another website as plain text', () => {
     for (const t of [
       '@[web](https://example.com)',
       '@[web](http://example.com/a?b=c#d)',
+      '@[wiki](https://en.wikipedia.org/wiki/Foo_(bar))',
     ]) {
       assert.deepEqual(parseMentions(t), [{ text: t }]);
     }
+  });
+
+  it('leaves ordinary prose alone', () => {
+    for (const t of [
+      'escríbenos @soporte (lunes a viernes)',
+      'ver [la guía](https://example.com) y [notas] (abajo)',
+      'correo: hola @ empresa [punto] com',
+      'precio @ $10 [aprox]',
+      '@[sin paréntesis] y ya',
+    ]) {
+      assert.deepEqual(parseMentions(t), [{ text: t }]);
+    }
+  });
+
+  it('keeps the classified target on the segment', () => {
+    const segs = parseMentions('@[A](urn:li:organization:007)');
+    assert.deepEqual(segs, [
+      {
+        mention: {
+          raw: '@[A](urn:li:organization:007)',
+          typed: 'A',
+          target: 'urn:li:organization:007',
+        },
+        target: { kind: 'org-id', id: '7' },
+      },
+    ]);
   });
 });
 
@@ -456,6 +559,38 @@ describe('composeText', () => {
     );
   });
 
+  it('resolves a showcase page by vanity, as a brand', async () => {
+    const [p] = await compose(
+      '@[Cloud](https://www.linkedin.com/showcase/example-cloud/)',
+    );
+    const mention = (p as { mention: ResolvedMention }).mention;
+    assert.deepEqual(
+      { urn: mention.urn, name: mention.name, kind: mention.kind },
+      {
+        urn: 'urn:li:organization:4004',
+        name: 'Example Cloud',
+        kind: 'brand',
+      },
+    );
+    assert.deepEqual(vanitiesAsked(), ['example-cloud']);
+  });
+
+  it('says which page LinkedIn answered with when the vanity does not match', async () => {
+    await assert.rejects(
+      compose('@[R](linkedin.com/company/renamed-org)'),
+      (e: Error) => /answered with the page "example-corp"/.test(e.message),
+    );
+  });
+
+  it('matches a zero-padded id to the known organization, with no call', async () => {
+    const [p] = await composeText(
+      parseMentions('@[x](urn:li:organization:0001234567)'),
+      [{ id: '1234567', localizedName: 'Example Co' }],
+    );
+    assert.equal(li.calls.length, 0);
+    assert.equal((p as { mention: ResolvedMention }).mention.urn, ORG);
+  });
+
   it('uses an organization it already knows without a call', async () => {
     const [p] = await composeText(
       parseMentions('@[x](urn:li:organization:1234567)'),
@@ -478,6 +613,51 @@ describe('composeText', () => {
     );
     assert.equal(li.calls.length, 0);
     assert.equal((p as { mention: ResolvedMention }).mention.urn, ORG);
+  });
+
+  it('stops starting lookups once one has failed', async () => {
+    let calls = 0;
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: string | URL) => {
+      calls++;
+      const v = new URL(String(input)).searchParams.get('vanityName') ?? '';
+      // The first lookup fails at once (no such vanity); the others take a
+      // while, so the failure lands while they are still in flight.
+      if (v !== 'org-0') await new Promise((r) => setTimeout(r, 20));
+      const text = JSON.stringify({
+        elements:
+          v === 'org-0' ? [] : [{ id: 1, localizedName: v, vanityName: v }],
+      });
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        text: async () => text,
+        json: async () => JSON.parse(text),
+      };
+    }) as unknown as typeof fetch;
+    try {
+      await assert.rejects(
+        composeText(
+          parseMentions(
+            Array.from(
+              { length: 8 },
+              (_, i) => `@[o${i}](linkedin.com/company/org-${i})`,
+            ).join(' '),
+          ),
+        ),
+        /org-0/,
+      );
+      // Let anything still running settle before counting.
+      await new Promise((r) => setTimeout(r, 60));
+      assert.equal(
+        calls,
+        LOOKUP_CONCURRENCY,
+        'only the lookups already in flight ran',
+      );
+    } finally {
+      globalThis.fetch = real;
+    }
   });
 
   it(`runs at most ${LOOKUP_CONCURRENCY} lookups at once`, async () => {
@@ -717,16 +897,81 @@ describe('linkedin_post — the length limit', () => {
     assert.match(loud, /confirm_token/);
   });
 
-  it('never refuses on length after an upload', async () => {
-    // Preview passes with a warning; confirming publishes without a length
-    // refusal, so an uploaded file is always used.
+  it('without media, a warned post still publishes when confirmed', async () => {
     const text = '('.repeat(1600);
     const preview = await call('linkedin_post', { text });
+    assert.match(preview, /WARNING/);
     const out = await call('linkedin_post', {
       text,
       confirm_token: tokenIn(preview),
     });
     assert.match(out, /^PUBLISHED/);
+  });
+
+  it('with media, refuses in the preview a post whose commentary is over the limit', async () => {
+    const img = join(files.dir, 'over.png');
+    writeFileSync(img, 'png-bytes');
+    const out = await call('linkedin_post', {
+      text: '('.repeat(1600),
+      image_path: img,
+    });
+    assert.match(
+      out,
+      /^ERROR: As LinkedIn receives it .* the post is 3200 characters, over its 3000, and it has a image attached\..*Nothing was published\./s,
+    );
+    assert.doesNotMatch(out, /confirm_token/);
+    assert.equal(posts().length, 0);
+    assert.ok(!li.calls.some((c) => c.url.includes('initializeUpload')));
+  });
+
+  it('with media, a commentary within the limit previews normally', async () => {
+    const img = join(files.dir, 'fits.png');
+    writeFileSync(img, 'png-bytes');
+    const out = await call('linkedin_post', {
+      text: '('.repeat(1500),
+      image_path: img,
+    });
+    assert.match(out, /^PREVIEW/);
+    assert.doesNotMatch(out, /WARNING/);
+  });
+});
+
+describe('the confirm token binds the resolved mentions', () => {
+  it('the same text resolving differently has a different fingerprint', () => {
+    const content = { organization: ORG, text: '@[E](linkedin.com/company/e)' };
+    const a = contentFingerprint(content, [
+      (
+        m('Example Corp', 'urn:li:organization:1001') as {
+          mention: ResolvedMention;
+        }
+      ).mention,
+    ]);
+    const renamed = contentFingerprint(content, [
+      (
+        m('Example Corporation', 'urn:li:organization:1001') as {
+          mention: ResolvedMention;
+        }
+      ).mention,
+    ]);
+    const otherOrg = contentFingerprint(content, [
+      (
+        m('Example Corp', 'urn:li:organization:1002') as {
+          mention: ResolvedMention;
+        }
+      ).mention,
+    ]);
+    assert.notEqual(a, renamed);
+    assert.notEqual(a, otherOrg);
+    assert.equal(
+      a,
+      contentFingerprint(content, [
+        (
+          m('Example Corp', 'urn:li:organization:1001') as {
+            mention: ResolvedMention;
+          }
+        ).mention,
+      ]),
+    );
   });
 });
 

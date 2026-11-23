@@ -82,7 +82,7 @@ const OUTWARD =
 
 const MENTIONS =
   'To tag an organization or a person, write @[Name](target) in the text. The target is the ' +
-  'address of a LinkedIn company or school page (as pasted from a browser, e.g. ' +
+  'address of a LinkedIn company, school or showcase page (as pasted from a browser, e.g. ' +
   'https://www.linkedin.com/company/<vanity>/), urn:li:organization:<id> (only for ' +
   'organizations the authorizing member administers) or urn:li:person:<id> (a person cannot ' +
   "be looked up by name or profile URL; linkedin_list_comments shows commenters' URNs). The " +
@@ -98,6 +98,20 @@ const loggedMentions = (m: ResolvedMention[]) =>
 /** What a preview resolved, stored with its confirm token (gate.ts). */
 interface Plan {
   pieces: Piece[];
+}
+
+/** The fingerprint a confirm token binds to: the content the human sent, and
+ *  who its mentions resolved to under what name. Computed at preview from the
+ *  fresh resolution, and at confirm from the resolution stored with the token,
+ *  so the confirm call makes no lookup. */
+export function contentFingerprint(
+  content: Record<string, unknown>,
+  mentions: ResolvedMention[],
+): string {
+  return fingerprint({
+    ...content,
+    mentions: mentions.map(({ urn, name }) => ({ urn, name })),
+  });
 }
 
 /** The Page itself, already fetched for the preview: mentioning it costs no
@@ -334,7 +348,7 @@ export function registerTools(
             ? (args.document_title ?? media.name)
             : undefined;
 
-        const fp = fingerprint({
+        const content = {
           organization,
           text,
           media: media
@@ -345,14 +359,17 @@ export function registerTools(
                 title,
               }
             : null,
-        });
+        };
 
         if (args.confirm_token) {
           // The token first: a bad one is refused with no network call.
-          const claim = gate.claim<Plan>('post', args.confirm_token, fp);
+          const claim = gate.claim<Plan>('post', args.confirm_token, (p) =>
+            contentFingerprint(content, mentionsOf(p.pieces)),
+          );
           if (claim.verdict !== 'ok') return ok(refusal(claim.verdict));
-          // The length was checked at preview, on these same pieces: nothing
-          // below refuses on length, so an upload is never left orphaned by us.
+          // Every length check ran at preview, on these same pieces. Nothing
+          // below refuses on length, so the connector never uploads media for
+          // a post it then declines; only LinkedIn itself can still refuse.
           const { pieces } = claim.payload as Plan;
 
           const mediaUrn = media ? await uploadMedia(media) : undefined;
@@ -396,11 +413,28 @@ export function registerTools(
         const shown = visibleText(pieces);
         const length = charCount(shown);
         if (length > MAX_POST_CHARS) throw tooLong(length, MAX_POST_CHARS);
-        // What LinkedIn validates is the commentary, markup and escapes
-        // included, in an undocumented unit: warn, do not refuse.
+        // What LinkedIn validates is the commentary, escapes and mention markup
+        // included, in a unit it does not document; this counts UTF-16 units,
+        // the stricter reading. Over the limit:
+        //   · with media, refuse here: LinkedIn could refuse the post after the
+        //     file was uploaded, and leave it orphaned;
+        //   · without media, warn and let the human decide: if LinkedIn
+        //     refuses, nothing is published and nothing is left behind.
         const sent = commentaryOf(pieces).length;
+        if (media && sent > MAX_POST_CHARS) {
+          throw new Error(
+            `As LinkedIn receives it (escapes and mention markup included) the post is ${sent} ` +
+              `characters, over its ${MAX_POST_CHARS}, and it has a ${media.kind} attached. ` +
+              'LinkedIn could refuse it after the upload, so it is not previewed. Shorten the ' +
+              'text, or post it without the attachment. Nothing was published.',
+          );
+        }
         const mentions = mentionsOf(pieces);
-        const token = gate.issue('post', fp, { pieces } satisfies Plan);
+        const token = gate.issue(
+          'post',
+          contentFingerprint(content, mentions),
+          { pieces } satisfies Plan,
+        );
         return ok(
           [
             'PREVIEW — post on LinkedIn',
@@ -553,16 +587,18 @@ export function registerTools(
         // No I/O yet: a comment that cannot fit stops here.
         const floor = lengthFloor(segments);
         if (floor > MAX_COMMENT_CHARS) throw tooLong(floor, MAX_COMMENT_CHARS);
-        const fp = fingerprint({
+        const content = {
           organization,
           post: args.post_urn,
           parent: args.parent_comment_urn ?? null,
           text: args.text,
-        });
+        };
 
         if (args.confirm_token) {
           // The token first: a bad one is refused with no network call.
-          const claim = gate.claim<Plan>('comment', args.confirm_token, fp);
+          const claim = gate.claim<Plan>('comment', args.confirm_token, (p) =>
+            contentFingerprint(content, mentionsOf(p.pieces)),
+          );
           if (claim.verdict !== 'ok') return ok(refusal(claim.verdict));
           const { pieces } = claim.payload as Plan;
           const urn = await createComment({
@@ -600,7 +636,11 @@ export function registerTools(
         if (length > MAX_COMMENT_CHARS)
           throw tooLong(length, MAX_COMMENT_CHARS);
         const mentions = mentionsOf(pieces);
-        const token = gate.issue('comment', fp, { pieces } satisfies Plan);
+        const token = gate.issue(
+          'comment',
+          contentFingerprint(content, mentions),
+          { pieces } satisfies Plan,
+        );
         return ok(
           [
             `PREVIEW — ${args.parent_comment_urn ? 'reply' : 'comment'} on LinkedIn`,

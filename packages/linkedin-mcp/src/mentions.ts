@@ -4,13 +4,14 @@
 // ONE SYNTAX, for posts and comments alike:
 //   @[Display Name](urn:li:organization:<id>)
 //   @[Display Name](urn:li:person:<id>)
-//   @[Display Name](<a LinkedIn company or school page address>)
+//   @[Display Name](<a LinkedIn company, school or showcase page address>)
 // The page address can be pasted from a browser as is: any LinkedIn host
 // (www., m., a country prefix), with or without https://, a sub-page such as
 // /about/ or /posts/, a query string, or a trailing slash. A numeric
 // linkedin.com/company/<digits> is the organization's id, not a vanity name.
 // Anything else shaped like @[Name](...) fails the call, naming the mention,
-// so a typo never degrades to plain text. The one exception is a link to
+// so a typo never degrades to plain text. That includes near misses: a space
+// between "]" and "(", a space between "@" and "[", and a missing ")". The one exception is a link to
 // another website, @[Name](https://example.com/...), which stays literal text
 // as it always was. A bare "@handle" is never a mention.
 //
@@ -55,7 +56,10 @@ export interface MentionRef {
   target: string;
 }
 
-export type Segment = { text: string } | { mention: MentionRef };
+/** A mention carries the target parseMentions classified, so nothing
+ *  downstream classifies it again. */
+export type Segment =
+  { text: string } | { mention: MentionRef; target: Target };
 
 export interface ResolvedMention {
   typed: string;
@@ -95,9 +99,13 @@ const PERSON_URN = /^urn:li:person:([A-Za-z0-9_-]+)$/;
 // fragment after the vanity.
 const LINKEDIN_HOST = String.raw`^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\/`;
 const PAGE_URL = new RegExp(
-  `${LINKEDIN_HOST}(company|school)\\/([^/?#\\s]+)(?:[/?#]\\S*)?$`,
+  `${LINKEDIN_HOST}(company|school|showcase)\\/([^/?#\\s]+)(?:[/?#]\\S*)?$`,
   'i',
 );
+// The start of anything that looks like a mention, including near misses: a
+// space after "@" or between "]" and "(". A plain @handle or a [link] without
+// "@" never matches.
+const MENTION_START = /@(\s*)\[([^[\]\n]+)\](\s*)\(/g;
 const PROFILE_URL = new RegExp(`${LINKEDIN_HOST}in\\/`, 'i');
 
 export type Target =
@@ -110,9 +118,15 @@ function describe(ref: MentionRef): string {
 }
 
 const ACCEPTED =
-  'Accepted forms: the address of a LinkedIn company or school page ' +
-  '(https://www.linkedin.com/company/<vanity>/ or .../school/<vanity>/), ' +
-  'urn:li:organization:<id>, or urn:li:person:<id>.';
+  'Accepted forms: @[Name](target) with no spaces around the brackets, where target is the ' +
+  'address of a LinkedIn company, school or showcase page ' +
+  '(https://www.linkedin.com/company/<vanity>/, .../school/<vanity>/, ' +
+  '.../showcase/<vanity>/), urn:li:organization:<id>, or urn:li:person:<id>.';
+
+/** An id as LinkedIn writes it: decimal, no leading zeros. */
+function canonicalId(id: string): string {
+  return id.replace(/^0+(?=\d)/, '');
+}
 
 /** A link to a website that is not LinkedIn: the one @[Name](...) that stays
  *  literal text. */
@@ -137,7 +151,7 @@ function isForeignUrl(t: string): boolean {
 export function classify(ref: MentionRef): Target | null {
   const t = ref.target;
   const org = ORG_URN.exec(t);
-  if (org) return { kind: 'org-id', id: org[1] };
+  if (org) return { kind: 'org-id', id: canonicalId(org[1]) };
   if (BRAND_URN.test(t)) {
     throw new MentionError(
       `${describe(ref)} uses a brand URN. LinkedIn now addresses brand pages as ` +
@@ -155,7 +169,8 @@ export function classify(ref: MentionRef): Target | null {
       // keep it as written
     }
     // linkedin.com/company/<digits> is how LinkedIn addresses a page by id.
-    if (/^\d+$/.test(vanity)) return { kind: 'org-id', id: vanity };
+    if (/^\d+$/.test(vanity))
+      return { kind: 'org-id', id: canonicalId(vanity) };
     return { kind: 'vanity', vanity };
   }
   if (isForeignUrl(t)) return null;
@@ -175,25 +190,57 @@ export function classify(ref: MentionRef): Target | null {
   );
 }
 
+function malformed(raw: string, why: string): MentionError {
+  return new MentionError(
+    `The mention ${raw} ${why}. ${ACCEPTED} A link to another website, ` +
+      '@[Name](https://...), stays plain text. Nothing was published.',
+  );
+}
+
 /** Split text into plain-text runs and mentions. Throws on a mention-shaped
- *  target the connector cannot handle, so it never degrades to plain text. */
+ *  target the connector cannot handle, and on a near miss of the syntax, so a
+ *  mention never degrades to plain text. */
 export function parseMentions(text: string): Segment[] {
   const out: Segment[] = [];
+  const spans: Array<[number, number]> = [];
   let last = 0;
   for (const m of text.matchAll(MENTION)) {
     const ref: MentionRef = { raw: m[0], typed: m[1].trim(), target: m[2] };
-    if (!classify(ref)) continue; // not a mention target: stays plain text
+    const at = m.index ?? 0;
+    spans.push([at, at + m[0].length]);
+    const target = classify(ref);
+    if (!target) continue; // a link to another website: stays plain text
     if (!ref.typed) {
       throw new MentionError(
         `${describe(ref)} has no name between the brackets. Nothing was published.`,
       );
     }
-    const at = m.index ?? 0;
     if (at > last) out.push({ text: text.slice(last, at) });
-    out.push({ mention: ref });
+    out.push({ mention: ref, target });
     last = at + m[0].length;
   }
   if (last < text.length) out.push({ text: text.slice(last) });
+
+  // Near misses the strict pattern above does not match.
+  for (const m of text.matchAll(MENTION_START)) {
+    const at = m.index ?? 0;
+    if (spans.some(([a, b]) => at >= a && at < b)) continue;
+    const open = at + m[0].length;
+    const lineEnd = text.indexOf('\n', open);
+    const stop = lineEnd === -1 ? text.length : lineEnd;
+    const close = text.indexOf(')', open);
+    const closed = close !== -1 && close < stop;
+    const target = text.slice(open, closed ? close : stop);
+    const raw = text.slice(at, closed ? close + 1 : stop);
+    const spaced = Boolean(m[1] || m[3]);
+    // A well-formed start around another website's address, for example one
+    // whose path holds parentheses, is a link in prose: it stays literal.
+    if (!spaced && isForeignUrl(target.trim())) continue;
+    if (m[1]) throw malformed(raw, 'has a space between "@" and "["');
+    if (m[3]) throw malformed(raw, 'has a space between "]" and "("');
+    if (!closed) throw malformed(raw, 'has no closing ")"');
+    throw malformed(raw, 'is not a target this connector can mention');
+  }
   return out;
 }
 
@@ -266,9 +313,16 @@ async function byVanity(vanity: string, ref: MentionRef): Promise<Entity> {
     (e) => e.vanityName?.toLowerCase() === vanity.toLowerCase(),
   );
   if (!hit) {
+    const other = (res.body.elements ?? []).find(
+      (e) => e.vanityName,
+    )?.vanityName;
     throw new MentionError(
       `${describe(ref)} does not resolve: LinkedIn has no organization with the vanity name ` +
-        `"${vanity}". Check the address of its LinkedIn page. Nothing was published.`,
+        `"${vanity}"` +
+        (other
+          ? ` (it answered with the page "${other}", which may be its new address: check it and use that)`
+          : '') +
+        '. Check the address of its LinkedIn page. Nothing was published.',
     );
   }
   return orgEntity(hit, ref);
@@ -324,10 +378,18 @@ async function mapLimited<T, R>(
 ): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let next = 0;
+  // Once one item has failed the whole call fails, so no worker starts
+  // another: only the lookups already in flight finish.
+  let failed = false;
   const worker = async () => {
-    while (next < items.length) {
+    while (!failed && next < items.length) {
       const i = next++;
-      out[i] = await fn(items[i]);
+      try {
+        out[i] = await fn(items[i]);
+      } catch (err) {
+        failed = true;
+        throw err;
+      }
     }
   };
   await Promise.all(
@@ -348,12 +410,10 @@ export async function composeText(
   const keyOf = new Map<MentionRef, string>();
   for (const s of segments) {
     if (!('mention' in s)) continue;
-    const target = classify(s.mention);
-    if (!target)
-      throw new MentionError(`${describe(s.mention)} is not a mention.`);
-    const key = targetKey(target);
+    const key = targetKey(s.target);
     keyOf.set(s.mention, key);
-    if (!targets.has(key)) targets.set(key, { target, ref: s.mention });
+    if (!targets.has(key))
+      targets.set(key, { target: s.target, ref: s.mention });
   }
 
   const seeded = new Map(known.map((k) => [k.id, k]));

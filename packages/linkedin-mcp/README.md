@@ -103,7 +103,9 @@ Posts are capped at 3,000 characters, LinkedIn's limit, counted on the text as
 readers see it (a mention counts as the name it shows). LinkedIn validates the
 text it receives, escapes and mention markup included, so when that is longer
 than 3,000 the preview warns that LinkedIn may refuse the post; if it does,
-nothing is published. Comments are capped at 1,250 characters, the limit of
+nothing is published. A post with an image or document attached is the
+exception: there the preview refuses it, because LinkedIn could refuse the post
+after the file was uploaded. Comments are capped at 1,250 characters, the limit of
 LinkedIn's own interface, counted the same way: with each mention as
 LinkedIn's name for it, which can be longer than what you typed.
 
@@ -116,6 +118,7 @@ To tag an organization or a person in a post or a comment, write
 | -------------------------------------------------------------------- | ---------------------------------- | --------------------------------- |
 | a company page address, `…linkedin.com/company/<vanity>…`            | a company or brand                 | LinkedIn's name for it, looked up |
 | a school page address, `…linkedin.com/school/<vanity>…`              | a school                           | LinkedIn's name for it, looked up |
+| a showcase page address, `…linkedin.com/showcase/<vanity>…`          | a brand (showcase) page            | LinkedIn's name for it, looked up |
 | `urn:li:organization:<id>`, or a numeric `linkedin.com/company/<id>` | an organization **you administer** | LinkedIn's name for it, looked up |
 | `urn:li:person:<id>`                                                 | a member                           | the name you wrote, unchecked     |
 
@@ -129,8 +132,9 @@ LinkedIn host (`www.`, `m.`, a country prefix), a sub-page such as `/about/` or
 connector keeps only the vanity name.
 
 Anything else written as `@[Name](…)` fails the call, naming the mention and
-the accepted forms, so a typo such as `@[Acme](acme)` or a stray space never
-turns into plain text. The one exception is a link to another website,
+the accepted forms, so a typo never turns into plain text: `@[Acme](acme)`, a
+space inside the parentheses, a space between `]` and `(` or between `@` and
+`[`, or a missing `)`. A plain `@handle` or a `[note]` without `@` is just text. The one exception is a link to another website,
 `@[Name](https://example.com/…)`, which stays plain text as it always did. A
 legacy `urn:li:organizationBrand:<id>` is refused too: LinkedIn addresses brand
 pages as organizations now, so use `urn:li:organization:<id>` or the page

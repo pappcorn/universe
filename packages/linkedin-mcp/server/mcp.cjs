@@ -36543,7 +36543,6 @@ var EMPTY_COMPLETION_RESULT = {
 
 // src/config.ts
 var import_node_crypto = require("node:crypto");
-var import_node_crypto2 = require("node:crypto");
 var import_node_fs = require("node:fs");
 var import_node_os = require("node:os");
 var DEFAULT_API_VERSION = "202610";
@@ -36672,7 +36671,7 @@ function writeCache(creds, access_token, expires_at) {
   const dir = cacheDir();
   (0, import_node_fs.mkdirSync)(dir, { recursive: true });
   const p = cachePath(creds);
-  const tmp = `${p}.${process.pid}.${(0, import_node_crypto2.randomBytes)(4).toString("hex")}.tmp`;
+  const tmp = `${p}.${process.pid}.${(0, import_node_crypto.randomBytes)(4).toString("hex")}.tmp`;
   try {
     (0, import_node_fs.writeFileSync)(
       tmp,
@@ -36768,7 +36767,7 @@ function canRenew() {
 }
 
 // src/core.ts
-var import_node_crypto3 = require("node:crypto");
+var import_node_crypto2 = require("node:crypto");
 var import_node_fs2 = require("node:fs");
 var import_node_os2 = require("node:os");
 var import_node_path = require("node:path");
@@ -36897,14 +36896,18 @@ var BRAND_URN = /^urn:li:organizationBrand:(\d+)$/;
 var PERSON_URN = /^urn:li:person:([A-Za-z0-9_-]+)$/;
 var LINKEDIN_HOST = String.raw`^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*linkedin\.com\/`;
 var PAGE_URL = new RegExp(
-  `${LINKEDIN_HOST}(company|school)\\/([^/?#\\s]+)(?:[/?#]\\S*)?$`,
+  `${LINKEDIN_HOST}(company|school|showcase)\\/([^/?#\\s]+)(?:[/?#]\\S*)?$`,
   "i"
 );
+var MENTION_START = /@(\s*)\[([^[\]\n]+)\](\s*)\(/g;
 var PROFILE_URL = new RegExp(`${LINKEDIN_HOST}in\\/`, "i");
 function describe3(ref) {
   return `The mention ${ref.raw}`;
 }
-var ACCEPTED = "Accepted forms: the address of a LinkedIn company or school page (https://www.linkedin.com/company/<vanity>/ or .../school/<vanity>/), urn:li:organization:<id>, or urn:li:person:<id>.";
+var ACCEPTED = "Accepted forms: @[Name](target) with no spaces around the brackets, where target is the address of a LinkedIn company, school or showcase page (https://www.linkedin.com/company/<vanity>/, .../school/<vanity>/, .../showcase/<vanity>/), urn:li:organization:<id>, or urn:li:person:<id>.";
+function canonicalId(id) {
+  return id.replace(/^0+(?=\d)/, "");
+}
 function isForeignUrl(t) {
   if (!/^https?:\/\/\S+$/i.test(t)) return false;
   let host;
@@ -36918,7 +36921,7 @@ function isForeignUrl(t) {
 function classify(ref) {
   const t = ref.target;
   const org = ORG_URN.exec(t);
-  if (org) return { kind: "org-id", id: org[1] };
+  if (org) return { kind: "org-id", id: canonicalId(org[1]) };
   if (BRAND_URN.test(t)) {
     throw new MentionError(
       `${describe3(ref)} uses a brand URN. LinkedIn now addresses brand pages as organizations: use urn:li:organization:<the same id>, or the address of the page. ${ACCEPTED} Nothing was published.`
@@ -36932,7 +36935,8 @@ function classify(ref) {
       vanity = decodeURIComponent(vanity);
     } catch {
     }
-    if (/^\d+$/.test(vanity)) return { kind: "org-id", id: vanity };
+    if (/^\d+$/.test(vanity))
+      return { kind: "org-id", id: canonicalId(vanity) };
     return { kind: "vanity", vanity };
   }
   if (isForeignUrl(t)) return null;
@@ -36945,23 +36949,48 @@ function classify(ref) {
     `${describe3(ref)} is not a target this connector can mention. ${ACCEPTED} A link to another website, @[Name](https://...), stays plain text. Nothing was published.`
   );
 }
+function malformed(raw, why) {
+  return new MentionError(
+    `The mention ${raw} ${why}. ${ACCEPTED} A link to another website, @[Name](https://...), stays plain text. Nothing was published.`
+  );
+}
 function parseMentions(text) {
   const out = [];
+  const spans = [];
   let last = 0;
   for (const m of text.matchAll(MENTION)) {
     const ref = { raw: m[0], typed: m[1].trim(), target: m[2] };
-    if (!classify(ref)) continue;
+    const at = m.index ?? 0;
+    spans.push([at, at + m[0].length]);
+    const target = classify(ref);
+    if (!target) continue;
     if (!ref.typed) {
       throw new MentionError(
         `${describe3(ref)} has no name between the brackets. Nothing was published.`
       );
     }
-    const at = m.index ?? 0;
     if (at > last) out.push({ text: text.slice(last, at) });
-    out.push({ mention: ref });
+    out.push({ mention: ref, target });
     last = at + m[0].length;
   }
   if (last < text.length) out.push({ text: text.slice(last) });
+  for (const m of text.matchAll(MENTION_START)) {
+    const at = m.index ?? 0;
+    if (spans.some(([a, b]) => at >= a && at < b)) continue;
+    const open2 = at + m[0].length;
+    const lineEnd = text.indexOf("\n", open2);
+    const stop = lineEnd === -1 ? text.length : lineEnd;
+    const close = text.indexOf(")", open2);
+    const closed = close !== -1 && close < stop;
+    const target = text.slice(open2, closed ? close : stop);
+    const raw = text.slice(at, closed ? close + 1 : stop);
+    const spaced = Boolean(m[1] || m[3]);
+    if (!spaced && isForeignUrl(target.trim())) continue;
+    if (m[1]) throw malformed(raw, 'has a space between "@" and "["');
+    if (m[3]) throw malformed(raw, 'has a space between "]" and "("');
+    if (!closed) throw malformed(raw, 'has no closing ")"');
+    throw malformed(raw, "is not a target this connector can mention");
+  }
   return out;
 }
 function orgKind(type) {
@@ -37001,8 +37030,11 @@ async function byVanity(vanity, ref) {
     (e) => e.vanityName?.toLowerCase() === vanity.toLowerCase()
   );
   if (!hit) {
+    const other = (res.body.elements ?? []).find(
+      (e) => e.vanityName
+    )?.vanityName;
     throw new MentionError(
-      `${describe3(ref)} does not resolve: LinkedIn has no organization with the vanity name "${vanity}". Check the address of its LinkedIn page. Nothing was published.`
+      `${describe3(ref)} does not resolve: LinkedIn has no organization with the vanity name "${vanity}"` + (other ? ` (it answered with the page "${other}", which may be its new address: check it and use that)` : "") + ". Check the address of its LinkedIn page. Nothing was published."
     );
   }
   return orgEntity(hit, ref);
@@ -37040,10 +37072,16 @@ var LOOKUP_CONCURRENCY = 3;
 async function mapLimited(items, limit, fn) {
   const out = new Array(items.length);
   let next = 0;
+  let failed = false;
   const worker = async () => {
-    while (next < items.length) {
+    while (!failed && next < items.length) {
       const i = next++;
-      out[i] = await fn(items[i]);
+      try {
+        out[i] = await fn(items[i]);
+      } catch (err) {
+        failed = true;
+        throw err;
+      }
     }
   };
   await Promise.all(
@@ -37056,12 +37094,10 @@ async function composeText(segments, known = []) {
   const keyOf = /* @__PURE__ */ new Map();
   for (const s of segments) {
     if (!("mention" in s)) continue;
-    const target = classify(s.mention);
-    if (!target)
-      throw new MentionError(`${describe3(s.mention)} is not a mention.`);
-    const key = targetKey(target);
+    const key = targetKey(s.target);
     keyOf.set(s.mention, key);
-    if (!targets.has(key)) targets.set(key, { target, ref: s.mention });
+    if (!targets.has(key))
+      targets.set(key, { target: s.target, ref: s.mention });
   }
   const seeded = new Map(known.map((k) => [k.id, k]));
   const seededByVanity = new Map(
@@ -37272,7 +37308,7 @@ function inspectMedia(kind, path) {
     name: (0, import_node_path.basename)(path),
     type,
     bytes: data.length,
-    sha256: (0, import_node_crypto3.createHash)("sha256").update(data).digest("hex"),
+    sha256: (0, import_node_crypto2.createHash)("sha256").update(data).digest("hex"),
     data
   };
 }
@@ -37532,10 +37568,10 @@ function logAction(entry) {
 }
 
 // src/gate.ts
-var import_node_crypto4 = require("node:crypto");
+var import_node_crypto3 = require("node:crypto");
 var TOKEN_TTL_MS = 15 * 60 * 1e3;
 function fingerprint(value) {
-  return (0, import_node_crypto4.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
+  return (0, import_node_crypto3.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
 }
 var ConfirmationGate = class {
   constructor(now = Date.now) {
@@ -37546,7 +37582,7 @@ var ConfirmationGate = class {
   /** `payload` is what the preview resolved and the publish must reuse. */
   issue(action, fp, payload) {
     this.sweep();
-    const token = (0, import_node_crypto4.randomBytes)(12).toString("hex");
+    const token = (0, import_node_crypto3.randomBytes)(12).toString("hex");
     this.pending.set(token, {
       action,
       fingerprint: fp,
@@ -37557,15 +37593,21 @@ var ConfirmationGate = class {
   }
   /** Spend a token, handing back the preview's payload when it is good. Any
    *  presented token is consumed whatever the outcome, so a token that failed
-   *  once (wrong content, wrong tool) cannot be retried. */
+   *  once (wrong content, wrong tool) cannot be retried.
+   *
+   *  `fp` is the fingerprint of the content now, or a function that computes
+   *  it from the stored payload: that is how a fingerprint which covers what
+   *  the preview resolved (the mentions) is checked without resolving again. */
   claim(action, token, fp) {
     const p = this.pending.get(token);
     if (!p) return { verdict: "unknown" };
     this.pending.delete(token);
     if (p.expiresAt <= this.now()) return { verdict: "expired" };
-    if (p.action !== action || p.fingerprint !== fp)
-      return { verdict: "mismatch" };
-    return { verdict: "ok", payload: p.payload };
+    if (p.action !== action) return { verdict: "mismatch" };
+    const payload = p.payload;
+    const now = typeof fp === "function" ? fp(payload) : fp;
+    if (p.fingerprint !== now) return { verdict: "mismatch" };
+    return { verdict: "ok", payload };
   }
   sweep() {
     const t = this.now();
@@ -37595,8 +37637,14 @@ var iso = (ms) => ms ? new Date(ms).toISOString() : "(unknown)";
 var indent = (s) => s.replace(/\n/g, "\n    ");
 var CONFIRM_INSTRUCTIONS = "This is a PREVIEW. Nothing has been published. Show the person you work for exactly what is above, and get an explicit yes. Then call this tool again with the SAME arguments plus confirm_token. Do not confirm on their behalf. If they change anything, preview again.";
 var OUTWARD = "OUTWARD-FACING: it publishes AS THE ORGANIZATION PAGE, visible to the public and to every follower, and this connector cannot delete or edit it afterwards. Two-phase: called without confirm_token it publishes nothing and returns a preview plus a single-use confirm_token; show the preview to the human and call again with the same arguments and the token ONLY after their explicit yes. Never confirm on your own.";
-var MENTIONS = "To tag an organization or a person, write @[Name](target) in the text. The target is the address of a LinkedIn company or school page (as pasted from a browser, e.g. https://www.linkedin.com/company/<vanity>/), urn:li:organization:<id> (only for organizations the authorizing member administers) or urn:li:person:<id> (a person cannot be looked up by name or profile URL; linkedin_list_comments shows commenters' URNs). The connector looks organizations up and publishes LinkedIn's exact name for them, whatever was typed; the preview lists every mention. A mention that does not resolve fails the whole call, as does any other @[Name](...) except a link to another website, which stays plain text. A bare @handle stays plain text.";
+var MENTIONS = "To tag an organization or a person, write @[Name](target) in the text. The target is the address of a LinkedIn company, school or showcase page (as pasted from a browser, e.g. https://www.linkedin.com/company/<vanity>/), urn:li:organization:<id> (only for organizations the authorizing member administers) or urn:li:person:<id> (a person cannot be looked up by name or profile URL; linkedin_list_comments shows commenters' URNs). The connector looks organizations up and publishes LinkedIn's exact name for them, whatever was typed; the preview lists every mention. A mention that does not resolve fails the whole call, as does any other @[Name](...) except a link to another website, which stays plain text. A bare @handle stays plain text.";
 var loggedMentions = (m) => m.length ? m.map(({ urn, name }) => ({ urn, name })) : void 0;
+function contentFingerprint(content, mentions) {
+  return fingerprint({
+    ...content,
+    mentions: mentions.map(({ urn, name }) => ({ urn, name }))
+  });
+}
 var knownPage = (page) => [
   {
     id: page.id,
@@ -37732,7 +37780,7 @@ function registerTools(server, gate = new ConfirmationGate()) {
         if (floor > MAX_POST_CHARS) throw tooLong(floor, MAX_POST_CHARS);
         const media = args.image_path ? inspectMedia("image", args.image_path) : args.document_path ? inspectMedia("document", args.document_path) : void 0;
         const title = media?.kind === "document" ? args.document_title ?? media.name : void 0;
-        const fp = fingerprint({
+        const content = {
           organization,
           text,
           media: media ? {
@@ -37741,9 +37789,13 @@ function registerTools(server, gate = new ConfirmationGate()) {
             alt: args.image_alt_text,
             title
           } : null
-        });
+        };
         if (args.confirm_token) {
-          const claim2 = gate.claim("post", args.confirm_token, fp);
+          const claim2 = gate.claim(
+            "post",
+            args.confirm_token,
+            (p) => contentFingerprint(content, mentionsOf(p.pieces))
+          );
           if (claim2.verdict !== "ok") return ok(refusal(claim2.verdict));
           const { pieces: pieces2 } = claim2.payload;
           const mediaUrn = media ? await uploadMedia(media) : void 0;
@@ -37779,8 +37831,17 @@ function registerTools(server, gate = new ConfirmationGate()) {
         const length = charCount(shown);
         if (length > MAX_POST_CHARS) throw tooLong(length, MAX_POST_CHARS);
         const sent = commentaryOf(pieces).length;
+        if (media && sent > MAX_POST_CHARS) {
+          throw new Error(
+            `As LinkedIn receives it (escapes and mention markup included) the post is ${sent} characters, over its ${MAX_POST_CHARS}, and it has a ${media.kind} attached. LinkedIn could refuse it after the upload, so it is not previewed. Shorten the text, or post it without the attachment. Nothing was published.`
+          );
+        }
         const mentions = mentionsOf(pieces);
-        const token = gate.issue("post", fp, { pieces });
+        const token = gate.issue(
+          "post",
+          contentFingerprint(content, mentions),
+          { pieces }
+        );
         return ok(
           [
             "PREVIEW \u2014 post on LinkedIn",
@@ -37873,14 +37934,18 @@ function registerTools(server, gate = new ConfirmationGate()) {
         const segments = parseMentions(args.text);
         const floor = lengthFloor(segments);
         if (floor > MAX_COMMENT_CHARS) throw tooLong(floor, MAX_COMMENT_CHARS);
-        const fp = fingerprint({
+        const content = {
           organization,
           post: args.post_urn,
           parent: args.parent_comment_urn ?? null,
           text: args.text
-        });
+        };
         if (args.confirm_token) {
-          const claim2 = gate.claim("comment", args.confirm_token, fp);
+          const claim2 = gate.claim(
+            "comment",
+            args.confirm_token,
+            (p) => contentFingerprint(content, mentionsOf(p.pieces))
+          );
           if (claim2.verdict !== "ok") return ok(refusal(claim2.verdict));
           const { pieces: pieces2 } = claim2.payload;
           const urn = await createComment({
@@ -37912,7 +37977,11 @@ function registerTools(server, gate = new ConfirmationGate()) {
         if (length > MAX_COMMENT_CHARS)
           throw tooLong(length, MAX_COMMENT_CHARS);
         const mentions = mentionsOf(pieces);
-        const token = gate.issue("comment", fp, { pieces });
+        const token = gate.issue(
+          "comment",
+          contentFingerprint(content, mentions),
+          { pieces }
+        );
         return ok(
           [
             `PREVIEW \u2014 ${args.parent_comment_urn ? "reply" : "comment"} on LinkedIn`,

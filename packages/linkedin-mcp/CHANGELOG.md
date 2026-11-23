@@ -10,7 +10,7 @@ All notable changes to `@pappcorn/linkedin-mcp`. This project follows
 - **Mentions in posts and comments.** Write `@[Name](target)` in the text and
   the published post or comment tags that organization or person: linked,
   clickable, and notifying them. The target is the address of a LinkedIn
-  company or school page, pasted from the browser as it is (any LinkedIn host,
+  company, school or showcase page, pasted from the browser as it is (any LinkedIn host,
   sub-page, query string or trailing slash), `urn:li:organization:<id>` or
   `urn:li:person:<id>`. In a post the mention is written in LinkedIn's post
   markup; in a comment it becomes a Comments API attribute whose offsets count
@@ -31,9 +31,11 @@ All notable changes to `@pappcorn/linkedin-mcp`. This project follows
 - **A 1,250-character limit for comments**, the limit of LinkedIn's own
   interface, checked in the preview on the text with each mention expanded to
   LinkedIn's name for it.
-- **The preview warns when a post's commentary, as LinkedIn receives it, is
-  over 3,000 characters** (escapes and mention markup included), since
-  LinkedIn may refuse it at publish time. It is a warning, not a refusal.
+- **When a post's commentary, as LinkedIn receives it, is over 3,000
+  characters** (escapes and mention markup included), the preview warns that
+  LinkedIn may refuse it at publish time. With an image or document attached it
+  refuses instead, before any token, so a file is never uploaded for a post
+  LinkedIn then rejects.
 
 ### Changed
 
@@ -43,7 +45,9 @@ All notable changes to `@pappcorn/linkedin-mcp`. This project follows
   not administer, including a numeric `linkedin.com/company/<id>` address
   (LinkedIn answers 403 to any other id), a member's profile URL (LinkedIn
   offers no lookup of people), a legacy `urn:li:organizationBrand:<id>`, and
-  anything else written as `@[Name](…)` that is not an accepted target. Only a
+  anything else written as `@[Name](…)` that is not an accepted target,
+  including near misses (a space between `]` and `(` or between `@` and `[`,
+  a missing `)`). Only a
   link to another website, `@[x](https://example.com)`, and a bare `@handle`
   stay plain text, as before.
 - **Token renewal is single-flight.** Requests that run at the same time and
