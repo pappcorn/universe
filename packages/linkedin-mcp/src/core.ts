@@ -10,6 +10,8 @@
 //   images         POST /rest/images?action=initializeUpload → PUT bytes → GET status
 //   documents      POST /rest/documents?action=initializeUpload → PUT bytes → GET status
 //   comments       GET/POST /rest/socialActions/{post or comment URN}/comments
+//   mentions       GET /rest/organizations?q=vanityName · GET /rest/organizations/{id}
+//                  (resolution lives in mentions.ts; checked 2026-11-12)
 //   page           GET /rest/organizations/{id}
 //   followers      GET /rest/networkSizes/{org URN}?edgeType=COMPANY_FOLLOWED_BY_MEMBER
 //   share stats    GET /rest/organizationalEntityShareStatistics?q=organizationalEntity
@@ -34,15 +36,29 @@ import {
   uploadBinary,
 } from './api';
 import { loadConfig } from './config';
+import { commentMessage, postCommentary, type Piece } from './mentions';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Limits
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** LinkedIn's limit for a post's commentary. The API answers
- *  FIELD_LENGTH_TOO_LONG past it; checking here gives the human a clear error
- *  at preview time instead of at publish time. */
+/** LinkedIn's limit for a post. Counted as in 0.1.0: characters (code points)
+ *  of the text as readers see it, a mention counting as the name it shows.
+ *  Checking here gives the human a clear error at preview time instead of at
+ *  publish time. LinkedIn validates the commentary it receives, escapes and
+ *  mention markup included, in a unit it does not document: when that is
+ *  longer than this limit, the preview warns that LinkedIn may refuse the post
+ *  (FIELD_LENGTH_TOO_LONG), but does not refuse it here. */
 export const MAX_POST_CHARS = 3000;
+
+/** LinkedIn's limit for a comment in its own interface, counted the same way
+ *  as MAX_POST_CHARS, on the text with mentions expanded to their names. */
+export const MAX_COMMENT_CHARS = 1250;
+
+/** Characters, as MAX_POST_CHARS and MAX_COMMENT_CHARS count them. */
+export function charCount(text: string): number {
+  return Array.from(text).length;
+}
 
 export const IMAGE_TYPES: Record<string, string> = {
   '.jpg': 'JPG',
@@ -92,14 +108,17 @@ const LITTLE_RESERVED = new Set([
 /** Escape plain text for a post's commentary. One exception, deliberately: a
  *  "#" that starts a word (#hashtag) is left alone, because that is how a
  *  hashtag is written in little format and people expect hashtags to work.
- *  Mentions (@[Name](urn)) are NOT supported in v1: "@" is always escaped. */
-export function escapeLittle(text: string): string {
+ *  "@" is always escaped here: mentions are recognized BEFORE this runs (see
+ *  mentions.ts) and never pass through it. `before` is the character that
+ *  precedes `text` in the full commentary, so a "#" right after a mention is
+ *  judged in context. */
+export function escapeLittle(text: string, before = ''): string {
   const chars = Array.from(text);
   let out = '';
   for (let i = 0; i < chars.length; i++) {
     const c = chars[i];
     if (c === '#') {
-      const prev = i === 0 ? '' : chars[i - 1];
+      const prev = i === 0 ? before : chars[i - 1];
       const next = chars[i + 1] ?? '';
       const startsWord = prev === '' || /[\s([{"'¡¿]/u.test(prev);
       if (startsWord && /[\p{L}\p{N}]/u.test(next)) {
@@ -110,6 +129,20 @@ export function escapeLittle(text: string): string {
     out += LITTLE_RESERVED.has(c) ? `\\${c}` : c;
   }
   return out;
+}
+
+/** Whether text holds a character little format reserves. A mention's name that
+ *  does is escaped, and whether LinkedIn still matches it is unverified. */
+export function hasLittleReserved(text: string): boolean {
+  return Array.from(text).some((c) => LITTLE_RESERVED.has(c));
+}
+
+/** Escape every reserved character, hashtags included: for a mention's name,
+ *  which is matched against LinkedIn's name for the entity, never a hashtag. */
+export function escapeLittleAll(text: string): string {
+  return Array.from(text)
+    .map((c) => (LITTLE_RESERVED.has(c) ? `\\${c}` : c))
+    .join('');
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -250,6 +283,7 @@ export interface PageInfo {
   id: string;
   name?: string;
   vanityName?: string;
+  primaryOrganizationType?: string;
 }
 
 export function organizationId(urn: string): string {
@@ -259,15 +293,17 @@ export function organizationId(urn: string): string {
 export async function getPage(): Promise<PageInfo> {
   const { organization } = loadConfig();
   const id = organizationId(organization);
-  const res = await request<{ localizedName?: string; vanityName?: string }>(
-    'GET',
-    `organizations/${id}`,
-  );
+  const res = await request<{
+    localizedName?: string;
+    vanityName?: string;
+    primaryOrganizationType?: string;
+  }>('GET', `organizations/${id}`);
   return {
     urn: organization,
     id,
     name: res.body.localizedName,
     vanityName: res.body.vanityName,
+    primaryOrganizationType: res.body.primaryOrganizationType,
   };
 }
 
@@ -334,8 +370,9 @@ export async function listPosts(count = 10, start = 0): Promise<PostSummary[]> {
 }
 
 export interface NewPost {
-  /** Plain text, exactly as the human approved it. Escaped here, not before. */
-  text: string;
+  /** The text the human approved, with its mentions resolved, as
+   *  mentions.ts:composeText returns it. Escaped here, not before. */
+  pieces: Piece[];
   media?: {
     urn: string;
     kind: 'image' | 'document';
@@ -350,7 +387,7 @@ export function buildPostBody(
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     author: organization,
-    commentary: escapeLittle(post.text),
+    commentary: commentaryOf(post.pieces),
     visibility: 'PUBLIC',
     distribution: {
       feedDistribution: 'MAIN_FEED',
@@ -369,6 +406,12 @@ export function buildPostBody(
     body.content = { media };
   }
   return body;
+}
+
+/** The commentary exactly as LinkedIn receives it: little format, escaped,
+ *  with mentions as @[Name](urn). */
+export function commentaryOf(pieces: Piece[]): string {
+  return postCommentary(pieces, escapeLittle, escapeLittleAll);
 }
 
 /** Publish a post as the Page. Returns the new post's URN. */
@@ -477,17 +520,21 @@ export interface NewComment {
   postUrn: string;
   /** Set to reply to a comment; omit for a top-level comment on the post. */
   parentCommentUrn?: string;
-  text: string;
+  /** The text the human approved, with its mentions resolved. */
+  pieces: Piece[];
 }
 
 export function buildCommentBody(
   organization: string,
   c: NewComment,
 ): Record<string, unknown> {
+  const message = commentMessage(c.pieces);
   const body: Record<string, unknown> = {
     actor: organization,
     object: c.postUrn,
-    message: { text: c.text },
+    // Comments are not little format: a mention is an attribute over the
+    // plain text, and a comment without one is sent exactly as before.
+    message: message.attributes.length ? message : { text: message.text },
   };
   if (c.parentCommentUrn) body.parentComment = c.parentCommentUrn;
   return body;
@@ -602,6 +649,7 @@ export function logAction(entry: {
   text: string;
   target?: string;
   media?: { kind: string; name: string; sha256: string };
+  mentions?: Array<{ urn: string; name: string }>;
 }): { logged: boolean; path: string; error?: string } {
   const dir = logDir();
   const path = `${dir}/actions.jsonl`;

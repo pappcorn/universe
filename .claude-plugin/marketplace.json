@@ -27,7 +27,7 @@
     {
       "name": "linkedin-mcp",
       "source": "./packages/linkedin-mcp",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "description": "Publish to your organization's LinkedIn Page (text, image, PDF carousel), read and answer comments as the Page, and read basic Page analytics, via LinkedIn's official Community Management API. Every post and comment is previewed and confirmed. Requires your own LinkedIn app, approved for that API, for a registered company."
     },
     {
